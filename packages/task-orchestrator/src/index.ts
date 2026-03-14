@@ -25,15 +25,15 @@ export class TaskOrchestrator {
    * Phase 2: Chairman decomposes mission into work streams.
    */
   async decompose(mission: Mission): Promise<WorkStream[]> {
-    const chairman = this.router.getRole('chairman');
+    const chairman = this.router.getRole('ceo');
     if (!chairman) throw new Error('Chairman role not configured');
 
-    const roles = this.router.getRoles().filter((r) => r.isActive && r.id !== 'chairman');
+    const roles = this.router.getRoles().filter((r) => r.isActive && r.id !== 'ceo');
     const roleList = roles
       .map((r) => `- ${r.id}: ${r.name} (${r.model}) — ${r.description}`)
       .join('\n');
 
-    const response = await this.router.chatAsRole('chairman', [
+    const response = await this.router.chatAsRole('ceo', [
       { role: 'system', content: chairman.systemPrompt },
       {
         role: 'user',
