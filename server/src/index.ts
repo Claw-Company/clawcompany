@@ -4,13 +4,13 @@ import { config } from 'dotenv';
 import {
   getDefaultConfig,
   resolveRoles,
-  BUILTIN_ROLES,
   MODEL_PRICING,
 } from '@clawcompany/shared';
 import { ProviderRegistry } from '@clawcompany/providers';
 import { ModelRouter } from '@clawcompany/model-router';
+import { TaskOrchestrator } from '@clawcompany/task-orchestrator';
 
-config({ path: '../.env' }); // Load .env
+config({ path: '../.env' });
 
 const app = express();
 app.use(cors());
@@ -19,16 +19,15 @@ app.use(express.json());
 const PORT = process.env.PORT ?? 3200;
 
 // ──────────────────────────────────────────
-// Bootstrap: connect to ClawAPI
+// Bootstrap
 // ──────────────────────────────────────────
 
 const clawConfig = getDefaultConfig();
-
-// Resolve the API key from env
 clawConfig.providers[0].apiKey = process.env.CLAWAPI_KEY ?? '';
 
 const registry = new ProviderRegistry();
 let router: ModelRouter;
+let orchestrator: TaskOrchestrator;
 let bootError: string | null = null;
 
 async function bootstrap() {
@@ -41,10 +40,8 @@ async function bootstrap() {
   try {
     await registry.loadFromConfig(clawConfig.providers);
     router = new ModelRouter(registry, clawConfig);
+    orchestrator = new TaskOrchestrator(router);
     console.log('  ✅ Connected to ClawAPI');
-
-    const models = await registry.getDefault().listModels();
-    console.log(`  ✅ ${models.length} models available`);
 
     const roles = resolveRoles(clawConfig);
     const active = roles.filter(r => r.isActive && r.budgetTier !== 'survive');
@@ -76,98 +73,92 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
-// List all roles and their model bindings
 app.get('/api/roles', (_req, res) => {
   const roles = resolveRoles(clawConfig);
   res.json(roles.map(r => ({
-    id: r.id,
-    name: r.name,
-    model: r.model,
-    provider: r.provider,
-    budgetTier: r.budgetTier,
-    reportsTo: r.reportsTo,
-    isActive: r.isActive,
-    isBuiltin: r.isBuiltin,
-    description: r.description,
+    id: r.id, name: r.name, model: r.model, provider: r.provider,
+    budgetTier: r.budgetTier, reportsTo: r.reportsTo,
+    isActive: r.isActive, isBuiltin: r.isBuiltin, description: r.description,
   })));
 });
 
-// List providers
 app.get('/api/providers', (_req, res) => {
   res.json(registry.list());
 });
 
-// List available models from all providers
-app.get('/api/models', async (_req, res) => {
-  try {
-    const provider = registry.getDefault();
-    const models = await provider.listModels();
-    res.json(models);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ★ Test: chat as a specific role
+// Chat as a specific role
 app.post('/api/chat', async (req, res) => {
-  if (!router) {
-    return res.status(503).json({ error: bootError ?? 'Not initialized' });
-  }
-
+  if (!router) return res.status(503).json({ error: bootError ?? 'Not initialized' });
   const { role, message } = req.body;
-
-  if (!role || !message) {
-    return res.status(400).json({ error: 'Required: { role: "chairman", message: "..." }' });
-  }
+  if (!role || !message) return res.status(400).json({ error: 'Required: { role, message }' });
 
   try {
-    const response = await router.chatAsRole(role, [
-      { role: 'user', content: message },
-    ]);
-
-    res.json({
-      role,
-      model: response.model,
-      provider: response.provider,
-      content: response.content,
-      usage: response.usage,
-    });
+    const response = await router.chatAsRole(role, [{ role: 'user', content: message }]);
+    res.json({ role, model: response.model, provider: response.provider, content: response.content, usage: response.usage });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// ★ Test: Chairman decomposes a mission
-app.post('/api/mission/test', async (req, res) => {
-  if (!router) {
-    return res.status(503).json({ error: bootError ?? 'Not initialized' });
-  }
-
+// Decompose a mission (Phase 2 only)
+app.post('/api/mission/decompose', async (req, res) => {
+  if (!orchestrator) return res.status(503).json({ error: bootError ?? 'Not initialized' });
   const { mission } = req.body;
-  if (!mission) {
-    return res.status(400).json({ error: 'Required: { mission: "..." }' });
-  }
+  if (!mission) return res.status(400).json({ error: 'Required: { mission: "..." }' });
 
   try {
-    // Import TaskOrchestrator
-    const { TaskOrchestrator } = await import('@clawcompany/task-orchestrator');
-    const orchestrator = new TaskOrchestrator(router);
-
     const workStreams = await orchestrator.decompose({
-      id: 'test-mission-1',
-      companyId: 'test',
-      content: mission,
-      status: 'decomposing',
-      priority: 'normal',
-      approvalRequired: false,
-      totalCost: 0,
-      createdAt: new Date().toISOString(),
+      id: `mission-${Date.now()}`, companyId: 'default', content: mission,
+      status: 'decomposing', priority: 'normal', approvalRequired: false,
+      totalCost: 0, createdAt: new Date().toISOString(),
     });
+    res.json({ mission, workStreams });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ★ Full mission execution (Phase 2-6: decompose → execute → report)
+app.post('/api/mission/run', async (req, res) => {
+  if (!orchestrator) return res.status(503).json({ error: bootError ?? 'Not initialized' });
+  const { mission } = req.body;
+  if (!mission) return res.status(400).json({ error: 'Required: { mission: "..." }' });
+
+  try {
+    console.log(`\n  🎯 New mission: "${mission}"\n`);
+
+    // Phase 2: Decompose
+    console.log('  Phase 2: Decomposing...');
+    const missionObj = {
+      id: `mission-${Date.now()}`, companyId: 'default', content: mission,
+      status: 'decomposing' as const, priority: 'normal' as const,
+      approvalRequired: false, totalCost: 0, createdAt: new Date().toISOString(),
+    };
+
+    const workStreams = await orchestrator.decompose(missionObj);
+    console.log(`  ✅ Decomposed into ${workStreams.length} work streams\n`);
+
+    // Phase 3-5: Execute all work streams
+    console.log('  Phase 3-5: Executing...');
+    const report = await orchestrator.executeMission(missionObj, workStreams);
+
+    // Phase 6: Deliver
+    console.log('  Phase 6: Delivering result to Board\n');
 
     res.json({
-      mission,
-      decomposedBy: 'Chairman (claude-opus-4-6)',
-      workStreams,
+      status: 'completed',
+      mission: report.mission,
+      totalCost: `$${report.totalCost.toFixed(4)}`,
+      totalTime: `${report.totalTimeSeconds}s`,
+      workStreams: report.workStreams.map(ws => ({
+        id: ws.workStreamId,
+        title: ws.title,
+        role: ws.assignedTo,
+        model: ws.model,
+        status: ws.status,
+        cost: `$${ws.cost.toFixed(4)}`,
+        outputPreview: ws.output.slice(0, 300) + (ws.output.length > 300 ? '...' : ''),
+      })),
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
