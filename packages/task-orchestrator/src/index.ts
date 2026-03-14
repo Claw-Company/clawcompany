@@ -29,7 +29,7 @@ export class TaskOrchestrator {
    * Will switch to Chairman (Opus) when ClawAPI supports longer timeouts.
    */
   async decompose(mission: Mission): Promise<WorkStream[]> {
-    const decomposer = this.router.getRole('ceo');
+    const decomposer = this.router.getRole('chairman');
     if (!decomposer) throw new Error('CEO role not configured');
 
     const roles = this.router.getRoles().filter((r) => r.isActive && r.budgetTier !== 'survive');
@@ -37,7 +37,7 @@ export class TaskOrchestrator {
       .map((r) => `- ${r.id}: ${r.name} (${r.model}) — ${r.description}`)
       .join('\n');
 
-    const response = await this.router.chatAsRole('ceo', [
+    const response = await this.router.chatAsRole('chairman', [
       {
         role: 'user',
         content: `You are decomposing a mission for the Chairman.
@@ -84,7 +84,7 @@ Respond ONLY with JSON:
         missionId: mission.id,
         title: mission.content.slice(0, 100),
         description: mission.content,
-        assignTo: 'ceo',
+        assignTo: 'chairman',
         dependencies: [],
         estimatedComplexity: 'medium' as const,
         requiredTools: [],
