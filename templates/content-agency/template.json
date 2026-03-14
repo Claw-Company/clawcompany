@@ -1,0 +1,49 @@
+{
+  "name": "Content Agency",
+  "description": "AI content production company with writers, editors, and SEO specialists.",
+  "roles": {
+    "chairman": {},
+    "ceo": {},
+    "cto": { "isActive": false },
+    "secretary": { "isActive": false },
+    "worker": { "isActive": false },
+    "custom_writer": {
+      "name": "Content Writer",
+      "description": "Draft articles, blog posts, social media content",
+      "model": "claude-sonnet-4-6",
+      "provider": "clawapi",
+      "reportsTo": "ceo",
+      "budgetTier": "earn",
+      "tools": ["http", "filesystem"]
+    },
+    "custom_editor": {
+      "name": "Editor",
+      "description": "Review and improve written content, fact-check, maintain style guide",
+      "model": "claude-opus-4-6",
+      "provider": "clawapi",
+      "reportsTo": "ceo",
+      "budgetTier": "earn",
+      "tools": ["filesystem"]
+    },
+    "custom_seo": {
+      "name": "SEO Specialist",
+      "description": "Keyword research, meta descriptions, content optimization",
+      "model": "gpt-5-mini",
+      "provider": "clawapi",
+      "reportsTo": "ceo",
+      "budgetTier": "save",
+      "tools": ["http"]
+    },
+    "custom_publisher": {
+      "name": "Publisher",
+      "description": "Format for CMS, schedule posts, manage media assets",
+      "model": "gemini-3.1-flash-lite",
+      "provider": "clawapi",
+      "reportsTo": "ceo",
+      "budgetTier": "save",
+      "tools": ["http", "filesystem"]
+    },
+    "fallback_a": {},
+    "fallback_b": {}
+  }
+}

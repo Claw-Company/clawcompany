@@ -1,0 +1,12 @@
+{
+  "name": "@clawcompany/task-orchestrator",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@clawcompany/shared": "workspace:*",
+    "@clawcompany/agent-runtime": "workspace:*"
+  },
+  "scripts": { "build": "tsc", "typecheck": "tsc --noEmit" }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Default",
+  "description": "General-purpose AI company. Chairman + CEO + CTO + Secretary + Worker.",
+  "roles": {
+    "chairman": {},
+    "ceo": {},
+    "cto": {},
+    "secretary": {},
+    "worker": {},
+    "fallback_a": {},
+    "fallback_b": {}
+  }
+}

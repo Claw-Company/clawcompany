@@ -1,0 +1,23 @@
+{
+  "name": "@clawcompany/server",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "dependencies": {
+    "@clawcompany/shared": "workspace:*",
+    "@clawcompany/db": "workspace:*",
+    "@clawcompany/providers": "workspace:*",
+    "@clawcompany/model-router": "workspace:*",
+    "@clawcompany/agent-runtime": "workspace:*",
+    "@clawcompany/task-orchestrator": "workspace:*",
+    "express": "^4.21.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  }
+}

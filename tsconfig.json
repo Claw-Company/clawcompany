@@ -1,0 +1,26 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@clawcompany/shared": ["packages/shared/src"],
+      "@clawcompany/db": ["packages/db/src"],
+      "@clawcompany/model-router": ["packages/model-router/src"],
+      "@clawcompany/agent-runtime": ["packages/agent-runtime/src"],
+      "@clawcompany/task-orchestrator": ["packages/task-orchestrator/src"],
+      "@clawcompany/providers": ["packages/providers/src"],
+      "@clawcompany/tools": ["packages/tools/src"]
+    }
+  },
+  "references": [
+    { "path": "packages/shared" },
+    { "path": "packages/db" },
+    { "path": "packages/providers" },
+    { "path": "packages/model-router" },
+    { "path": "packages/agent-runtime" },
+    { "path": "packages/task-orchestrator" },
+    { "path": "packages/tools" },
+    { "path": "server" },
+    { "path": "cli" }
+  ]
+}

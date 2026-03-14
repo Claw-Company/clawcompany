@@ -1,0 +1,5 @@
+packages:
+  - 'packages/*'
+  - 'server'
+  - 'ui'
+  - 'cli'

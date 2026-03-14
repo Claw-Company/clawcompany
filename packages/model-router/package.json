@@ -1,0 +1,12 @@
+{
+  "name": "@clawcompany/model-router",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@clawcompany/shared": "workspace:*",
+    "@clawcompany/providers": "workspace:*"
+  },
+  "scripts": { "build": "tsc", "typecheck": "tsc --noEmit" }
+}

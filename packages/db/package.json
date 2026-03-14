@@ -1,0 +1,13 @@
+{
+  "name": "@clawcompany/db",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@clawcompany/shared": "workspace:*",
+    "drizzle-orm": "^0.39.0",
+    "@electric-sql/pglite": "^0.2.0"
+  },
+  "scripts": { "build": "tsc", "typecheck": "tsc --noEmit" }
+}

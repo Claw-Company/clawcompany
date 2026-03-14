@@ -1,0 +1,13 @@
+{
+  "name": "@clawcompany/agent-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@clawcompany/shared": "workspace:*",
+    "@clawcompany/model-router": "workspace:*",
+    "@clawcompany/tools": "workspace:*"
+  },
+  "scripts": { "build": "tsc", "typecheck": "tsc --noEmit" }
+}

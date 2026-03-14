@@ -1,0 +1,40 @@
+{
+  "name": "Dev Shop",
+  "description": "Software development team with CTO, engineers, and QA.",
+  "roles": {
+    "chairman": {},
+    "ceo": {},
+    "cto": {},
+    "secretary": { "isActive": false },
+    "worker": { "isActive": false },
+    "custom_engineer_1": {
+      "name": "Senior Engineer",
+      "description": "Build core features, code review, architecture decisions",
+      "model": "claude-sonnet-4-6",
+      "provider": "clawapi",
+      "reportsTo": "cto",
+      "budgetTier": "earn",
+      "tools": ["shell", "filesystem", "http"]
+    },
+    "custom_engineer_2": {
+      "name": "Engineer",
+      "description": "Implement features, write tests, fix bugs",
+      "model": "gpt-5.4",
+      "provider": "clawapi",
+      "reportsTo": "cto",
+      "budgetTier": "earn",
+      "tools": ["shell", "filesystem", "http"]
+    },
+    "custom_qa": {
+      "name": "QA Engineer",
+      "description": "Write and run tests, report bugs, verify fixes",
+      "model": "gpt-5-mini",
+      "provider": "clawapi",
+      "reportsTo": "cto",
+      "budgetTier": "save",
+      "tools": ["shell", "filesystem"]
+    },
+    "fallback_a": {},
+    "fallback_b": {}
+  }
+}
