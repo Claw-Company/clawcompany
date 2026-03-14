@@ -15,6 +15,11 @@ export interface LLMProvider {
   healthCheck(): Promise<{ ok: boolean; balance?: number; error?: string }>;
 }
 
+/**
+ * Universal adapter for any OpenAI-compatible endpoint.
+ * Uses streaming internally to avoid gateway timeouts.
+ * Collects the full response before returning — callers see no difference.
+ */
 export class OpenAICompatibleProvider implements LLMProvider {
   readonly id: string;
   readonly name: string;
@@ -43,16 +48,15 @@ export class OpenAICompatibleProvider implements LLMProvider {
       messages: params.messages,
       temperature: params.temperature ?? 0.7,
       max_tokens: params.maxTokens ?? 4096,
-      stream: false,
+      stream: true,  // ★ Always stream to avoid gateway timeout
     };
 
     if (params.tools?.length) {
       body.tools = params.tools;
     }
 
-    // ★ 5 minutes timeout for heavy models like Opus
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 300_000);
+    const timeout = setTimeout(() => controller.abort(), 300_000); // 5 min safety net
 
     try {
       const response = await fetch(url, {
@@ -76,25 +80,9 @@ export class OpenAICompatibleProvider implements LLMProvider {
         );
       }
 
-      const data = await response.json();
-      const choice = data.choices?.[0];
+      // ★ Parse SSE stream, collect full content
+      return await this.collectStream(response, params.model);
 
-      return {
-        content: choice?.message?.content ?? '',
-        model: data.model ?? params.model,
-        provider: this.id,
-        usage: {
-          inputTokens: data.usage?.prompt_tokens ?? 0,
-          outputTokens: data.usage?.completion_tokens ?? 0,
-          cost: calculateCost(
-            params.model,
-            data.usage?.prompt_tokens ?? 0,
-            data.usage?.completion_tokens ?? 0,
-          ),
-        },
-        toolCalls: choice?.message?.tool_calls,
-        finishReason: choice?.finish_reason ?? 'stop',
-      };
     } catch (err: any) {
       clearTimeout(timeout);
       if (err.name === 'AbortError') {
@@ -106,6 +94,104 @@ export class OpenAICompatibleProvider implements LLMProvider {
       }
       throw err;
     }
+  }
+
+  /**
+   * Read SSE stream line by line, accumulate content and tool calls.
+   * Returns a complete ChatResponse when stream ends.
+   */
+  private async collectStream(response: Response, model: string): Promise<ChatResponse> {
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No response body');
+
+    const decoder = new TextDecoder();
+    let content = '';
+    let finishReason = 'stop';
+    let toolCalls: any[] = [];
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let actualModel = model;
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // Process complete lines
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? ''; // Keep incomplete line in buffer
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed === 'data: [DONE]') continue;
+        if (!trimmed.startsWith('data: ')) continue;
+
+        try {
+          const json = JSON.parse(trimmed.slice(6));
+          const delta = json.choices?.[0]?.delta;
+          const choice = json.choices?.[0];
+
+          if (delta?.content) {
+            content += delta.content;
+          }
+
+          // Collect tool call deltas
+          if (delta?.tool_calls) {
+            for (const tc of delta.tool_calls) {
+              const idx = tc.index ?? 0;
+              if (!toolCalls[idx]) {
+                toolCalls[idx] = {
+                  id: tc.id ?? '',
+                  type: 'function',
+                  function: { name: '', arguments: '' },
+                };
+              }
+              if (tc.id) toolCalls[idx].id = tc.id;
+              if (tc.function?.name) toolCalls[idx].function.name += tc.function.name;
+              if (tc.function?.arguments) toolCalls[idx].function.arguments += tc.function.arguments;
+            }
+          }
+
+          if (choice?.finish_reason) {
+            finishReason = choice.finish_reason;
+          }
+
+          if (json.model) {
+            actualModel = json.model;
+          }
+
+          // Usage info comes in the final chunk (some providers)
+          if (json.usage) {
+            inputTokens = json.usage.prompt_tokens ?? 0;
+            outputTokens = json.usage.completion_tokens ?? 0;
+          }
+        } catch {
+          // Skip malformed JSON lines
+        }
+      }
+    }
+
+    // If provider didn't send usage, estimate from content length
+    if (outputTokens === 0 && content.length > 0) {
+      outputTokens = Math.ceil(content.length / 4); // rough estimate
+    }
+
+    const validToolCalls = toolCalls.filter(tc => tc.id && tc.function.name);
+
+    return {
+      content,
+      model: actualModel,
+      provider: this.id,
+      usage: {
+        inputTokens,
+        outputTokens,
+        cost: calculateCost(model, inputTokens, outputTokens),
+      },
+      toolCalls: validToolCalls.length > 0 ? validToolCalls : undefined,
+      finishReason: finishReason as any,
+    };
   }
 
   async listModels(): Promise<ModelInfo[]> {

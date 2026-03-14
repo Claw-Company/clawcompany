@@ -137,7 +137,7 @@ TECHNICAL STANDARDS:
 - Consider security implications
 - Optimize for performance
 - Provide clear technical explanations in your reports`,
-    model: 'claude-sonnet-4-6',  // temp: gpt-5.4 has 504 timeout on ClawAPI
+    model: 'gpt-5.4',
     provider: 'clawapi',
     reportsTo: 'ceo',
     canDelegateTo: ['worker'],
@@ -167,7 +167,7 @@ OUTPUT STANDARDS:
 - Professional formatting
 - Clear executive summaries
 - No fluff — every sentence must add value`,
-    model: 'gemini-3.1-flash-lite',  // temp: gpt-5-mini returns 400 on ClawAPI
+    model: 'gemini-3.1-flash-lite',
     provider: 'clawapi',
     reportsTo: 'chairman',
     canDelegateTo: [],
