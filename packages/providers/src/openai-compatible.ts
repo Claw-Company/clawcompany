@@ -18,7 +18,7 @@ export interface LLMProvider {
 /**
  * Universal adapter for any OpenAI-compatible endpoint.
  * Uses streaming internally to avoid gateway timeouts.
- * Collects the full response before returning — callers see no difference.
+ * Handles reasoning models (no temperature parameter).
  */
 export class OpenAICompatibleProvider implements LLMProvider {
   readonly id: string;
@@ -43,20 +43,26 @@ export class OpenAICompatibleProvider implements LLMProvider {
   async chat(params: ChatParams): Promise<ChatResponse> {
     const url = `${this.baseUrl}/chat/completions`;
 
+    const isReasoning = this.isReasoningModel(params.model);
+
     const body: Record<string, unknown> = {
       model: params.model,
       messages: params.messages,
-      temperature: params.temperature ?? 0.7,
       max_tokens: params.maxTokens ?? 4096,
-      stream: true,  // ★ Always stream to avoid gateway timeout
+      stream: true,
     };
+
+    // Reasoning models (gpt-5-mini, o1, o3, etc.) reject temperature
+    if (!isReasoning) {
+      body.temperature = params.temperature ?? 0.7;
+    }
 
     if (params.tools?.length) {
       body.tools = params.tools;
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 300_000); // 5 min safety net
+    const timeout = setTimeout(() => controller.abort(), 300_000);
 
     try {
       const response = await fetch(url, {
@@ -80,7 +86,6 @@ export class OpenAICompatibleProvider implements LLMProvider {
         );
       }
 
-      // ★ Parse SSE stream, collect full content
       return await this.collectStream(response, params.model);
 
     } catch (err: any) {
@@ -97,8 +102,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
   }
 
   /**
-   * Read SSE stream line by line, accumulate content and tool calls.
-   * Returns a complete ChatResponse when stream ends.
+   * Read SSE stream, accumulate content and tool calls.
    */
   private async collectStream(response: Response, model: string): Promise<ChatResponse> {
     const reader = response.body?.getReader();
@@ -119,9 +123,8 @@ export class OpenAICompatibleProvider implements LLMProvider {
 
       buffer += decoder.decode(value, { stream: true });
 
-      // Process complete lines
       const lines = buffer.split('\n');
-      buffer = lines.pop() ?? ''; // Keep incomplete line in buffer
+      buffer = lines.pop() ?? '';
 
       for (const line of lines) {
         const trimmed = line.trim();
@@ -137,7 +140,6 @@ export class OpenAICompatibleProvider implements LLMProvider {
             content += delta.content;
           }
 
-          // Collect tool call deltas
           if (delta?.tool_calls) {
             for (const tc of delta.tool_calls) {
               const idx = tc.index ?? 0;
@@ -162,7 +164,6 @@ export class OpenAICompatibleProvider implements LLMProvider {
             actualModel = json.model;
           }
 
-          // Usage info comes in the final chunk (some providers)
           if (json.usage) {
             inputTokens = json.usage.prompt_tokens ?? 0;
             outputTokens = json.usage.completion_tokens ?? 0;
@@ -173,9 +174,8 @@ export class OpenAICompatibleProvider implements LLMProvider {
       }
     }
 
-    // If provider didn't send usage, estimate from content length
     if (outputTokens === 0 && content.length > 0) {
-      outputTokens = Math.ceil(content.length / 4); // rough estimate
+      outputTokens = Math.ceil(content.length / 4);
     }
 
     const validToolCalls = toolCalls.filter(tc => tc.id && tc.function.name);
@@ -192,6 +192,14 @@ export class OpenAICompatibleProvider implements LLMProvider {
       toolCalls: validToolCalls.length > 0 ? validToolCalls : undefined,
       finishReason: finishReason as any,
     };
+  }
+
+  /**
+   * Reasoning models reject temperature parameter.
+   */
+  private isReasoningModel(model: string): boolean {
+    const reasoning = ['gpt-5-mini', 'o1', 'o1-mini', 'o1-preview', 'o3', 'o3-mini'];
+    return reasoning.some(r => model.includes(r));
   }
 
   async listModels(): Promise<ModelInfo[]> {

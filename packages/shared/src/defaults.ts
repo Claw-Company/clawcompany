@@ -167,7 +167,7 @@ OUTPUT STANDARDS:
 - Professional formatting
 - Clear executive summaries
 - No fluff — every sentence must add value`,
-    model: 'gemini-3.1-flash-lite',
+    model: 'gpt-5-mini',
     provider: 'clawapi',
     reportsTo: 'chairman',
     canDelegateTo: [],
