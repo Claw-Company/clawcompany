@@ -79,7 +79,7 @@ Now give it a mission:
 clawcompany mission "Write a competitive analysis comparing OpenAI vs Anthropic"
 ```
 
-No config files. No JSON to edit. No Docker. No proxy. Just answer 3 questions.
+No config files. No JSON to edit. No Docker. No proxy. No server to start. Just answer 3 questions.
 
 > **Requirements:** Node.js 20+. Get a ClawAPI key at [clawapi.org](https://clawapi.org).
 
@@ -162,21 +162,28 @@ You (Chairman / Board of Directors)
 
 ---
 
-## Open model supply layer
+## Open model supply layer — 5 built-in providers
 
-ClawCompany is **not** locked to ClawAPI. The model supply layer is fully open:
+ClawCompany is **not** locked to ClawAPI. Five providers are built in, and you can add more:
 
-```
-ClawAPI ★    Anthropic    OpenAI    DeepSeek    Ollama    + Any OpenAI-compat
-(default)    (optional)   (optional) (optional)  (local)
-```
+| # | Provider | What you get |
+|---|----------|-------------|
+| 1 | **ClawAPI** ★ | 1 key, 8 models, crypto-native. The default. |
+| 2 | **Anthropic** | Claude models direct |
+| 3 | **OpenAI** | GPT models direct |
+| 4 | **Google Gemini** | Gemini models direct |
+| 5 | **Ollama** (local) | Run models locally, free |
 
-★ = default supplier: 1 key, 8 models, crypto-native
+★ = default supplier, always first
+
+Need another provider? Add it yourself, no approval needed:
 
 ```bash
-clawcompany role set cto --model deepseek-coder --provider deepseek
-clawcompany provider add --type openai-compatible --name DeepSeek \
+clawcompany provider add --name DeepSeek \
   --url https://api.deepseek.com/v1 --key sk-deep-xxxxx
+
+# Swap any role to any provider
+clawcompany role set cto --model deepseek-coder --provider deepseek
 ```
 
 ---
