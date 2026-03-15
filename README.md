@@ -71,7 +71,9 @@ One ClawAPI key activates your entire company — 9 roles across 4 models:
 
 ---
 
-## Why multi-model? $0.064 vs $1.73
+## Why multi-model? The right model for the right job
+
+Professional work deserves professional models. Routine work deserves fast, cheap models. ClawCompany assigns automatically — faster execution, better results, 27x lower cost.
 
 ClawCompany doesn't use one model for everything. Each role uses the model best suited to its job:
 
