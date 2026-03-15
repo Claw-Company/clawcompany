@@ -7,7 +7,7 @@
 
 ClawCompany is the infrastructure for OPC — One Person Companies powered by AI. You are the Chairman. Your AI team (CEO, CTO, CFO, CMO, Engineers, Researchers, Analysts) executes autonomously. You set the goal — they figure out the rest.
 
-**[Website](https://clawcompany.org)** · **[Docs](doc/)** · **[ClawAPI](https://clawapi.org)**
+**[Website](https://clawcompany.org)** · **[Docs](doc/)** · **[Example Mission](doc/EXAMPLE-MISSION.md)** · **[ClawAPI](https://clawapi.org)**
 
 ---
 
@@ -16,18 +16,22 @@ ClawCompany is the infrastructure for OPC — One Person Companies powered by AI
 You don't need to hire anyone. You don't need to manage anyone. You give your company a mission, and it runs.
 
 ```
-You (Chairman) → "Analyze the DeFi market and write an investment report"
+You (Chairman) → "Write a competitive analysis comparing OpenAI vs Anthropic"
     ↓
-CEO (Opus) decomposes into work streams:
-    → Worker collects data (3s, $0.001)
-    → CTO does technical analysis (15s, $0.012)
-    → Researcher does market analysis (20s, $0.017)
-    → Secretary formats final report (5s, $0.001)
+CEO (Opus) decomposes into work streams ($0.027):
+    → Worker collects data (4s, $0.001)
+    → Researcher does deep analysis (47s, $0.026)
+    → CMO does market positioning (19s, $0.009)
+    → Secretary formats final report (6s, $0.001)
     ↓
 You: read the report, approve or revise. Done.
 ```
 
-**Total: 43 seconds, $0.031.** Your AI company just delivered a professional report.
+**Total: 76 seconds, $0.064.** Your AI company just delivered a professional report.
+
+If you ran the same mission using only Opus? **$1.73.** ClawCompany's multi-model architecture is **27x cheaper**.
+
+→ [See the full example mission with cost breakdown](doc/EXAMPLE-MISSION.md)
 
 ---
 
@@ -40,7 +44,7 @@ npx clawcompany
 Enter your ClawAPI key → company created → Claws ready to work.
 
 ```bash
-clawcompany mission "Analyze the top 10 DeFi protocols and write an investment report"
+clawcompany mission "Write a competitive analysis comparing OpenAI vs Anthropic"
 ```
 
 > **Requirements:** Node.js 20+
@@ -49,7 +53,7 @@ clawcompany mission "Analyze the top 10 DeFi protocols and write an investment r
 
 ## Your AI team
 
-One ClawAPI key activates your entire company:
+One ClawAPI key activates your entire company — 9 roles across 4 models:
 
 | Role | Model | Cost (in/out per 1M) | What they do |
 |------|-------|---------------------|--------------|
@@ -64,6 +68,31 @@ One ClawAPI key activates your entire company:
 | **Worker** | `gemini-flash-lite` | $0.25 / $1.50 | Data collection, routine tasks |
 
 **Every role is fully customizable.** Rename, swap models, change providers, add your own roles.
+
+---
+
+## Why multi-model? $0.064 vs $1.73
+
+ClawCompany doesn't use one model for everything. Each role uses the model best suited to its job:
+
+| Step | Role | Model | Cost | If all Opus |
+|------|------|-------|------|-------------|
+| Decompose mission | CEO | opus | $0.027 | $0.027 |
+| Data collection | Worker | flash-lite | $0.001 | ~$0.40 |
+| Deep analysis | Researcher | sonnet | $0.026 | ~$0.45 |
+| Market positioning | CMO | sonnet | $0.009 | ~$0.45 |
+| Report formatting | Secretary | flash-lite | $0.001 | ~$0.40 |
+| **Total** | | | **$0.064** | **$1.73** |
+
+**96% cheaper. 27x less cost.** Routine work (data collection, formatting) goes to flash-lite at $0.001 per call instead of Opus at $0.40+. The quality is identical because these tasks don't need deep reasoning.
+
+At scale:
+
+| Missions/day | ClawCompany | All-Opus | Monthly savings |
+|---|---|---|---|
+| 10 | $0.64/day | $17.30/day | **$499/month** |
+| 100 | $6.40/day | $173/day | **$4,998/month** |
+| 1,000 | $64/day | $1,730/day | **$49,980/month** |
 
 ---
 
@@ -111,10 +140,7 @@ ClawAPI ★    Anthropic    OpenAI    DeepSeek    Ollama    + Any OpenAI-compat
 ★ = default supplier: 1 key, 8 models, crypto-native
 
 ```bash
-# Swap any role's model
 clawcompany role set cto --model deepseek-coder --provider deepseek
-
-# Add another supplier
 clawcompany provider add --type openai-compatible --name DeepSeek \
   --url https://api.deepseek.com/v1 --key sk-deep-xxxxx
 ```
@@ -125,7 +151,7 @@ clawcompany provider add --type openai-compatible --name DeepSeek \
 
 | Template | Roles | Best for |
 |----------|-------|----------|
-| **Default** | CEO + CTO + CFO + CMO + Researcher + Analyst + Engineer + Secretary + Worker | General purpose |
+| **Default** | Full team (9 roles) | General purpose |
 | **Trading Desk** | + Trader + Data Collector | Crypto / DeFi |
 | **Content Agency** | + Writer + Editor + SEO | Content production |
 | **Dev Shop** | + QA + DevOps | Software development |
@@ -137,11 +163,12 @@ clawcompany provider add --type openai-compatible --name DeepSeek \
 
 | | Single agent (OpenClaw) | Orchestrator (Paperclip) | **ClawCompany** |
 |---|---|---|---|
-| Agent source | One agent | External agents | **Built-in** |
-| Model strategy | One model | Agent brings own | **Right model per role** |
-| Setup | Configure agent | Configure many agents | **One key, done** |
 | For whom | Developers | Technical users | **Everyone** |
+| Agent source | One agent | External agents | **Built-in team** |
+| Model strategy | One model | Agent brings own | **Right model per role** |
+| Setup | npm install + config JSON | Docker + Postgres | **npx + 1 key** |
 | Human role | Every step | Configure + monitor | **Set goal only** |
+| Cost per mission | $0.40-$0.50 (single Opus) | Varies | **$0.06 (multi-model)** |
 
 ---
 
