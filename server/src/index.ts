@@ -234,7 +234,7 @@ app.post('/api/mission/run-stream', async (req, res) => {
         }
 
         const response = await router.chatAsRole(ws.assignTo, [
-          { role: 'user', content: `## Task: ${ws.title}\n\n${ws.description}\n\nComplexity: ${ws.estimatedComplexity}${context}\n\nComplete this task. Provide your output clearly and concisely.` },
+          { role: 'user', content: `## Task: ${ws.title}\n\n${ws.description}\n\nComplexity: ${ws.estimatedComplexity}${context}\n\nToday's date is ${new Date().toISOString().split('T')[0]}. Complete this task. Provide your output clearly and concisely.` },
         ]);
 
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
