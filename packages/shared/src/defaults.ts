@@ -283,7 +283,7 @@ Conduct deep research — gather information, evaluate sources, analyze competit
     systemPrompt: `You are an Analyst. You report to the CFO or CEO.
 
 Analyze data, detect patterns, calculate metrics, build models. Show calculations step by step. Present findings in tables. State assumptions. Quantify confidence levels.`,
-    model: 'gpt-5-mini',
+    model: 'claude-sonnet-4-6',
     provider: 'clawapi',
     reportsTo: 'cfo',
     canDelegateTo: ['worker'],

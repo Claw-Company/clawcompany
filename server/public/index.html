@@ -257,7 +257,7 @@ async function loadHealth() {
   }
 }
 
-// Run mission
+// Run mission with real-time SSE progress
 async function runMission() {
   const input = document.getElementById('missionInput');
   const btn = document.getElementById('missionBtn');
@@ -269,88 +269,166 @@ async function runMission() {
   input.disabled = true;
 
   const progress = document.getElementById('missionProgress');
+  const progressText = document.getElementById('progressText');
+  const progressFill = document.getElementById('progressFill');
   progress.style.display = 'block';
+  progressText.textContent = 'CEO is analyzing your mission...';
+  progressFill.style.width = '5%';
 
-  const phases = [
-    { text: 'CEO is decomposing...', pct: 15 },
-    { text: 'Delegating to team...', pct: 30 },
-    { text: 'Team executing work streams...', pct: 60 },
-    { text: 'Collecting reports...', pct: 85 },
-  ];
+  // Create a live work stream tracker
+  const logArea = document.getElementById('missionLog');
+  const entryDiv = document.createElement('div');
+  entryDiv.className = 'mission-entry';
+  entryDiv.innerHTML = `
+    <div class="mission-entry-header">
+      <div class="mission-goal">${goal}</div>
+      <div class="mission-meta" id="liveMeta"><span class="spinner"></span> Running...</div>
+    </div>
+    <div class="ws-list" id="liveWorkStreams"></div>
+  `;
+  logArea.insertBefore(entryDiv, logArea.firstChild);
 
-  let phaseIdx = 0;
-  const phaseTimer = setInterval(() => {
-    phaseIdx = Math.min(phaseIdx + 1, phases.length - 1);
-    document.getElementById('progressText').textContent = phases[phaseIdx].text;
-    document.getElementById('progressFill').style.width = phases[phaseIdx].pct + '%';
-  }, 5000);
+  const liveWS = document.getElementById('liveWorkStreams');
+  let wsCount = 0;
+  let wsDone = 0;
 
   try {
-    const res = await fetch(API + '/api/mission/run', {
+    const response = await fetch(API + '/api/mission/run-stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mission: goal }),
     });
-    const result = await res.json();
 
-    clearInterval(phaseTimer);
-    document.getElementById('progressFill').style.width = '100%';
-    document.getElementById('progressText').textContent = 'Delivered to Chairman!';
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
 
-    setTimeout(() => { progress.style.display = 'none'; }, 1500);
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
 
-    if (result.status === 'completed') {
-      missionCountToday++;
-      const cost = parseFloat(result.totalCost.replace('$', ''));
-      totalSpent += cost;
-      document.getElementById('missionCount').textContent = missionCountToday;
-      document.getElementById('missionCost').textContent = '$' + totalSpent.toFixed(4) + ' spent';
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
 
-      const wsHTML = result.workStreams.map(ws => {
-        const icon = ws.status === 'completed' ? '✅' : '❌';
-        const preview = (ws.outputPreview || '').slice(0, 100).replace(/\n/g, ' ');
-        return `<div class="ws-item">
-          <span class="ws-icon">${icon}</span>
-          <div class="ws-info">
-            <div class="ws-title">${ws.title}</div>
-            <div class="ws-detail">
-              <span>${ws.role}</span>
-              <span style="font-family:var(--mono)">${ws.model}</span>
-              <span>${ws.cost}</span>
-            </div>
-            ${preview ? `<div class="ws-preview">${preview}</div>` : ''}
-          </div>
-        </div>`;
-      }).join('');
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const event = JSON.parse(line.slice(6));
 
-      const entry = `<div class="mission-entry">
-        <div class="mission-entry-header">
-          <div class="mission-goal">${goal}</div>
-          <div class="mission-meta">
-            <span>${result.totalCost}</span>
-            <span>${result.totalTime}</span>
-            <span>${result.workStreams.length} streams</span>
-          </div>
-        </div>
-        <div class="ws-list">${wsHTML}</div>
-      </div>`;
+          if (event.type === 'phase') {
+            progressText.textContent = event.message;
+            if (event.phase === 'decomposing') progressFill.style.width = '10%';
+            if (event.phase === 'executing') progressFill.style.width = '20%';
+          }
 
-      document.getElementById('missionLog').insertAdjacentHTML('afterbegin', entry);
-    } else {
-      document.getElementById('missionLog').insertAdjacentHTML('afterbegin',
-        `<div class="mission-entry" style="border-color:var(--red)">
-          <div class="mission-goal">❌ ${goal}</div>
-          <div style="color:var(--red);font-size:13px;margin-top:8px">${result.error || 'Unknown error'}</div>
-        </div>`);
+          if (event.type === 'decomposed') {
+            wsCount = event.workStreams.length;
+            progressText.textContent = `${wsCount} work streams created. Team starting...`;
+            progressFill.style.width = '15%';
+
+            // Show planned work streams as pending
+            for (const ws of event.workStreams) {
+              const wsEl = document.createElement('div');
+              wsEl.className = 'ws-item';
+              wsEl.id = 'ws-' + ws.id;
+              wsEl.innerHTML = `
+                <span class="ws-icon"><span class="spinner"></span></span>
+                <div class="ws-info">
+                  <div class="ws-title">${ws.title}</div>
+                  <div class="ws-detail">
+                    <span>${ws.assignTo}</span>
+                    <span style="color:var(--text3)">queued</span>
+                  </div>
+                </div>
+              `;
+              liveWS.appendChild(wsEl);
+            }
+          }
+
+          if (event.type === 'ws_start') {
+            const wsEl = document.getElementById('ws-' + event.id);
+            if (wsEl) {
+              wsEl.querySelector('.ws-icon').innerHTML = '<span class="spinner"></span>';
+              wsEl.querySelector('.ws-detail').innerHTML = `
+                <span>${event.roleName}</span>
+                <span style="font-family:var(--mono)">${event.model}</span>
+                <span style="color:var(--amber)">working...</span>
+              `;
+            }
+            progressText.textContent = `${event.roleName} is working on: ${event.title}`;
+          }
+
+          if (event.type === 'ws_done') {
+            wsDone++;
+            const pct = 20 + Math.round((wsDone / wsCount) * 75);
+            progressFill.style.width = pct + '%';
+
+            const wsEl = document.getElementById('ws-' + event.id);
+            if (wsEl) {
+              const preview = (event.outputPreview || '').slice(0, 100).replace(/\n/g, ' ');
+              wsEl.querySelector('.ws-icon').textContent = '✅';
+              wsEl.querySelector('.ws-detail').innerHTML = `
+                <span>${event.role}</span>
+                <span style="font-family:var(--mono)">${event.model}</span>
+                <span>${event.cost}</span>
+                <span>${event.time}</span>
+              `;
+              if (preview) {
+                const prevEl = document.createElement('div');
+                prevEl.className = 'ws-preview';
+                prevEl.textContent = preview;
+                prevEl.style.cursor = 'pointer';
+                prevEl.onclick = () => toggleOutput(event.id, event.output);
+                wsEl.querySelector('.ws-info').appendChild(prevEl);
+              }
+              // Store full output
+              wsEl.dataset.output = event.output || '';
+            }
+            progressText.textContent = `${event.role} completed (${wsDone}/${wsCount})`;
+          }
+
+          if (event.type === 'ws_failed') {
+            wsDone++;
+            const wsEl = document.getElementById('ws-' + event.id);
+            if (wsEl) {
+              wsEl.querySelector('.ws-icon').textContent = '❌';
+              wsEl.querySelector('.ws-detail').innerHTML = `
+                <span>${event.role}</span>
+                <span style="color:var(--red)">${event.error || 'failed'}</span>
+              `;
+            }
+          }
+
+          if (event.type === 'complete') {
+            progressFill.style.width = '100%';
+            progressText.textContent = 'Delivered to Chairman!';
+            setTimeout(() => { progress.style.display = 'none'; }, 2000);
+
+            document.getElementById('liveMeta').innerHTML = `
+              <span>${event.totalCost}</span>
+              <span>${event.totalTime}</span>
+              <span>${event.workStreams.length} streams</span>
+            `;
+
+            // Update overview stats
+            missionCountToday++;
+            const cost = parseFloat(event.totalCost.replace('$', ''));
+            totalSpent += cost;
+            document.getElementById('missionCount').textContent = missionCountToday;
+            document.getElementById('missionCost').textContent = '$' + totalSpent.toFixed(4) + ' spent';
+          }
+
+          if (event.type === 'error') {
+            progress.style.display = 'none';
+            document.getElementById('liveMeta').innerHTML = `<span style="color:var(--red)">${event.message}</span>`;
+          }
+        } catch(e) {}
+      }
     }
-  } catch(e) {
-    clearInterval(phaseTimer);
+  } catch (e) {
     progress.style.display = 'none';
-    document.getElementById('missionLog').insertAdjacentHTML('afterbegin',
-      `<div class="mission-entry" style="border-color:var(--red)">
-        <div class="mission-goal">❌ ${goal}</div>
-        <div style="color:var(--red);font-size:13px;margin-top:8px">${e.message}</div>
-      </div>`);
+    document.getElementById('liveMeta').innerHTML = `<span style="color:var(--red)">${e.message}</span>`;
   }
 
   btn.disabled = false;
@@ -358,6 +436,23 @@ async function runMission() {
   input.disabled = false;
   input.value = '';
   input.focus();
+}
+
+// Toggle full output display
+function toggleOutput(wsId, output) {
+  const existing = document.getElementById('output-' + wsId);
+  if (existing) {
+    existing.remove();
+    return;
+  }
+  const wsEl = document.getElementById('ws-' + wsId);
+  if (!wsEl) return;
+  const outputDiv = document.createElement('div');
+  outputDiv.id = 'output-' + wsId;
+  outputDiv.style.cssText = 'margin-top:8px;padding:10px 12px;background:var(--bg);border-radius:6px;font-size:12px;color:var(--text2);line-height:1.6;white-space:pre-wrap;max-height:300px;overflow-y:auto;cursor:pointer';
+  outputDiv.textContent = output;
+  outputDiv.onclick = () => outputDiv.remove();
+  wsEl.appendChild(outputDiv);
 }
 
 // Load company info + greeting

@@ -143,6 +143,151 @@ app.post('/api/mission/decompose', async (req, res) => {
   }
 });
 
+// ★ Streaming mission execution (SSE — real-time progress for Dashboard)
+app.post('/api/mission/run-stream', async (req, res) => {
+  if (!orchestrator) return res.status(503).json({ error: bootError ?? 'Not initialized' });
+  const { mission } = req.body;
+  if (!mission) return res.status(400).json({ error: 'Required: { mission: "..." }' });
+
+  // SSE headers
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*',
+  });
+
+  const send = (type: string, data: any) => {
+    res.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
+  };
+
+  try {
+    console.log(`\n  🎯 Mission from Chairman: "${mission}"\n`);
+
+    // Phase 2: Decompose
+    send('phase', { phase: 'decomposing', message: 'CEO is analyzing your mission...' });
+
+    const missionObj = {
+      id: `mission-${Date.now()}`, companyId: 'default', content: mission,
+      status: 'decomposing' as const, priority: 'normal' as const,
+      approvalRequired: false, totalCost: 0, createdAt: new Date().toISOString(),
+    };
+
+    const workStreams = await orchestrator.decompose(missionObj);
+
+    send('decomposed', {
+      message: `Decomposed into ${workStreams.length} work streams`,
+      workStreams: workStreams.map(ws => ({
+        id: ws.id, title: ws.title, assignTo: ws.assignTo,
+        dependencies: ws.dependencies, estimatedComplexity: ws.estimatedComplexity,
+      })),
+    });
+
+    // Phase 3-5: Execute each work stream
+    send('phase', { phase: 'executing', message: 'Team is working...' });
+
+    const results: any[] = [];
+    let totalCost = 0;
+    const totalStart = Date.now();
+
+    // Topological sort
+    const visited = new Set<string>();
+    const wsMap = new Map(workStreams.map(ws => [ws.id, ws]));
+    const sorted: typeof workStreams = [];
+    const visit = (ws: typeof workStreams[0]) => {
+      if (visited.has(ws.id)) return;
+      visited.add(ws.id);
+      for (const depId of ws.dependencies) {
+        const dep = wsMap.get(depId);
+        if (dep) visit(dep);
+      }
+      sorted.push(ws);
+    };
+    for (const ws of workStreams) visit(ws);
+
+    const completedOutputs = new Map<string, string>();
+
+    for (const ws of sorted) {
+      const role = router.getRole(ws.assignTo);
+      const roleName = role?.name ?? ws.assignTo;
+      const modelName = role?.model ?? 'unknown';
+
+      send('ws_start', {
+        id: ws.id, title: ws.title, role: ws.assignTo,
+        roleName, model: modelName,
+      });
+
+      const startTime = Date.now();
+
+      try {
+        // Build context from dependencies
+        let context = '';
+        if (ws.dependencies.length > 0) {
+          context = '\n\n## Previous work stream outputs:\n';
+          for (const depId of ws.dependencies) {
+            const depOutput = completedOutputs.get(depId);
+            if (depOutput) {
+              const truncated = depOutput.length > 500 ? depOutput.slice(0, 500) + '\n...(truncated)' : depOutput;
+              context += `\n### ${depId}:\n${truncated}\n`;
+            }
+          }
+        }
+
+        const response = await router.chatAsRole(ws.assignTo, [
+          { role: 'user', content: `## Task: ${ws.title}\n\n${ws.description}\n\nComplexity: ${ws.estimatedComplexity}${context}\n\nComplete this task. Provide your output clearly and concisely.` },
+        ]);
+
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        const cost = response.usage.cost;
+        totalCost += cost;
+
+        completedOutputs.set(ws.id, response.content);
+
+        const wsResult = {
+          id: ws.id, title: ws.title, role: ws.assignTo,
+          model: response.model, status: 'completed',
+          cost: `$${cost.toFixed(4)}`, time: `${elapsed}s`,
+          output: response.content,
+          outputPreview: response.content.slice(0, 300) + (response.content.length > 300 ? '...' : ''),
+        };
+        results.push(wsResult);
+
+        send('ws_done', wsResult);
+        console.log(`  ✅ ${ws.id}: ${ws.title} (${elapsed}s, $${cost.toFixed(4)})`);
+
+      } catch (err: any) {
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        const wsResult = {
+          id: ws.id, title: ws.title, role: ws.assignTo,
+          model: 'none', status: 'failed',
+          cost: '$0.0000', time: `${elapsed}s`,
+          error: err.message, output: '', outputPreview: `Error: ${err.message}`,
+        };
+        results.push(wsResult);
+        send('ws_failed', wsResult);
+        console.log(`  ❌ ${ws.id}: ${err.message}`);
+      }
+    }
+
+    const totalElapsed = ((Date.now() - totalStart) / 1000).toFixed(1);
+
+    send('complete', {
+      status: 'completed',
+      mission,
+      totalCost: `$${totalCost.toFixed(4)}`,
+      totalTime: `${totalElapsed}s`,
+      workStreams: results,
+    });
+
+    console.log(`  📊 Total: ${totalElapsed}s, $${totalCost.toFixed(4)}\n`);
+
+  } catch (err: any) {
+    send('error', { message: err.message });
+  }
+
+  res.end();
+});
+
 app.post('/api/mission/run', async (req, res) => {
   if (!orchestrator) return res.status(503).json({ error: bootError ?? 'Not initialized' });
   const { mission } = req.body;
