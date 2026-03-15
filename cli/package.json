@@ -7,6 +7,11 @@
   "main": "src/index.ts",
   "dependencies": {
     "@clawcompany/shared": "workspace:*",
+    "@clawcompany/providers": "workspace:*",
+    "@clawcompany/model-router": "workspace:*",
+    "@clawcompany/task-orchestrator": "workspace:*",
+    "@clawcompany/agent-runtime": "workspace:*",
+    "@clawcompany/tools": "workspace:*",
     "@inquirer/prompts": "^7.0.0",
     "commander": "^12.0.0"
   },

@@ -2,7 +2,11 @@
   "name": "@clawcompany/task-orchestrator",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "types": "src/index.ts",
   "dependencies": {
     "@clawcompany/shared": "workspace:*",

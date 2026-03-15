@@ -20,9 +20,24 @@ importers:
 
   cli:
     dependencies:
+      '@clawcompany/agent-runtime':
+        specifier: workspace:*
+        version: link:../packages/agent-runtime
+      '@clawcompany/model-router':
+        specifier: workspace:*
+        version: link:../packages/model-router
+      '@clawcompany/providers':
+        specifier: workspace:*
+        version: link:../packages/providers
       '@clawcompany/shared':
         specifier: workspace:*
         version: link:../packages/shared
+      '@clawcompany/task-orchestrator':
+        specifier: workspace:*
+        version: link:../packages/task-orchestrator
+      '@clawcompany/tools':
+        specifier: workspace:*
+        version: link:../packages/tools
       '@inquirer/prompts':
         specifier: ^7.0.0
         version: 7.10.1

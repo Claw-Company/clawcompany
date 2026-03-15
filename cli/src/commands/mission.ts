@@ -4,11 +4,16 @@ import {
   apiPost,
   isServerRunning,
 } from '../utils.js';
+import {
+  getDefaultConfig,
+} from '@clawcompany/shared';
+import { ProviderRegistry } from '@clawcompany/providers';
+import { ModelRouter } from '@clawcompany/model-router';
+import { TaskOrchestrator } from '@clawcompany/task-orchestrator';
 
 export async function missionCommand(goal: string) {
   banner();
 
-  // Check config
   const config = readConfig();
   if (!config) {
     console.log('  ✗ No company set up yet.');
@@ -16,18 +21,24 @@ export async function missionCommand(goal: string) {
     return;
   }
 
-  // Check server
-  if (!(await isServerRunning(config.serverPort))) {
-    console.log('  ✗ Server is not running.');
-    console.log(`  Fix: Run \`clawcompany\` in another terminal first.\n`);
-    return;
-  }
-
   console.log(`  🎯 Mission: "${goal}"\n`);
-  console.log('  Sending to CEO for decomposition...\n');
+
+  // Server running → use API. Otherwise → run in-process.
+  if (await isServerRunning(config.serverPort)) {
+    await runViaServer(goal, config.serverPort);
+  } else {
+    await runInProcess(goal, config.apiKey);
+  }
+}
+
+/**
+ * Route 1: Server is running → use HTTP API
+ */
+async function runViaServer(goal: string, port: number) {
+  console.log('  Sending to CEO...\n');
 
   try {
-    const result = await apiPost('/api/mission/run', { mission: goal }, config.serverPort);
+    const result = await apiPost('/api/mission/run', { mission: goal }, port);
 
     if (result.status !== 'completed') {
       console.log(`  ✗ Mission failed: ${result.error ?? 'Unknown error'}`);
@@ -35,31 +46,96 @@ export async function missionCommand(goal: string) {
       return;
     }
 
-    // Show results
-    console.log('  ─────────────────────────────────────────\n');
-    console.log('  📋 Mission complete!\n');
+    printResults(result);
+  } catch (err: any) {
+    console.log(`  ✗ ${err.message}\n`);
+  }
+}
 
-    for (const ws of result.workStreams) {
-      const icon = ws.status === 'completed' ? '✅' : '❌';
-      console.log(`  ${icon} ${ws.title}`);
-      console.log(`     Role: ${ws.role} (${ws.model})`);
-      console.log(`     Cost: ${ws.cost}`);
-      if (ws.outputPreview) {
-        const preview = ws.outputPreview.slice(0, 120).replace(/\n/g, ' ');
-        console.log(`     Preview: ${preview}...`);
-      }
-      console.log('');
-    }
+/**
+ * Route 2: No server → run everything in-process.
+ * User never needs to start a server separately.
+ */
+async function runInProcess(goal: string, apiKey: string) {
+  console.log('  Running in-process (no server needed)...\n');
 
-    console.log('  ─────────────────────────────────────────\n');
-    console.log(`  Total cost: ${result.totalCost}`);
-    console.log(`  Total time: ${result.totalTime}`);
-    console.log(`  Work streams: ${result.workStreams.length}`);
-    console.log('');
-    console.log('  You are the Chairman. Approve, revise, or override.');
-    console.log('');
+  try {
+    // Bootstrap
+    const clawConfig = getDefaultConfig();
+    clawConfig.providers[0].apiKey = apiKey;
+
+    const registry = new ProviderRegistry();
+    await registry.loadFromConfig(clawConfig.providers);
+
+    const router = new ModelRouter(registry, clawConfig);
+    const orchestrator = new TaskOrchestrator(router);
+
+    // Phase 2: CEO decomposes
+    console.log('  Phase 2: CEO decomposing...');
+    const mission = {
+      id: `mission-${Date.now()}`,
+      companyId: 'default',
+      content: goal,
+      status: 'decomposing' as const,
+      priority: 'normal' as const,
+      approvalRequired: false,
+      totalCost: 0,
+      createdAt: new Date().toISOString(),
+    };
+
+    const workStreams = await orchestrator.decompose(mission);
+    console.log(`  ✅ Decomposed into ${workStreams.length} work streams\n`);
+
+    // Phase 3-5: Execute
+    console.log('  Phase 3-5: Executing...');
+    const report = await orchestrator.executeMission(mission, workStreams);
+
+    console.log('  Phase 6: Delivering to Chairman\n');
+
+    const result = {
+      status: 'completed',
+      mission: report.mission,
+      totalCost: `$${report.totalCost.toFixed(4)}`,
+      totalTime: `${report.totalTimeSeconds}s`,
+      workStreams: report.workStreams.map(ws => ({
+        id: ws.workStreamId,
+        title: ws.title,
+        role: ws.assignedTo,
+        model: ws.model,
+        status: ws.status,
+        cost: `$${ws.cost.toFixed(4)}`,
+        outputPreview: ws.output.slice(0, 300) + (ws.output.length > 300 ? '...' : ''),
+      })),
+    };
+
+    printResults(result);
   } catch (err: any) {
     console.log(`  ✗ ${err.message}`);
-    console.log('  Fix: Check if the server is running.\n');
+    console.log('  Fix: Check your ClawAPI key or internet connection.\n');
   }
+}
+
+function printResults(result: any) {
+  console.log('  ─────────────────────────────────────────\n');
+  console.log('  📋 Mission complete!\n');
+
+  for (const ws of result.workStreams) {
+    const icon = ws.status === 'completed' ? '✅' : '❌';
+    console.log(`  ${icon} ${ws.title}`);
+    console.log(`     Role: ${ws.role} (${ws.model})`);
+    console.log(`     Cost: ${ws.cost}`);
+    if (ws.outputPreview) {
+      const preview = ws.outputPreview.slice(0, 120).replace(/\n/g, ' ');
+      console.log(`     Preview: ${preview}...`);
+    }
+    console.log('');
+  }
+
+  console.log('  ─────────────────────────────────────────\n');
+  console.log(`  Total cost: ${result.totalCost}`);
+  console.log(`  Total time: ${result.totalTime}`);
+  console.log(`  Work streams: ${result.workStreams.length}`);
+  console.log('');
+  console.log('  You are the Chairman. Approve, revise, or override.');
+  console.log('');
 }
