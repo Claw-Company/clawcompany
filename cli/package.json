@@ -1,17 +1,17 @@
 {
   "name": "clawcompany",
   "version": "0.1.0",
-  "description": "Build for WEB4.0, Claws Autonomous.",
+  "description": "Build for OPC. Every human being is a chairman.",
+  "type": "module",
   "bin": { "clawcompany": "dist/index.js" },
   "main": "src/index.ts",
   "dependencies": {
     "@clawcompany/shared": "workspace:*",
-    "commander": "^12.0.0",
-    "inquirer": "^9.2.0",
-    "chalk": "^5.3.0",
-    "ora": "^8.0.0"
+    "@inquirer/prompts": "^7.0.0",
+    "commander": "^12.0.0"
   },
   "scripts": {
+    "dev": "tsx src/index.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit"
   }

@@ -1,31 +1,59 @@
 #!/usr/bin/env node
 
-/**
- * ClawCompany CLI
- * Build for WEB4.0, Claws Autonomous.
- *
- * Usage:
- *   npx clawcompany init          — Set up your AI company
- *   clawcompany mission "..."     — Give the company a mission
- *   clawcompany status            — Check company status
- *   clawcompany role list         — List all roles
- *   clawcompany provider list     — List all providers
- */
+import { Command } from 'commander';
+import { initCommand } from './commands/init.js';
+import { missionCommand } from './commands/mission.js';
+import { statusCommand } from './commands/status.js';
+import { roleCommand } from './commands/role.js';
+import { banner } from './utils.js';
 
-console.log('');
-console.log('  🦞 ClawCompany v0.1.0');
-console.log('  Build for WEB4.0, Claws Autonomous.');
-console.log('');
-console.log('  Commands (coming in Step 6):');
-console.log('    init              Set up your AI company');
-console.log('    mission "..."     Give the company a mission');
-console.log('    status            Check company status');
-console.log('    role list         List all roles');
-console.log('    role add          Add a custom role');
-console.log('    role set          Modify a role');
-console.log('    provider list     List model suppliers');
-console.log('    provider add      Add a supplier');
-console.log('    balance           Check ClawAPI balance');
-console.log('');
+const program = new Command();
 
-// TODO: Wire up Commander.js commands (Step 6 of execution plan)
+program
+  .name('clawcompany')
+  .description('Build for OPC. Every human being is a chairman.')
+  .version('0.1.0');
+
+// `npx clawcompany` with no args → run onboarding
+program
+  .command('init', { isDefault: true })
+  .description('Set up your AI company (runs automatically on first use)')
+  .action(initCommand);
+
+// `clawcompany mission "..."`
+program
+  .command('mission <goal>')
+  .description('Give your company a mission')
+  .option('-t, --template <name>', 'Override decomposition template')
+  .action(missionCommand);
+
+// `clawcompany status`
+program
+  .command('status')
+  .description('Check company status and active missions')
+  .action(statusCommand);
+
+// `clawcompany role`
+const role = program.command('role').description('Manage roles');
+
+role
+  .command('list')
+  .description('List all roles and their model bindings')
+  .action(async () => {
+    const { roleListCommand } = await import('./commands/role.js');
+    await roleListCommand();
+  });
+
+role
+  .command('set <roleId>')
+  .description('Modify a role')
+  .option('-m, --model <model>', 'Set model')
+  .option('-p, --provider <provider>', 'Set provider')
+  .option('-n, --name <name>', 'Set display name')
+  .action(async (roleId, opts) => {
+    const { roleSetCommand } = await import('./commands/role.js');
+    await roleSetCommand(roleId, opts);
+  });
+
+// Parse
+program.parse();
