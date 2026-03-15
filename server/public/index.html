@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClawCompany Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦞</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0d0f11;--bg2:#151820;--bg3:#1c2029;--bg4:#242832;
+  --text:#e4e4e7;--text2:#9ca3af;--text3:#6b7280;
+  --coral:#d85a30;--coral2:#f0997b;--coralBg:rgba(216,90,48,0.1);
+  --teal:#1d9e75;--tealBg:rgba(29,158,117,0.1);
+  --amber:#ba7517;--amberBg:rgba(186,117,23,0.1);
+  --blue:#378add;--blueBg:rgba(55,138,221,0.1);
+  --red:#e24b4a;--redBg:rgba(226,75,74,0.1);
+  --border:#2a2e38;--radius:10px;
+  --font:'DM Sans',system-ui,sans-serif;--mono:'DM Mono',monospace;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex;min-height:100vh}
+
+/* Sidebar */
+.sidebar{width:220px;background:var(--bg2);border-right:1px solid var(--border);padding:20px 0;display:flex;flex-direction:column;position:fixed;height:100vh}
+.sidebar-brand{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.sidebar-brand h1{font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px}
+.sidebar-brand p{font-size:11px;color:var(--text3);margin-top:4px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;font-size:13px;color:var(--text2);cursor:pointer;transition:all .15s}
+.nav-item:hover{background:var(--bg3);color:var(--text)}
+.nav-item.active{background:var(--coralBg);color:var(--coral2);border-right:2px solid var(--coral)}
+.nav-icon{width:18px;text-align:center;font-size:14px}
+.sidebar-footer{margin-top:auto;padding:16px 20px;border-top:1px solid var(--border);font-size:11px;color:var(--text3)}
+
+/* Main */
+.main{margin-left:220px;flex:1;padding:32px 40px;max-width:1100px}
+.page{display:none}
+.page.active{display:block}
+.page-title{font-size:22px;font-weight:600;margin-bottom:4px}
+.page-sub{font-size:13px;color:var(--text2);margin-bottom:24px}
+
+/* Cards */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:24px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.card-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.card-value{font-size:24px;font-weight:600}
+.card-sub{font-size:12px;color:var(--text2);margin-top:2px}
+
+/* Role cards */
+.role-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.role-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;transition:border-color .15s}
+.role-card:hover{border-color:var(--coral)}
+.role-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.role-name{font-size:14px;font-weight:600}
+.role-tier{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:500}
+.role-tier.csuite{background:var(--coralBg);color:var(--coral2)}
+.role-tier.mid{background:var(--blueBg);color:var(--blue)}
+.role-tier.ops{background:var(--tealBg);color:var(--teal)}
+.role-model{font-family:var(--mono);font-size:12px;color:var(--text2);margin-bottom:4px}
+.role-cost{font-size:11px;color:var(--text3)}
+.role-reports{font-size:11px;color:var(--text3);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)}
+
+/* Mission */
+.mission-input{display:flex;gap:12px;margin-bottom:24px}
+.mission-input input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;color:var(--text);font-family:var(--font);font-size:14px;outline:none;transition:border-color .15s}
+.mission-input input:focus{border-color:var(--coral)}
+.mission-input input::placeholder{color:var(--text3)}
+.btn{background:var(--coral);color:#fff;border:none;border-radius:var(--radius);padding:12px 24px;font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;transition:opacity .15s;white-space:nowrap}
+.btn:hover{opacity:.85}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* Mission results */
+.mission-log{margin-top:16px}
+.mission-entry{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.mission-entry-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.mission-goal{font-size:14px;font-weight:500}
+.mission-meta{font-size:12px;color:var(--text2);display:flex;gap:16px}
+.ws-list{display:flex;flex-direction:column;gap:8px}
+.ws-item{background:var(--bg3);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:12px}
+.ws-icon{font-size:14px;width:20px;text-align:center}
+.ws-info{flex:1;min-width:0}
+.ws-title{font-size:13px;font-weight:500}
+.ws-detail{font-size:11px;color:var(--text3);display:flex;gap:12px;margin-top:2px}
+.ws-preview{font-size:12px;color:var(--text2);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Status indicator */
+.status{display:inline-flex;align-items:center;gap:6px;font-size:12px}
+.status-dot{width:8px;height:8px;border-radius:50%}
+.status-dot.ok{background:var(--teal)}
+.status-dot.error{background:var(--red)}
+
+/* Loading */
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--coral);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Progress */
+.progress-bar{background:var(--bg3);border-radius:4px;height:6px;overflow:hidden;margin-top:8px}
+.progress-fill{height:100%;background:var(--coral);border-radius:4px;transition:width .3s}
+
+/* Mobile */
+@media(max-width:768px){
+  .sidebar{width:60px}.sidebar-brand p,.nav-item span:last-child,.sidebar-footer{display:none}
+  .sidebar-brand h1 span:last-child{display:none}.nav-item{padding:12px;justify-content:center}
+  .main{margin-left:60px;padding:20px}
+  .cards{grid-template-columns:1fr 1fr}.role-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    <h1><span>🦞</span> <span id="sidebarCompany">ClawCompany</span></h1>
+    <p id="sidebarSub">Build for OPC</p>
+  </div>
+  <div class="nav-item active" onclick="showPage('overview')">
+    <span class="nav-icon">◉</span> <span>Overview</span>
+  </div>
+  <div class="nav-item" onclick="showPage('mission')">
+    <span class="nav-icon">◎</span> <span>Mission</span>
+  </div>
+  <div class="nav-item" onclick="showPage('roles')">
+    <span class="nav-icon">◈</span> <span>Roles</span>
+  </div>
+  <div class="sidebar-footer">
+    <span class="status"><span class="status-dot ok" id="statusDot"></span> <span id="statusText">Connected</span></span>
+  </div>
+</nav>
+
+<div class="main">
+
+  <!-- Overview Page -->
+  <div class="page active" id="page-overview">
+    <div class="page-title" id="welcomeTitle">Dashboard</div>
+    <div class="page-sub" id="welcomeSub">You are the Chairman. Your AI company is ready.</div>
+
+    <div class="cards" id="overviewCards">
+      <div class="card">
+        <div class="card-label">Active roles</div>
+        <div class="card-value" id="roleCount">—</div>
+        <div class="card-sub">across 4 models</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Provider</div>
+        <div class="card-value" style="font-size:18px" id="providerName">—</div>
+        <div class="card-sub" id="providerStatus">checking...</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Missions today</div>
+        <div class="card-value" id="missionCount">0</div>
+        <div class="card-sub" id="missionCost">$0.00 spent</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Architecture</div>
+        <div class="card-value" style="font-size:16px">27x cheaper</div>
+        <div class="card-sub">vs all-Opus</div>
+      </div>
+    </div>
+
+    <div style="font-size:14px;font-weight:500;margin-bottom:12px">Team</div>
+    <div class="role-grid" id="overviewRoles"></div>
+  </div>
+
+  <!-- Mission Page -->
+  <div class="page" id="page-mission">
+    <div class="page-title">Mission control</div>
+    <div class="page-sub">Give your company a mission. The CEO will decompose and execute.</div>
+
+    <div class="mission-input">
+      <input type="text" id="missionInput" placeholder="Write a competitive analysis comparing OpenAI vs Anthropic..." onkeydown="if(event.key==='Enter')runMission()">
+      <button class="btn" id="missionBtn" onclick="runMission()">Run mission</button>
+    </div>
+
+    <div id="missionProgress" style="display:none">
+      <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);margin-bottom:8px">
+        <span class="spinner"></span> <span id="progressText">CEO is decomposing...</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:10%"></div></div>
+    </div>
+
+    <div class="mission-log" id="missionLog"></div>
+  </div>
+
+  <!-- Roles Page -->
+  <div class="page" id="page-roles">
+    <div class="page-title">Organization</div>
+    <div class="page-sub">👤 Chairman = Human (you). Your AI team below.</div>
+
+    <div class="role-grid" id="rolesGrid"></div>
+  </div>
+
+</div>
+
+<script>
+const API = '';
+let missionHistory = [];
+let totalSpent = 0;
+let missionCountToday = 0;
+
+// Navigation
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// Fetch roles
+async function loadRoles() {
+  try {
+    const res = await fetch(API + '/api/roles');
+    const roles = await res.json();
+    const active = roles.filter(r => r.isActive && r.budgetTier !== 'survive');
+
+    document.getElementById('roleCount').textContent = active.length;
+
+    const tierMap = {
+      ceo: 'csuite', cto: 'csuite', cfo: 'csuite', cmo: 'csuite',
+      researcher: 'mid', analyst: 'mid', engineer: 'mid',
+      secretary: 'ops', worker: 'ops'
+    };
+
+    const roleHTML = active.map(r => {
+      const tier = tierMap[r.id] || 'ops';
+      const tierLabel = tier === 'csuite' ? 'C-suite' : tier === 'mid' ? 'Mid-level' : 'Operations';
+      return `<div class="role-card">
+        <div class="role-header">
+          <span class="role-name">${r.name}</span>
+          <span class="role-tier ${tier}">${tierLabel}</span>
+        </div>
+        <div class="role-model">${r.model}</div>
+        <div class="role-cost">${r.description}</div>
+        <div class="role-reports">Reports to → ${r.reportsTo || 'Human (Chairman)'}</div>
+      </div>`;
+    }).join('');
+
+    document.getElementById('overviewRoles').innerHTML = roleHTML;
+    document.getElementById('rolesGrid').innerHTML = roleHTML;
+  } catch(e) {
+    console.error('Failed to load roles:', e);
+  }
+}
+
+// Fetch health
+async function loadHealth() {
+  try {
+    const res = await fetch(API + '/api/health');
+    const data = await res.json();
+    document.getElementById('statusDot').className = 'status-dot ' + (data.status === 'ok' ? 'ok' : 'error');
+    document.getElementById('statusText').textContent = data.status === 'ok' ? 'Connected' : 'Error';
+    document.getElementById('providerName').textContent = 'ClawAPI';
+    document.getElementById('providerStatus').textContent = data.status === 'ok' ? 'connected' : data.error || 'error';
+  } catch(e) {
+    document.getElementById('statusDot').className = 'status-dot error';
+    document.getElementById('statusText').textContent = 'Offline';
+    document.getElementById('providerStatus').textContent = 'cannot connect';
+  }
+}
+
+// Run mission
+async function runMission() {
+  const input = document.getElementById('missionInput');
+  const btn = document.getElementById('missionBtn');
+  const goal = input.value.trim();
+  if (!goal) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Running...';
+  input.disabled = true;
+
+  const progress = document.getElementById('missionProgress');
+  progress.style.display = 'block';
+
+  const phases = [
+    { text: 'CEO is decomposing...', pct: 15 },
+    { text: 'Delegating to team...', pct: 30 },
+    { text: 'Team executing work streams...', pct: 60 },
+    { text: 'Collecting reports...', pct: 85 },
+  ];
+
+  let phaseIdx = 0;
+  const phaseTimer = setInterval(() => {
+    phaseIdx = Math.min(phaseIdx + 1, phases.length - 1);
+    document.getElementById('progressText').textContent = phases[phaseIdx].text;
+    document.getElementById('progressFill').style.width = phases[phaseIdx].pct + '%';
+  }, 5000);
+
+  try {
+    const res = await fetch(API + '/api/mission/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mission: goal }),
+    });
+    const result = await res.json();
+
+    clearInterval(phaseTimer);
+    document.getElementById('progressFill').style.width = '100%';
+    document.getElementById('progressText').textContent = 'Delivered to Chairman!';
+
+    setTimeout(() => { progress.style.display = 'none'; }, 1500);
+
+    if (result.status === 'completed') {
+      missionCountToday++;
+      const cost = parseFloat(result.totalCost.replace('$', ''));
+      totalSpent += cost;
+      document.getElementById('missionCount').textContent = missionCountToday;
+      document.getElementById('missionCost').textContent = '$' + totalSpent.toFixed(4) + ' spent';
+
+      const wsHTML = result.workStreams.map(ws => {
+        const icon = ws.status === 'completed' ? '✅' : '❌';
+        const preview = (ws.outputPreview || '').slice(0, 100).replace(/\n/g, ' ');
+        return `<div class="ws-item">
+          <span class="ws-icon">${icon}</span>
+          <div class="ws-info">
+            <div class="ws-title">${ws.title}</div>
+            <div class="ws-detail">
+              <span>${ws.role}</span>
+              <span style="font-family:var(--mono)">${ws.model}</span>
+              <span>${ws.cost}</span>
+            </div>
+            ${preview ? `<div class="ws-preview">${preview}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+
+      const entry = `<div class="mission-entry">
+        <div class="mission-entry-header">
+          <div class="mission-goal">${goal}</div>
+          <div class="mission-meta">
+            <span>${result.totalCost}</span>
+            <span>${result.totalTime}</span>
+            <span>${result.workStreams.length} streams</span>
+          </div>
+        </div>
+        <div class="ws-list">${wsHTML}</div>
+      </div>`;
+
+      document.getElementById('missionLog').insertAdjacentHTML('afterbegin', entry);
+    } else {
+      document.getElementById('missionLog').insertAdjacentHTML('afterbegin',
+        `<div class="mission-entry" style="border-color:var(--red)">
+          <div class="mission-goal">❌ ${goal}</div>
+          <div style="color:var(--red);font-size:13px;margin-top:8px">${result.error || 'Unknown error'}</div>
+        </div>`);
+    }
+  } catch(e) {
+    clearInterval(phaseTimer);
+    progress.style.display = 'none';
+    document.getElementById('missionLog').insertAdjacentHTML('afterbegin',
+      `<div class="mission-entry" style="border-color:var(--red)">
+        <div class="mission-goal">❌ ${goal}</div>
+        <div style="color:var(--red);font-size:13px;margin-top:8px">${e.message}</div>
+      </div>`);
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Run mission';
+  input.disabled = false;
+  input.value = '';
+  input.focus();
+}
+
+// Load company info + greeting
+async function loadCompany() {
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+
+  try {
+    const res = await fetch(API + '/api/company');
+    const company = await res.json();
+    document.getElementById('welcomeTitle').textContent = `${greeting}, Chairman.`;
+    document.getElementById('welcomeSub').textContent = `${company.name} is ready for your command.`;
+    document.getElementById('sidebarCompany').textContent = company.name;
+    document.getElementById('sidebarSub').textContent = 'Build for OPC';
+  } catch {
+    document.getElementById('welcomeTitle').textContent = `${greeting}, Chairman.`;
+    document.getElementById('welcomeSub').textContent = 'Your AI company is ready.';
+  }
+}
+
+// Init
+loadHealth();
+loadRoles();
+loadCompany();
+setInterval(loadHealth, 30000);
+</script>
+</body>
+</html>

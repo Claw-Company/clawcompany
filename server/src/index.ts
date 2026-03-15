@@ -1,6 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import { config } from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import { existsSync, readFileSync } from 'fs';
 import {
   getDefaultConfig,
   resolveRoles,
@@ -12,9 +15,15 @@ import { TaskOrchestrator } from '@clawcompany/task-orchestrator';
 
 config({ path: '../.env' });
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Serve dashboard at root
+app.use(express.static(join(__dirname, '..', 'public')));
 
 const PORT = process.env.PORT ?? 3200;
 
@@ -69,6 +78,26 @@ app.get('/api/health', (_req, res) => {
     tagline: 'Build for OPC. Every human being is a chairman.',
     error: bootError,
   });
+});
+
+// Company info (reads from ~/.clawcompany/config.json)
+app.get('/api/company', (_req, res) => {
+  try {
+    const homeDir = process.env.HOME ?? '~';
+    const configPath = `${homeDir}/.clawcompany/config.json`;
+    if (existsSync(configPath)) {
+      const config = JSON.parse(readFileSync(configPath, 'utf-8'));
+      res.json({
+        name: config.companyName ?? 'My AI Company',
+        template: config.template ?? 'default',
+        createdAt: config.createdAt,
+      });
+    } else {
+      res.json({ name: 'My AI Company', template: 'default' });
+    }
+  } catch {
+    res.json({ name: 'My AI Company', template: 'default' });
+  }
 });
 
 app.get('/api/roles', (_req, res) => {
@@ -156,7 +185,8 @@ app.post('/api/mission/run', async (req, res) => {
 app.listen(PORT, async () => {
   console.log('');
   console.log('  🦞 ClawCompany server running');
-  console.log(`  → http://localhost:${PORT}`);
+  console.log(`  → Dashboard: http://localhost:${PORT}`);
+  console.log(`  → API: http://localhost:${PORT}/api/health`);
   console.log('');
   await bootstrap();
   console.log('  Build for OPC. Every human being is a chairman.');
