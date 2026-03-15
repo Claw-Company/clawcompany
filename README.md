@@ -52,12 +52,12 @@ That's it. The wizard guides you through everything:
   ✓ Key verified
 
   Step 2/3: Name your company
-  ? Company name: Dragon
+  ? Company name: Claws LTD.CO.
 
   Step 3/3: Choose a template
   ? Template: Default (CEO + CTO + CFO + CMO + Researcher + Analyst + ...)
 
-  ✓ Company "Dragon" created
+  ✓ Company "Claws LTD.CO." created
   ✓ 9 agents hired:
 
      CEO         → claude-opus-4-6 ($5/$25)
@@ -70,7 +70,7 @@ That's it. The wizard guides you through everything:
      Secretary   → gemini-flash-lite ($0.25/$1.5)
      Worker      → gemini-flash-lite ($0.25/$1.5)
 
-  "Dragon" is ready! You are the Chairman.
+  "Claws LTD.CO." is ready! You are the Chairman.
 ```
 
 Now give it a mission:
