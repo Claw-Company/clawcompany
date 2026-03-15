@@ -1,23 +1,43 @@
 {
   "name": "clawcompany",
   "version": "0.1.0",
-  "description": "Build for OPC. Every human being is a chairman.",
+  "description": "Build for OPC. Every human being is a chairman. AI company infrastructure — one key, 9 roles, 4 models.",
   "type": "module",
   "bin": { "clawcompany": "dist/index.js" },
-  "main": "src/index.ts",
+  "files": ["dist", "README.md"],
+  "keywords": [
+    "ai", "agent", "opc", "one-person-company", "autonomous",
+    "llm", "multi-model", "orchestration", "clawapi",
+    "opus", "sonnet", "gpt", "gemini"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Claw-Company/clawcompany.git",
+    "directory": "cli"
+  },
+  "homepage": "https://clawcompany.org",
+  "bugs": "https://github.com/Claw-Company/clawcompany/issues",
+  "license": "MIT",
+  "author": "ClawCompany <alex@clawcompany.org>",
+  "engines": { "node": ">=20" },
   "dependencies": {
+    "@inquirer/prompts": "^7.0.0",
+    "commander": "^12.0.0"
+  },
+  "devDependencies": {
     "@clawcompany/shared": "workspace:*",
     "@clawcompany/providers": "workspace:*",
     "@clawcompany/model-router": "workspace:*",
     "@clawcompany/task-orchestrator": "workspace:*",
     "@clawcompany/agent-runtime": "workspace:*",
     "@clawcompany/tools": "workspace:*",
-    "@inquirer/prompts": "^7.0.0",
-    "commander": "^12.0.0"
+    "tsup": "^8.0.0",
+    "typescript": "^5.5.0"
   },
   "scripts": {
     "dev": "tsx src/index.ts",
-    "build": "tsc",
-    "typecheck": "tsc --noEmit"
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
   }
 }
