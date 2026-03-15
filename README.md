@@ -35,19 +35,53 @@ If you ran the same mission using only Opus? **$1.73.** ClawCompany's multi-mode
 
 ---
 
-## Quick start
+## Quick start — 3 steps, 30 seconds
 
 ```bash
 npx clawcompany
 ```
 
-Enter your ClawAPI key → company created → Claws ready to work.
+That's it. The wizard guides you through everything:
+
+```
+  🦞 ClawCompany v0.1.0
+  Build for OPC. Every human being is a chairman.
+
+  Step 1/3: Connect to ClawAPI
+  ? Enter your ClawAPI key: sk-claw-████████████
+  ✓ Key verified
+
+  Step 2/3: Name your company
+  ? Company name: Dragon
+
+  Step 3/3: Choose a template
+  ? Template: Default (CEO + CTO + CFO + CMO + Researcher + Analyst + ...)
+
+  ✓ Company "Dragon" created
+  ✓ 9 agents hired:
+
+     CEO         → claude-opus-4-6 ($5/$25)
+     CTO         → gpt-5.4 ($2.5/$15)
+     CFO         → gpt-5-mini ($0.25/$2)
+     CMO         → claude-sonnet-4-6 ($3/$15)
+     Researcher  → claude-sonnet-4-6 ($3/$15)
+     Analyst     → gpt-5-mini ($0.25/$2)
+     Engineer    → gpt-5.4 ($2.5/$15)
+     Secretary   → gemini-flash-lite ($0.25/$1.5)
+     Worker      → gemini-flash-lite ($0.25/$1.5)
+
+  "Dragon" is ready! You are the Chairman.
+```
+
+Now give it a mission:
 
 ```bash
 clawcompany mission "Write a competitive analysis comparing OpenAI vs Anthropic"
 ```
 
-> **Requirements:** Node.js 20+
+No config files. No JSON to edit. No Docker. No proxy. Just answer 3 questions.
+
+> **Requirements:** Node.js 20+. Get a ClawAPI key at [clawapi.org](https://clawapi.org).
 
 ---
 
@@ -75,8 +109,6 @@ One ClawAPI key activates your entire company — 9 roles across 4 models:
 
 Professional work deserves professional models. Routine work deserves fast, cheap models. ClawCompany assigns automatically — faster execution, better results, 27x lower cost.
 
-ClawCompany doesn't use one model for everything. Each role uses the model best suited to its job:
-
 | Step | Role | Model | Cost | If all Opus |
 |------|------|-------|------|-------------|
 | Decompose mission | CEO | opus | $0.027 | $0.027 |
@@ -86,7 +118,7 @@ ClawCompany doesn't use one model for everything. Each role uses the model best 
 | Report formatting | Secretary | flash-lite | $0.001 | ~$0.40 |
 | **Total** | | | **$0.064** | **$1.73** |
 
-**96% cheaper. 27x less cost.** Routine work (data collection, formatting) goes to flash-lite at $0.001 per call instead of Opus at $0.40+. The quality is identical because these tasks don't need deep reasoning.
+**96% cheaper. 27x less cost.** Routine work goes to flash-lite at $0.001 per call instead of Opus at $0.40+. The quality is identical because these tasks don't need deep reasoning.
 
 At scale:
 
