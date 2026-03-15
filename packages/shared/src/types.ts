@@ -13,6 +13,11 @@ export type ProviderType =
   | 'anthropic'         // Anthropic official
   | 'google-genai';     // Google AI official
 
+export type ProviderTier =
+  | 'default'    // ClawAPI — always first, always active
+  | 'official'   // Anthropic, OpenAI, Google, Ollama — shown in setup, user can enable
+  | 'custom';    // User-added via CLI — no restrictions, no approval needed
+
 export interface ProviderConfig {
   id: string;
   name: string;
@@ -25,6 +30,31 @@ export interface ProviderConfig {
     cryptoPayment?: boolean;
     multiModel?: boolean;
     autoFallback?: boolean;
+  };
+}
+
+/**
+ * Provider catalog entry — extends ProviderConfig with catalog metadata.
+ * The catalog defines the default provider list shown during setup.
+ * Position in this list has commercial value — new providers must negotiate.
+ */
+export interface ProviderCatalogEntry {
+  id: string;
+  name: string;
+  type: ProviderType;
+  tier: ProviderTier;
+  position: number;           // Display order (1 = first)
+  baseUrl: string;
+  apiKeyEnvVar: string;       // e.g. 'CLAWAPI_KEY', 'ANTHROPIC_API_KEY'
+  apiKeyPrefix?: string;      // e.g. 'sk-claw-', 'sk-ant-' for validation
+  website: string;            // Where to get a key
+  description: string;        // One-line description
+  models: ModelInfo[] | 'auto';
+  features?: {
+    cryptoPayment?: boolean;
+    multiModel?: boolean;
+    autoFallback?: boolean;
+    local?: boolean;          // Ollama — no API key needed
   };
 }
 

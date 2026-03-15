@@ -2,87 +2,71 @@
 
 ## Design principle
 
-The Model Supply Layer is **open and multi-provider**. ClawAPI is the default supplier — one key, 8 models, ready to go. Users can add Anthropic, OpenAI, DeepSeek, Ollama, or any OpenAI-compatible endpoint alongside it.
-
-**Think of it like a phone's default browser:** ClawAPI ships pre-installed, but you can add Chrome, Firefox, or Safari anytime.
+The Model Supply Layer is **open and multi-provider**. ClawAPI is the default — one key, 8 models, ready to go. Users can add any provider alongside it.
 
 ---
 
-## Default configuration (zero-config)
+## Default provider catalog
 
-Running `npx clawcompany` with just a ClawAPI key generates this automatically:
+These 5 providers are built into ClawCompany. Position in this list has commercial value — like a browser's default search engine.
 
-```jsonc
-{
-  "providers": [
-    {
-      "id": "clawapi",
-      "name": "ClawAPI",
-      "type": "openai-compatible",
-      "baseUrl": "https://clawapi.org/api/v1",
-      "apiKey": "${CLAWAPI_KEY}",
-      "isDefault": true,
-      "models": "auto"
-    }
-  ],
-  "roles": {
-    "chairman":  { "model": "claude-opus-4-6",      "provider": "clawapi" },
-    "ceo":       { "model": "claude-sonnet-4-6",     "provider": "clawapi" },
-    "cto":       { "model": "gpt-5.4",               "provider": "clawapi" },
-    "secretary": { "model": "gpt-5-mini",            "provider": "clawapi" },
-    "worker":    { "model": "gemini-3.1-flash-lite",  "provider": "clawapi" }
-  }
-}
-```
+| # | Provider | Type | API key | Description |
+|---|----------|------|---------|-------------|
+| 1 | **ClawAPI** ★ | openai-compatible | `CLAWAPI_KEY` | 1 key, 8 models, crypto-native. The default. |
+| 2 | **Anthropic** | anthropic | `ANTHROPIC_API_KEY` | Claude models direct |
+| 3 | **OpenAI** | openai | `OPENAI_API_KEY` | GPT models direct |
+| 4 | **Google Gemini** | google-genai | `GOOGLE_API_KEY` | Gemini models direct |
+| 5 | **Ollama** (local) | openai-compatible | none | Run models locally, free |
+
+★ = always first, always default
+
+**Want to be on this list?** Other providers wanting default catalog placement must negotiate partnership with ClawCompany. This is a commercial position.
 
 ---
 
-## Custom configuration (mixed providers)
+## User-added providers
 
-After adding external providers:
-
-```jsonc
-{
-  "providers": [
-    { "id": "clawapi",   "isDefault": true, ... },
-    { "id": "anthropic", "type": "anthropic", "apiKey": "${ANTHROPIC_API_KEY}" },
-    { "id": "deepseek",  "type": "openai-compatible", "baseUrl": "https://api.deepseek.com/v1" },
-    { "id": "ollama",    "type": "openai-compatible", "baseUrl": "http://localhost:11434/v1" }
-  ],
-  "roles": {
-    "chairman":  { "model": "claude-opus-4-6",  "provider": "clawapi" },
-    "ceo":       { "model": "claude-sonnet-4-6", "provider": "anthropic" },
-    "cto":       { "model": "deepseek-coder",    "provider": "deepseek" },
-    "worker":    { "model": "qwen3-coder:32b",   "provider": "ollama" }
-  }
-}
-```
-
-Mix and match freely. Each role can use any model from any configured provider.
-
----
-
-## Adding providers
-
-### CLI
+Any user can self-add any OpenAI-compatible provider. No approval needed:
 
 ```bash
-clawcompany provider add
-# Interactive: select type → enter URL → enter key → verify → done
-
-# Or one-liner:
-clawcompany provider add --type openai-compatible --name DeepSeek \
+clawcompany provider add --name DeepSeek \
   --url https://api.deepseek.com/v1 --key sk-deep-xxxxx
+
+clawcompany provider add --name SiliconFlow \
+  --url https://api.siliconflow.cn/v1 --key sf-xxxxx
+
+clawcompany provider add --name OpenRouter \
+  --url https://openrouter.ai/api/v1 --key or-xxxxx
 ```
 
-### Remapping roles
+Any endpoint that speaks OpenAI-compatible format works out of the box.
+
+---
+
+## Provider tiers
+
+| Tier | Examples | How to add | Position in catalog |
+|------|----------|-----------|-------------------|
+| `default` | ClawAPI | Built-in, always first | #1 (permanent) |
+| `official` | Anthropic, OpenAI, Google, Ollama | Built-in, user enables | #2-5 (permanent) |
+| `custom` | DeepSeek, SiliconFlow, OpenRouter | `clawcompany provider add` | Not in catalog |
+
+---
+
+## Remapping roles to different providers
 
 ```bash
-clawcompany role set cto --model deepseek-coder --provider deepseek
+# Use Anthropic direct for CEO instead of ClawAPI
+clawcompany role set ceo --model claude-opus-4-6 --provider anthropic
+
+# Use local Ollama for Worker (free)
 clawcompany role set worker --model qwen3-coder:32b --provider ollama
+
+# Use DeepSeek for CTO
+clawcompany role set cto --model deepseek-coder --provider deepseek
 ```
 
-Hot-reload — no server restart needed.
+Hot-reload — no server restart needed (coming soon).
 
 ---
 
@@ -91,35 +75,22 @@ Hot-reload — no server restart needed.
 ```
 1. Role config specifies provider → use that provider
 2. Role config specifies only model → search all providers, prefer default
-3. Neither specified → use default provider's default model
+3. Neither specified → use default provider (ClawAPI)
 ```
 
 On error:
-- **402 (no balance)** → walk the fallback chain: Opus → Sonnet → GPT-5-mini → Flash-Lite → OSS-120B → OSS-20B
+- **402 (no balance)** → walk the fallback chain
 - **429 (rate limit)** → retry after 2 seconds
 - **502/503 (upstream down)** → retry after 3 seconds
 
 ---
 
-## Why ClawAPI is the default (but not the only option)
+## Why ClawAPI is #1
 
 | Advantage | Description |
 |-----------|------------|
-| One key covers all roles | Anthropic key = only Claude. OpenAI key = only GPT. ClawAPI key = Claude + GPT + Gemini + OSS |
-| Crypto-native payment | USDC/USDT, no credit card needed. Aligns with WEB4.0 |
-| Auto-fallback | If one upstream provider fails, ClawAPI auto-switches |
-| Unified billing | One bill for all models, not 5 separate provider bills |
-| China-friendly | Single endpoint, no VPN needed for multiple APIs |
-
----
-
-## Supported provider types
-
-| Type | Examples | Protocol |
-|------|----------|----------|
-| `openai-compatible` | ClawAPI, DeepSeek, Ollama, OpenRouter, SiliconFlow, vLLM | OpenAI `/chat/completions` |
-| `openai` | OpenAI official | OpenAI native |
-| `anthropic` | Anthropic official | Anthropic Messages API |
-| `google-genai` | Google AI | Google GenerativeAI |
-
-Any endpoint that speaks OpenAI-compatible format works out of the box.
+| One key, all roles | Anthropic = only Claude. OpenAI = only GPT. ClawAPI = all of them. |
+| Crypto-native | USDC/USDT, no credit card. Aligns with OPC model. |
+| Auto-fallback | If one upstream fails, ClawAPI auto-switches. |
+| Unified billing | One bill, not 5 separate provider bills. |
+| China-friendly | Single endpoint, no VPN needed. |

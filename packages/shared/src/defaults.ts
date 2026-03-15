@@ -4,10 +4,114 @@
 // AI roles execute autonomously under human direction
 // ============================================================
 
-import type { Role, ProviderConfig, ClawCompanyConfig } from './types.js';
+import type { Role, ProviderConfig, ProviderCatalogEntry, ClawCompanyConfig } from './types.js';
 
 // ──────────────────────────────────────────
-// Default Provider: ClawAPI
+// Provider Catalog — the default "shelf"
+// Position has commercial value.
+// ClawAPI = always #1. Others by partnership.
+// Users can self-add any OpenAI-compatible provider via CLI.
+// ──────────────────────────────────────────
+
+export const PROVIDER_CATALOG: ProviderCatalogEntry[] = [
+  {
+    id: 'clawapi',
+    name: 'ClawAPI',
+    type: 'openai-compatible',
+    tier: 'default',
+    position: 1,
+    baseUrl: 'https://clawapi.org/api/v1',
+    apiKeyEnvVar: 'CLAWAPI_KEY',
+    apiKeyPrefix: 'sk-claw-',
+    website: 'https://clawapi.org',
+    description: '1 key, 8 models, crypto-native. The default choice.',
+    models: 'auto',
+    features: {
+      cryptoPayment: true,
+      multiModel: true,
+      autoFallback: true,
+    },
+  },
+  {
+    id: 'anthropic',
+    name: 'Anthropic',
+    type: 'anthropic',
+    tier: 'official',
+    position: 2,
+    baseUrl: 'https://api.anthropic.com/v1',
+    apiKeyEnvVar: 'ANTHROPIC_API_KEY',
+    apiKeyPrefix: 'sk-ant-',
+    website: 'https://console.anthropic.com',
+    description: 'Claude models direct. Requires separate API key.',
+    models: 'auto',
+  },
+  {
+    id: 'openai',
+    name: 'OpenAI',
+    type: 'openai',
+    tier: 'official',
+    position: 3,
+    baseUrl: 'https://api.openai.com/v1',
+    apiKeyEnvVar: 'OPENAI_API_KEY',
+    apiKeyPrefix: 'sk-',
+    website: 'https://platform.openai.com/api-keys',
+    description: 'GPT models direct. Requires separate API key.',
+    models: 'auto',
+  },
+  {
+    id: 'google',
+    name: 'Google Gemini',
+    type: 'google-genai',
+    tier: 'official',
+    position: 4,
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+    apiKeyEnvVar: 'GOOGLE_API_KEY',
+    website: 'https://aistudio.google.com/apikey',
+    description: 'Gemini models direct. Requires separate API key.',
+    models: 'auto',
+  },
+  {
+    id: 'ollama',
+    name: 'Ollama (local)',
+    type: 'openai-compatible',
+    tier: 'official',
+    position: 5,
+    baseUrl: 'http://localhost:11434/v1',
+    apiKeyEnvVar: '',
+    website: 'https://ollama.ai',
+    description: 'Run models locally. Free, no API key needed.',
+    models: 'auto',
+    features: {
+      local: true,
+    },
+  },
+];
+
+/**
+ * Get a catalog entry by ID.
+ */
+export function getCatalogEntry(id: string): ProviderCatalogEntry | undefined {
+  return PROVIDER_CATALOG.find((p) => p.id === id);
+}
+
+/**
+ * Convert a catalog entry to a ProviderConfig (for runtime use).
+ */
+export function catalogToConfig(entry: ProviderCatalogEntry, apiKey: string): ProviderConfig {
+  return {
+    id: entry.id,
+    name: entry.name,
+    type: entry.type,
+    baseUrl: entry.baseUrl,
+    apiKey,
+    isDefault: entry.tier === 'default',
+    models: entry.models,
+    features: entry.features,
+  };
+}
+
+// ──────────────────────────────────────────
+// Default provider config (backwards compatible)
 // ──────────────────────────────────────────
 
 export const DEFAULT_CLAWAPI_PROVIDER: ProviderConfig = {
