@@ -124,10 +124,10 @@ The complete result is returned to you (the Chairman). You review it and decide:
 
 ```
 Mission:    "Write a one-page competitive analysis comparing OpenAI vs Anthropic..."
-Roles used: 4 (Worker, Researcher, CMO, Secretary)
-Models:     3 (gemini-flash-lite, claude-sonnet-4-6, gemini-flash-lite)
+Roles used: 5 (CEO decompose + Worker, Researcher, CMO, Secretary)
+Models:     4 (opus, sonnet, flash-lite x2 roles)
 Time:       75.8 seconds
-Cost:       $0.0372
+Cost:       $0.064 (including CEO decompose $0.027)
 
 Cost breakdown:
   Worker     (flash-lite)  $0.0008  (2.2%)   — data collection
@@ -136,7 +136,32 @@ Cost breakdown:
   Secretary  (flash-lite)  $0.0011  (3.0%)   — formatting
 ```
 
-The most expensive work (deep analysis) goes to the most capable model. Everything else goes to the cheapest model that can handle it. **This is how task cascading saves money — $0.037 total instead of running everything through Opus at $0.15+.**
+The most expensive work (deep analysis) goes to the most capable model. Everything else goes to the cheapest model that can handle it. **Task cascading: $0.064 total (including CEO decompose) vs $1.73 if all-Opus. 96% savings, 27x cheaper.**
+
+---
+
+## Why multi-model matters: cost comparison
+
+What if we ran the exact same mission using only Opus for everything?
+
+| Step | Role | ClawCompany model | Actual cost | If all Opus |
+|---|---|---|---|---|
+| Decompose mission | CEO | opus-4-6 | $0.0266 | $0.0266 (same) |
+| Data collection | Worker | flash-lite | $0.0008 | ~$0.40 |
+| Deep analysis | Researcher | sonnet-4-6 | $0.0263 | ~$0.45 |
+| Market positioning | CMO | sonnet-4-6 | $0.0090 | ~$0.45 |
+| Report formatting | Secretary | flash-lite | $0.0011 | ~$0.40 |
+| **Total** | | | **$0.064** | **~$1.73** |
+
+Savings: 96% cheaper. 27x less cost with task cascading.
+
+At scale:
+
+| Missions per day | ClawCompany | All-Opus | Monthly savings |
+|---|---|---|---|
+| 10 | $0.64/day | $17.30/day | $499/month |
+| 100 | $6.40/day | $173/day | $4,998/month |
+| 1,000 | $64/day | $1,730/day | $49,980/month |
 
 ---
 
@@ -153,7 +178,7 @@ The most expensive work (deep analysis) goes to the most capable model. Everythi
 | Said "Approved" | |
 
 **Total human effort: ~30 seconds (write mission + read result).**
-**Total AI effort: 75.8 seconds of autonomous work across 4 roles.**
-**Total cost: less than 4 cents.**
+**Total AI effort: 75.8 seconds of autonomous work across 5 roles.**
+**Total cost: 6.4 cents.**
 
 This is what OPC (One Person Company) looks like. You are the Chairman. The Claws do the rest.
