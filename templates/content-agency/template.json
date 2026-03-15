@@ -1,49 +1,33 @@
 {
   "name": "Content Agency",
-  "description": "AI content production company with writers, editors, and SEO specialists.",
+  "description": "AI content production with writers, editors, and SEO.",
   "roles": {
-    "chairman": {},
-    "ceo": {},
-    "cto": { "isActive": false },
-    "secretary": { "isActive": false },
-    "worker": { "isActive": false },
+    "ceo": {}, "cmo": {},
+    "cto": { "isActive": false }, "cfo": { "isActive": false },
+    "researcher": {}, "secretary": {}, "worker": {},
+    "analyst": { "isActive": false },
+    "engineer": { "isActive": false },
     "custom_writer": {
-      "name": "Content Writer",
+      "name": "Writer",
       "description": "Draft articles, blog posts, social media content",
       "model": "claude-sonnet-4-6",
-      "provider": "clawapi",
-      "reportsTo": "ceo",
-      "budgetTier": "earn",
+      "reportsTo": "cmo",
       "tools": ["http", "filesystem"]
     },
     "custom_editor": {
       "name": "Editor",
-      "description": "Review and improve written content, fact-check, maintain style guide",
+      "description": "Review and improve content, fact-check, style guide",
       "model": "claude-opus-4-6",
-      "provider": "clawapi",
-      "reportsTo": "ceo",
-      "budgetTier": "earn",
+      "reportsTo": "cmo",
       "tools": ["filesystem"]
     },
     "custom_seo": {
       "name": "SEO Specialist",
-      "description": "Keyword research, meta descriptions, content optimization",
+      "description": "Keyword research, meta descriptions, optimization",
       "model": "gpt-5-mini",
-      "provider": "clawapi",
-      "reportsTo": "ceo",
-      "budgetTier": "save",
+      "reportsTo": "cmo",
       "tools": ["http"]
     },
-    "custom_publisher": {
-      "name": "Publisher",
-      "description": "Format for CMS, schedule posts, manage media assets",
-      "model": "gemini-3.1-flash-lite",
-      "provider": "clawapi",
-      "reportsTo": "ceo",
-      "budgetTier": "save",
-      "tools": ["http", "filesystem"]
-    },
-    "fallback_a": {},
-    "fallback_b": {}
+    "fallback_a": {}, "fallback_b": {}
   }
 }

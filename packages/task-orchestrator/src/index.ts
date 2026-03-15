@@ -3,7 +3,6 @@ import type {
   WorkStream,
   Task,
   Role,
-  Report,
   ChatResponse,
 } from '@clawcompany/shared';
 import { ModelRouter } from '@clawcompany/model-router';
@@ -12,10 +11,6 @@ import { ToolExecutor } from '@clawcompany/tools';
 
 export { MissionLifecycle } from './lifecycle.js';
 
-/**
- * Orchestrates the full mission lifecycle:
- * decompose → delegate → execute → report → deliver
- */
 export class TaskOrchestrator {
   private executor: AgentExecutor;
 
@@ -24,32 +19,29 @@ export class TaskOrchestrator {
   }
 
   /**
-   * Phase 2: Decompose mission into work streams.
-   * Uses CEO (Sonnet) — fast and reliable.
-   * Will switch to Chairman (Opus) when ClawAPI supports longer timeouts.
+   * Phase 2: CEO decomposes mission into work streams.
+   * Human (Chairman) gives the mission → CEO breaks it down.
    */
   async decompose(mission: Mission): Promise<WorkStream[]> {
-    const decomposer = this.router.getRole('chairman');
-    if (!decomposer) throw new Error('CEO role not configured');
+    const ceo = this.router.getRole('ceo');
+    if (!ceo) throw new Error('CEO role not configured');
 
-    const roles = this.router.getRoles().filter((r) => r.isActive && r.budgetTier !== 'survive');
+    const roles = this.router.getRoles().filter((r) => r.isActive && r.id !== 'ceo' && r.budgetTier !== 'survive');
     const roleList = roles
       .map((r) => `- ${r.id}: ${r.name} (${r.model}) — ${r.description}`)
       .join('\n');
 
-    const response = await this.router.chatAsRole('chairman', [
+    const response = await this.router.chatAsRole('ceo', [
       {
         role: 'user',
-        content: `You are decomposing a mission for the Chairman.
-
-Mission from the Board of Directors:
+        content: `Mission from the Chairman (human):
 "${mission.content}"
 
 Priority: ${mission.priority}
 ${mission.deadline ? `Deadline: ${mission.deadline}` : ''}
 ${mission.budgetLimit ? `Budget limit: $${mission.budgetLimit}` : ''}
 
-Available team:
+Your team:
 ${roleList}
 
 Decompose into work streams. For each, specify:
@@ -61,7 +53,7 @@ Decompose into work streams. For each, specify:
 - estimatedComplexity (low/medium/high)
 - requiredTools (array)
 
-IMPORTANT: Assign grunt work to worker (cheap). Technical work to cto. Keep it cost-efficient.
+IMPORTANT: Assign grunt work to worker (cheap). Technical to cto/engineer. Financial to cfo/analyst. Marketing to cmo. Research to researcher. Format to secretary.
 
 Respond ONLY with JSON:
 {
@@ -84,7 +76,7 @@ Respond ONLY with JSON:
         missionId: mission.id,
         title: mission.content.slice(0, 100),
         description: mission.content,
-        assignTo: 'chairman',
+        assignTo: 'researcher',
         dependencies: [],
         estimatedComplexity: 'medium' as const,
         requiredTools: [],
@@ -93,26 +85,20 @@ Respond ONLY with JSON:
     }
   }
 
-  /**
-   * Phase 3-5: Execute all work streams in dependency order,
-   * collect results, and produce final output.
-   */
   async executeMission(mission: Mission, workStreams: WorkStream[]): Promise<MissionReport> {
     const results = new Map<string, WorkStreamResult>();
     const totalStart = Date.now();
     let totalCost = 0;
 
-    // Topological sort: execute in dependency order
     const order = this.topologicalSort(workStreams);
 
     console.log(`\n  📋 Executing ${order.length} work streams...\n`);
 
     for (const ws of order) {
-      // Wait for dependencies
       const depOutputs: Record<string, string> = {};
       for (const depId of ws.dependencies) {
         const dep = results.get(depId);
-        if (dep && dep.status === "completed") depOutputs[depId] = dep.output;
+        if (dep && dep.status === 'completed') depOutputs[depId] = dep.output;
       }
 
       const role = this.router.getRole(ws.assignTo);
@@ -170,19 +156,14 @@ Respond ONLY with JSON:
     };
   }
 
-  /**
-   * Execute a single work stream with the assigned agent.
-   */
   private async executeWorkStream(
     ws: WorkStream,
     dependencyOutputs: Record<string, string>,
   ): Promise<{ content: string; cost: number; tokensIn: number; tokensOut: number; model: string }> {
-    // Build context from dependency outputs
     let context = '';
     if (Object.keys(dependencyOutputs).length > 0) {
       context = '\n\n## Previous work stream outputs:\n';
       for (const [id, output] of Object.entries(dependencyOutputs)) {
-        // Truncate long outputs to avoid token explosion
         const truncated = output.length > 500 ? output.slice(0, 500) + '\n...(truncated)' : output;
         context += `\n### ${id}:\n${truncated}\n`;
       }
@@ -191,15 +172,7 @@ Respond ONLY with JSON:
     const response = await this.router.chatAsRole(ws.assignTo, [
       {
         role: 'user',
-        content: `## Task: ${ws.title}
-
-${ws.description}
-
-Complexity: ${ws.estimatedComplexity}
-${context}
-
-Complete this task. Provide your output clearly and concisely.
-If you reference data, be specific. If you make assumptions, state them.`,
+        content: `## Task: ${ws.title}\n\n${ws.description}\n\nComplexity: ${ws.estimatedComplexity}${context}\n\nComplete this task. Provide your output clearly and concisely.`,
       },
     ]);
 
@@ -212,14 +185,10 @@ If you reference data, be specific. If you make assumptions, state them.`,
     };
   }
 
-  /**
-   * Topological sort: ensures work streams execute in dependency order.
-   */
   private topologicalSort(workStreams: WorkStream[]): WorkStream[] {
     const sorted: WorkStream[] = [];
     const visited = new Set<string>();
     const wsMap = new Map(workStreams.map((ws) => [ws.id, ws]));
-
     const visit = (ws: WorkStream) => {
       if (visited.has(ws.id)) return;
       visited.add(ws.id);
@@ -229,7 +198,6 @@ If you reference data, be specific. If you make assumptions, state them.`,
       }
       sorted.push(ws);
     };
-
     for (const ws of workStreams) visit(ws);
     return sorted;
   }

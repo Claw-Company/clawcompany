@@ -1,43 +1,26 @@
 {
   "name": "Trading Desk",
-  "description": "AI-powered trading company with market analysis, execution, and data collection.",
+  "description": "AI-powered trading company with market analysis and execution.",
   "roles": {
-    "chairman": {},
-    "ceo": {},
-    "cto": {
-      "name": "Quant Architect",
-      "description": "Design trading algorithms, manage technical infrastructure"
-    },
-    "secretary": { "isActive": false },
-    "worker": { "isActive": false },
-    "custom_analyst": {
-      "name": "Market Analyst",
-      "description": "Monitor markets, detect patterns, generate trading signals",
-      "model": "gemini-3.1-pro",
-      "provider": "clawapi",
-      "reportsTo": "ceo",
-      "budgetTier": "earn",
-      "tools": ["http", "code_interpreter"]
-    },
+    "ceo": {}, "cto": {}, "cfo": {},
+    "analyst": {}, "researcher": {},
+    "engineer": { "isActive": false },
+    "cmo": { "isActive": false },
+    "secretary": {}, "worker": {},
     "custom_trader": {
-      "name": "Execution Trader",
+      "name": "Trader",
       "description": "Execute trades, manage positions, risk control",
       "model": "claude-sonnet-4-6",
-      "provider": "clawapi",
       "reportsTo": "cto",
-      "budgetTier": "earn",
       "tools": ["http", "shell"]
     },
-    "custom_data": {
+    "custom_data_collector": {
       "name": "Data Collector",
-      "description": "Fetch on-chain data, aggregate feeds, clean datasets",
+      "description": "Fetch on-chain data, aggregate feeds",
       "model": "gemini-3.1-flash-lite",
-      "provider": "clawapi",
-      "reportsTo": "custom_analyst",
-      "budgetTier": "save",
+      "reportsTo": "analyst",
       "tools": ["http", "filesystem"]
     },
-    "fallback_a": {},
-    "fallback_b": {}
+    "fallback_a": {}, "fallback_b": {}
   }
 }

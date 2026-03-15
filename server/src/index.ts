@@ -18,10 +18,6 @@ app.use(express.json());
 
 const PORT = process.env.PORT ?? 3200;
 
-// ──────────────────────────────────────────
-// Bootstrap
-// ──────────────────────────────────────────
-
 const clawConfig = getDefaultConfig();
 clawConfig.providers[0].apiKey = process.env.CLAWAPI_KEY ?? '';
 
@@ -32,7 +28,7 @@ let bootError: string | null = null;
 
 async function bootstrap() {
   if (!process.env.CLAWAPI_KEY) {
-    bootError = 'CLAWAPI_KEY not set. Run: echo "CLAWAPI_KEY=sk-claw-..." > .env';
+    bootError = 'CLAWAPI_KEY not set. Fix: echo "CLAWAPI_KEY=sk-claw-..." > .env';
     console.error(`  ❌ ${bootError}`);
     return;
   }
@@ -46,6 +42,8 @@ async function bootstrap() {
     const roles = resolveRoles(clawConfig);
     const active = roles.filter(r => r.isActive && r.budgetTier !== 'survive');
     console.log(`  ✅ ${active.length} active roles loaded`);
+    console.log('');
+    console.log('  👤 Chairman = Human (you)');
     console.log('');
     for (const role of active) {
       const pricing = MODEL_PRICING[role.model];
@@ -68,7 +66,7 @@ app.get('/api/health', (_req, res) => {
     status: bootError ? 'error' : 'ok',
     version: '0.1.0',
     name: 'ClawCompany',
-    tagline: 'Build for WEB4.0, Claws Autonomous.',
+    tagline: 'Build for OPC. Every human being is a chairman.',
     error: bootError,
   });
 });
@@ -86,7 +84,6 @@ app.get('/api/providers', (_req, res) => {
   res.json(registry.list());
 });
 
-// Chat as a specific role
 app.post('/api/chat', async (req, res) => {
   if (!router) return res.status(503).json({ error: bootError ?? 'Not initialized' });
   const { role, message } = req.body;
@@ -100,7 +97,6 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-// Decompose a mission (Phase 2 only)
 app.post('/api/mission/decompose', async (req, res) => {
   if (!orchestrator) return res.status(503).json({ error: bootError ?? 'Not initialized' });
   const { mission } = req.body;
@@ -112,23 +108,21 @@ app.post('/api/mission/decompose', async (req, res) => {
       status: 'decomposing', priority: 'normal', approvalRequired: false,
       totalCost: 0, createdAt: new Date().toISOString(),
     });
-    res.json({ mission, workStreams });
+    res.json({ mission, decomposedBy: 'CEO (claude-opus-4-6)', workStreams });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// ★ Full mission execution (Phase 2-6: decompose → execute → report)
 app.post('/api/mission/run', async (req, res) => {
   if (!orchestrator) return res.status(503).json({ error: bootError ?? 'Not initialized' });
   const { mission } = req.body;
   if (!mission) return res.status(400).json({ error: 'Required: { mission: "..." }' });
 
   try {
-    console.log(`\n  🎯 New mission: "${mission}"\n`);
+    console.log(`\n  🎯 Mission from Chairman: "${mission}"\n`);
 
-    // Phase 2: Decompose
-    console.log('  Phase 2: Decomposing...');
+    console.log('  Phase 2: CEO decomposing...');
     const missionObj = {
       id: `mission-${Date.now()}`, companyId: 'default', content: mission,
       status: 'decomposing' as const, priority: 'normal' as const,
@@ -138,12 +132,10 @@ app.post('/api/mission/run', async (req, res) => {
     const workStreams = await orchestrator.decompose(missionObj);
     console.log(`  ✅ Decomposed into ${workStreams.length} work streams\n`);
 
-    // Phase 3-5: Execute all work streams
     console.log('  Phase 3-5: Executing...');
     const report = await orchestrator.executeMission(missionObj, workStreams);
 
-    // Phase 6: Deliver
-    console.log('  Phase 6: Delivering result to Board\n');
+    console.log('  Phase 6: Delivering result to Chairman\n');
 
     res.json({
       status: 'completed',
@@ -151,12 +143,8 @@ app.post('/api/mission/run', async (req, res) => {
       totalCost: `$${report.totalCost.toFixed(4)}`,
       totalTime: `${report.totalTimeSeconds}s`,
       workStreams: report.workStreams.map(ws => ({
-        id: ws.workStreamId,
-        title: ws.title,
-        role: ws.assignedTo,
-        model: ws.model,
-        status: ws.status,
-        cost: `$${ws.cost.toFixed(4)}`,
+        id: ws.workStreamId, title: ws.title, role: ws.assignedTo,
+        model: ws.model, status: ws.status, cost: `$${ws.cost.toFixed(4)}`,
         outputPreview: ws.output.slice(0, 300) + (ws.output.length > 300 ? '...' : ''),
       })),
     });
@@ -165,17 +153,13 @@ app.post('/api/mission/run', async (req, res) => {
   }
 });
 
-// ──────────────────────────────────────────
-// Start
-// ──────────────────────────────────────────
-
 app.listen(PORT, async () => {
   console.log('');
   console.log('  🦞 ClawCompany server running');
   console.log(`  → http://localhost:${PORT}`);
   console.log('');
   await bootstrap();
-  console.log('  Build for WEB4.0, Claws Autonomous.');
+  console.log('  Build for OPC. Every human being is a chairman.');
   console.log('');
 });
 

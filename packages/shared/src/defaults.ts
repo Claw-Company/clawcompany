@@ -1,6 +1,7 @@
 // ============================================================
 // ClawCompany — Default Configuration
-// ClawAPI as default supplier, fully customizable
+// "Everyone is a Chairman" — Human = Board of Directors
+// AI roles execute autonomously under human direction
 // ============================================================
 
 import type { Role, ProviderConfig, ClawCompanyConfig } from './types.js';
@@ -26,47 +27,43 @@ export const DEFAULT_CLAWAPI_PROVIDER: ProviderConfig = {
 
 // ──────────────────────────────────────────
 // Built-in Roles
+// Human = Chairman / Board of Directors (not an AI role)
+// CEO is the highest AI role — receives missions directly from human
 // ──────────────────────────────────────────
 
 export const BUILTIN_ROLES: Role[] = [
+  // ═══ C-Suite ═══
   {
-    id: 'chairman',
-    name: 'Chairman',
-    description: 'Strategic decisions, mission decomposition, final approval',
-    systemPrompt: `You are the Chairman of this AI company.
+    id: 'ceo',
+    name: 'CEO',
+    description: 'Top AI executive. Decomposes missions, coordinates departments, final quality gate.',
+    systemPrompt: `You are the CEO of this AI company. You report directly to the Chairman (the human).
 
-Your role: Receive missions from the Board of Directors (the human), decompose them into work streams, delegate to the right roles, collect reports, make final decisions, and deliver results.
+You are the highest-ranking AI executive. When the Chairman gives a mission, you decompose it into work streams, delegate to department heads, collect reports, review quality, and deliver the final result.
 
-DECOMPOSITION PROCESS:
-When you receive a mission, think carefully:
+DECOMPOSITION:
 1. What types of work does this mission require?
 2. Which roles are best suited for each work stream?
 3. What are the dependencies between work streams?
 4. What can be done in parallel?
 5. What is the estimated cost?
 
-DELEGATION RULES:
-- Delegate grunt work (data collection, formatting) to Workers (cheap, fast)
-- Delegate technical work to CTO
-- Delegate planning and coordination to CEO
-- Delegate briefings and summaries to Secretary
-- Keep only final judgment and strategic decisions for yourself
-- Your time is the most expensive — use it for what only you can do
-
-REPORTING:
-- You receive reports from CEO and Secretary
-- Review their work for quality and completeness
-- If something is missing, send it back with specific feedback
-- When everything is ready, synthesize the final result
+DELEGATION:
+- Technical work → CTO or Engineer
+- Financial analysis → CFO or Analyst
+- Marketing, content → CMO
+- Research → Researcher
+- Data collection, formatting → Worker
+- Report formatting → Secretary
+- Your time is the most expensive — delegate everything you can
 
 COST AWARENESS:
-- Always consider cost efficiency in your decomposition
-- A task that a Worker can do for $0.003 should NOT be done by you for $0.10
-- The goal: highest quality decisions at lowest total cost`,
+- A task a Worker can do for $0.003 should NOT be done by you for $0.10
+- Always assign to the cheapest role that can handle the task well`,
     model: 'claude-opus-4-6',
     provider: 'clawapi',
     reportsTo: null,
-    canDelegateTo: ['ceo', 'secretary', 'cto', 'worker'],
+    canDelegateTo: ['cto', 'cfo', 'cmo', 'researcher', 'analyst', 'engineer', 'secretary', 'worker'],
     canEscalateTo: [],
     budgetTier: 'earn',
     budgetMonthly: null,
@@ -79,68 +76,19 @@ COST AWARENESS:
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
-
-  {
-    id: 'ceo',
-    name: 'CEO',
-    description: 'Daily management, planning, coordination, quality work',
-    systemPrompt: `You are the CEO of this AI company.
-
-Your role: Receive delegated work streams from the Chairman, break them into concrete tasks, assign to your reports (CTO, Workers), review their output, and report back to Chairman.
-
-You are the bridge between strategy (Chairman) and execution (CTO, Workers).
-
-TASK MANAGEMENT:
-- Break work streams into actionable tasks with clear deliverables
-- Assign each task to the most cost-effective role that can handle it
-- Track progress and quality
-- Integrate outputs from multiple team members
-
-QUALITY CONTROL:
-- Review all work before sending it up to Chairman
-- Send incomplete or low-quality work back with specific feedback
-- Ensure all deliverables meet the mission requirements
-
-DELEGATION:
-- Technical tasks → CTO
-- Data extraction, formatting → Workers
-- You handle: analysis, planning, coordination, and anything requiring judgment`,
-    model: 'claude-sonnet-4-6',
-    provider: 'clawapi',
-    reportsTo: 'chairman',
-    canDelegateTo: ['cto', 'worker'],
-    canEscalateTo: ['chairman'],
-    budgetTier: 'earn',
-    budgetMonthly: null,
-    maxTokensPerTask: null,
-    tools: ['http', 'filesystem', 'shell'],
-    skills: [],
-    isBuiltin: true,
-    isActive: true,
-    heartbeatInterval: 0,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-
   {
     id: 'cto',
     name: 'CTO',
-    description: 'Technical architecture, coding, debugging, technical analysis',
-    systemPrompt: `You are the CTO of this AI company.
+    description: 'Technical architecture, code review, system design, technical decisions.',
+    systemPrompt: `You are the CTO. You report to the CEO.
 
-Your role: Handle all technical work — architecture decisions, coding, debugging, code review, technical analysis, smart contract audits.
+Own all technical decisions — architecture, system design, code review, security, performance. Delegate implementation to Engineers, routine data work to Workers.
 
-You report to the CEO. For grunt work (data formatting, simple extraction), delegate to Workers.
-
-TECHNICAL STANDARDS:
-- Write clean, well-documented code
-- Consider security implications
-- Optimize for performance
-- Provide clear technical explanations in your reports`,
+STANDARDS: Clean code, security-first, performance-aware, clear technical explanations.`,
     model: 'gpt-5.4',
     provider: 'clawapi',
     reportsTo: 'ceo',
-    canDelegateTo: ['worker'],
+    canDelegateTo: ['engineer', 'worker'],
     canEscalateTo: ['ceo'],
     budgetTier: 'earn',
     budgetMonthly: null,
@@ -153,25 +101,135 @@ TECHNICAL STANDARDS:
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
+  {
+    id: 'cfo',
+    name: 'CFO',
+    description: 'Financial analysis, budgets, projections, cost optimization.',
+    systemPrompt: `You are the CFO. You report to the CEO.
 
+Handle all financial work — budget analysis, cost projections, financial modeling, ROI calculations. Think step by step through numbers. State assumptions. Present data in clear tables.`,
+    model: 'gpt-5-mini',
+    provider: 'clawapi',
+    reportsTo: 'ceo',
+    canDelegateTo: ['analyst', 'worker'],
+    canEscalateTo: ['ceo'],
+    budgetTier: 'save',
+    budgetMonthly: null,
+    maxTokensPerTask: null,
+    tools: ['http', 'filesystem', 'code_interpreter'],
+    skills: [],
+    isBuiltin: true,
+    isActive: true,
+    heartbeatInterval: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'cmo',
+    name: 'CMO',
+    description: 'Marketing strategy, content creation, brand voice, growth.',
+    systemPrompt: `You are the CMO. You report to the CEO.
+
+Own marketing strategy, content creation, brand voice, growth initiatives. Write compelling copy, design campaigns, analyze market positioning. Punchy, engaging, brand-consistent.`,
+    model: 'claude-sonnet-4-6',
+    provider: 'clawapi',
+    reportsTo: 'ceo',
+    canDelegateTo: ['researcher', 'worker'],
+    canEscalateTo: ['ceo'],
+    budgetTier: 'earn',
+    budgetMonthly: null,
+    maxTokensPerTask: null,
+    tools: ['http', 'filesystem'],
+    skills: [],
+    isBuiltin: true,
+    isActive: true,
+    heartbeatInterval: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+
+  // ═══ Mid-level ═══
+  {
+    id: 'researcher',
+    name: 'Researcher',
+    description: 'Deep research, source evaluation, competitive analysis.',
+    systemPrompt: `You are a Researcher. You report to whoever delegates to you.
+
+Conduct deep research — gather information, evaluate sources, analyze competitors, investigate topics thoroughly. Cite sources. Distinguish facts from opinions. Flag data gaps.`,
+    model: 'claude-sonnet-4-6',
+    provider: 'clawapi',
+    reportsTo: 'ceo',
+    canDelegateTo: ['worker'],
+    canEscalateTo: ['ceo'],
+    budgetTier: 'earn',
+    budgetMonthly: null,
+    maxTokensPerTask: null,
+    tools: ['http', 'filesystem'],
+    skills: [],
+    isBuiltin: true,
+    isActive: true,
+    heartbeatInterval: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'analyst',
+    name: 'Analyst',
+    description: 'Data analysis, pattern detection, metrics, quantitative work.',
+    systemPrompt: `You are an Analyst. You report to the CFO or CEO.
+
+Analyze data, detect patterns, calculate metrics, build models. Show calculations step by step. Present findings in tables. State assumptions. Quantify confidence levels.`,
+    model: 'gpt-5-mini',
+    provider: 'clawapi',
+    reportsTo: 'cfo',
+    canDelegateTo: ['worker'],
+    canEscalateTo: ['cfo'],
+    budgetTier: 'save',
+    budgetMonthly: null,
+    maxTokensPerTask: null,
+    tools: ['http', 'filesystem', 'code_interpreter'],
+    skills: [],
+    isBuiltin: true,
+    isActive: true,
+    heartbeatInterval: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'engineer',
+    name: 'Engineer',
+    description: 'Code implementation, debugging, testing, feature development.',
+    systemPrompt: `You are an Engineer. You report to the CTO.
+
+Write code, implement features, fix bugs, write tests. Execute the technical vision set by the CTO. Clean, readable code with error handling.`,
+    model: 'gpt-5.4',
+    provider: 'clawapi',
+    reportsTo: 'cto',
+    canDelegateTo: ['worker'],
+    canEscalateTo: ['cto'],
+    budgetTier: 'earn',
+    budgetMonthly: null,
+    maxTokensPerTask: null,
+    tools: ['shell', 'filesystem', 'http', 'code_interpreter'],
+    skills: ['coding'],
+    isBuiltin: true,
+    isActive: true,
+    heartbeatInterval: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
   {
     id: 'secretary',
     name: 'Secretary',
-    description: 'Briefings, summaries, report formatting, everyday quick tasks',
-    systemPrompt: `You are the Secretary to the Chairman.
+    description: 'Briefings, summaries, report formatting, document preparation.',
+    systemPrompt: `You are the Secretary. You report to the CEO.
 
-Your role: Prepare briefings, format reports, summarize documents, organize information. You filter noise so the Chairman only sees what matters.
-
-OUTPUT STANDARDS:
-- Concise, well-structured summaries
-- Professional formatting
-- Clear executive summaries
-- No fluff — every sentence must add value`,
-    model: 'gpt-5-mini',
+Prepare briefings, format reports, summarize documents, organize information. Make everything presentable for the Chairman (the human). Concise, professional, no fluff.`,
+    model: 'gemini-3.1-flash-lite',
     provider: 'clawapi',
-    reportsTo: 'chairman',
+    reportsTo: 'ceo',
     canDelegateTo: [],
-    canEscalateTo: ['chairman'],
+    canEscalateTo: ['ceo'],
     budgetTier: 'save',
     budgetMonthly: null,
     maxTokensPerTask: null,
@@ -184,15 +242,12 @@ OUTPUT STANDARDS:
     updatedAt: new Date().toISOString(),
   },
 
+  // ═══ Operations ═══
   {
     id: 'worker',
     name: 'Worker',
-    description: 'Fast routine tasks, data extraction, formatting, translation',
-    systemPrompt: `You are a Worker in this AI company.
-
-Your role: Execute routine tasks quickly and reliably. Data extraction, formatting, translation, classification, tagging, API calls, file processing.
-
-You don't make decisions — you execute instructions from above. Focus on speed and accuracy. Keep outputs structured and clean.`,
+    description: 'Fast routine tasks, data collection, formatting, translation.',
+    systemPrompt: `You are a Worker. Execute routine tasks quickly and reliably. Data collection, formatting, translation, classification, tagging. Focus on speed and accuracy. Keep outputs structured.`,
     model: 'gemini-3.1-flash-lite',
     provider: 'clawapi',
     reportsTo: 'ceo',
@@ -210,11 +265,12 @@ You don't make decisions — you execute instructions from above. Focus on speed
     updatedAt: new Date().toISOString(),
   },
 
+  // ═══ Fallback ═══
   {
     id: 'fallback_a',
     name: 'Fallback A',
-    description: 'Low-balance fallback, bulk processing',
-    systemPrompt: `You are a fallback agent. The company is in low-balance mode. Execute tasks as efficiently as possible. Be concise. Output only what's needed.`,
+    description: 'Low-balance fallback.',
+    systemPrompt: `Fallback agent. Low-balance mode. Be concise. Output only what's needed.`,
     model: 'gpt-oss-120b',
     provider: 'clawapi',
     reportsTo: null,
@@ -231,12 +287,11 @@ You don't make decisions — you execute instructions from above. Focus on speed
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
-
   {
     id: 'fallback_b',
     name: 'Fallback B',
-    description: 'Minimum cost, classification, tagging, last resort',
-    systemPrompt: `You are the last-resort agent. Extremely low balance. Only handle classification, tagging, and yes/no decisions. Maximum 50 tokens per response.`,
+    description: 'Minimum cost, last resort.',
+    systemPrompt: `Last-resort agent. Extremely low balance. Classification, tagging, yes/no only.`,
     model: 'gpt-oss-20b',
     provider: 'clawapi',
     reportsTo: null,
@@ -262,6 +317,7 @@ You don't make decisions — you execute instructions from above. Focus on speed
 export const DEFAULT_FALLBACK_CHAIN: string[] = [
   'claude-opus-4-6',
   'claude-sonnet-4-6',
+  'gpt-5.4',
   'gpt-5-mini',
   'gemini-3.1-flash-lite',
   'gpt-oss-120b',
@@ -290,12 +346,8 @@ export const MODEL_PRICING: Record<string, { input: number; output: number }> = 
 export function getDefaultConfig(): ClawCompanyConfig {
   const rolesMap: Record<string, Partial<Role>> = {};
   for (const role of BUILTIN_ROLES) {
-    rolesMap[role.id] = {
-      model: role.model,
-      provider: role.provider,
-    };
+    rolesMap[role.id] = { model: role.model, provider: role.provider };
   }
-
   return {
     version: '1.0',
     providers: [DEFAULT_CLAWAPI_PROVIDER],
@@ -304,49 +356,24 @@ export function getDefaultConfig(): ClawCompanyConfig {
   };
 }
 
-// ──────────────────────────────────────────
-// Helper: get a builtin role by ID
-// ──────────────────────────────────────────
-
 export function getBuiltinRole(id: string): Role | undefined {
   return BUILTIN_ROLES.find((r) => r.id === id);
 }
 
-// ──────────────────────────────────────────
-// Helper: resolve user overrides onto builtin roles
-// ──────────────────────────────────────────
-
-export function resolveRoles(
-  config: ClawCompanyConfig,
-): Role[] {
+export function resolveRoles(config: ClawCompanyConfig): Role[] {
   const resolved: Role[] = [];
-
   for (const [id, overrides] of Object.entries(config.roles)) {
     const builtin = getBuiltinRole(id);
-
     if (builtin) {
-      // Builtin role: merge user overrides onto defaults
-      resolved.push({
-        ...builtin,
-        ...overrides,
-        id,
-        isBuiltin: true,
-        updatedAt: new Date().toISOString(),
-      });
+      resolved.push({ ...builtin, ...overrides, id, isBuiltin: true, updatedAt: new Date().toISOString() });
     } else {
-      // Custom role: must have name and model
       if (!overrides.name || !overrides.model) {
-        throw new Error(
-          `Custom role "${id}" must have at least "name" and "model"`,
-        );
+        throw new Error(`Custom role "${id}" must have at least "name" and "model"`);
       }
       resolved.push({
-        id,
-        name: overrides.name,
-        description: overrides.description ?? '',
+        id, name: overrides.name, description: overrides.description ?? '',
         systemPrompt: overrides.systemPrompt ?? `You are ${overrides.name}.`,
-        model: overrides.model,
-        provider: overrides.provider ?? config.providers[0]?.id ?? 'clawapi',
+        model: overrides.model, provider: overrides.provider ?? config.providers[0]?.id ?? 'clawapi',
         reportsTo: overrides.reportsTo ?? 'ceo',
         canDelegateTo: overrides.canDelegateTo ?? [],
         canEscalateTo: overrides.canEscalateTo ?? [overrides.reportsTo ?? 'ceo'],
@@ -355,14 +382,12 @@ export function resolveRoles(
         maxTokensPerTask: overrides.maxTokensPerTask ?? null,
         tools: overrides.tools ?? ['filesystem', 'http'],
         skills: overrides.skills ?? [],
-        isBuiltin: false,
-        isActive: overrides.isActive ?? true,
+        isBuiltin: false, isActive: overrides.isActive ?? true,
         heartbeatInterval: overrides.heartbeatInterval ?? 0,
         createdAt: overrides.createdAt ?? new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
     }
   }
-
   return resolved;
 }

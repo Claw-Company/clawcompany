@@ -1,13 +1,10 @@
 {
   "name": "Default",
-  "description": "General-purpose AI company. Chairman + CEO + CTO + Secretary + Worker.",
+  "description": "Full AI company. CEO + CTO + CFO + CMO + Researcher + Analyst + Engineer + Secretary + Worker.",
   "roles": {
-    "chairman": {},
-    "ceo": {},
-    "cto": {},
-    "secretary": {},
-    "worker": {},
-    "fallback_a": {},
-    "fallback_b": {}
+    "ceo": {}, "cto": {}, "cfo": {}, "cmo": {},
+    "researcher": {}, "analyst": {}, "engineer": {},
+    "secretary": {}, "worker": {},
+    "fallback_a": {}, "fallback_b": {}
   }
 }

@@ -1,13 +1,13 @@
 {
   "name": "Solo Founder",
-  "description": "Maximum efficiency. CEO does everything important, Worker handles routine. ~$0.02 per task average.",
+  "description": "Maximum efficiency. CEO + Worker only. ~$0.02 per task average.",
   "roles": {
-    "chairman": { "isActive": false },
-    "ceo": { "reportsTo": null },
-    "cto": { "isActive": false },
+    "ceo": {},
+    "cto": { "isActive": false }, "cfo": { "isActive": false },
+    "cmo": { "isActive": false }, "researcher": { "isActive": false },
+    "analyst": { "isActive": false }, "engineer": { "isActive": false },
     "secretary": { "isActive": false },
     "worker": { "reportsTo": "ceo" },
-    "fallback_a": {},
-    "fallback_b": {}
+    "fallback_a": {}, "fallback_b": {}
   }
 }

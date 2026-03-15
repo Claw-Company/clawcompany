@@ -1,140 +1,56 @@
 # ClawCompany — Role System
 
-## Design philosophy
-
-```
-Three degrees of freedom:
-1. Model freedom  — any role can bind any model from any provider
-2. Role freedom   — add/remove/edit roles, custom names and descriptions
-3. Org freedom    — reporting lines freely adjustable: flat, hierarchical, or matrix
-```
-
-The only constraint: at least one role must exist. An empty company has no meaning.
+> Human = Chairman. AI roles execute under human direction.
 
 ---
 
-## Builtin roles vs custom roles
+## Role hierarchy
 
-### Builtin roles (pre-configured)
-
-Created automatically on `npx clawcompany`. Users can modify everything except the `id` and `isBuiltin` flag. Builtin roles can be **disabled** but not **deleted** (prevents accidental fallback loss).
-
-| Role | Model | Reports to | Tier | Purpose |
-|------|-------|-----------|------|---------|
-| Chairman | claude-opus-4-6 | — | earn | Strategic decisions, mission decomposition |
-| CEO | claude-sonnet-4-6 | Chairman | earn | Daily management, planning, coordination |
-| CTO | gpt-5.4 | CEO | earn | Technical architecture, coding, debugging |
-| Secretary | gpt-5-mini | Chairman | save | Briefings, summaries, report formatting |
-| Worker | gemini-3.1-flash-lite | CEO | save | Routine tasks, data extraction, formatting |
-| Fallback A | gpt-oss-120b | — | survive | Low-balance fallback |
-| Fallback B | gpt-oss-20b | — | survive | Minimum cost, last resort |
-
-### What users CAN edit on builtin roles
-
-Name, description, system prompt, model, provider, reporting line, budget tier, monthly budget, tools, active/disabled status.
-
-### What users CANNOT edit on builtin roles
-
-ID (always `chairman`, `ceo`, etc.), `isBuiltin` flag, delete (only disable).
-
-### Custom roles (fully flexible)
-
-Users create these. No restrictions — add, edit, delete freely.
-
-```bash
-# Add a custom role
-clawcompany role add "Quant Trader" \
-  --model claude-sonnet-4-6 \
-  --reports-to cto \
-  --tools http,shell,code_interpreter
-
-# Add a local zero-cost role
-clawcompany role add "Code Reviewer" \
-  --model qwen3-coder:32b \
-  --provider ollama \
-  --reports-to cto
+```
+Human (Chairman / Board)
+    │
+    ├── CEO (Opus) ← highest AI role, decomposes missions
+    │   ├── CTO (GPT-5.4) ← technical decisions
+    │   │   ├── Engineer (GPT-5.4) ← implementation
+    │   │   └── Worker ← data collection
+    │   ├── CFO (GPT-5-mini) ← financial analysis
+    │   │   └── Analyst (GPT-5-mini) ← data analysis
+    │   ├── CMO (Sonnet) ← marketing, content
+    │   │   └── Researcher (Sonnet) ← deep research
+    │   ├── Secretary (Flash-Lite) ← formatting, briefings
+    │   └── Worker (Flash-Lite) ← routine tasks
+    │
+    └── Fallback A/B (OSS models) ← low-balance mode
 ```
 
 ---
 
-## CLI role management
+## Default role-model mapping
+
+| Tier | Role | Model | Cost (in/out per 1M) | Why this model |
+|------|------|-------|---------------------|----------------|
+| C-suite | CEO | claude-opus-4-6 | $5 / $25 | Deep strategic thinking |
+| C-suite | CTO | gpt-5.4 | $2.50 / $15 | Strong technical reasoning |
+| C-suite | CFO | gpt-5-mini | $0.25 / $2 | Reasoning model, step-by-step math |
+| C-suite | CMO | claude-sonnet-4-6 | $3 / $15 | Creative, articulate |
+| Mid-level | Researcher | claude-sonnet-4-6 | $3 / $15 | Depth + speed balance |
+| Mid-level | Analyst | gpt-5-mini | $0.25 / $2 | Reasoning model, pattern detection |
+| Mid-level | Engineer | gpt-5.4 | $2.50 / $15 | Strong code generation |
+| Mid-level | Secretary | gemini-flash-lite | $0.25 / $1.50 | Fast, cheap text work |
+| Operations | Worker | gemini-flash-lite | $0.25 / $1.50 | Cheapest, fastest |
+| Fallback | Fallback A | gpt-oss-120b | $0.05 / $0.45 | Low-balance |
+| Fallback | Fallback B | gpt-oss-20b | $0.04 / $0.18 | Survival mode |
+
+**4 distinct models** across 9 active roles. Each model assigned to what it does best.
+
+---
+
+## Customization
+
+Builtin roles can be modified (name, model, provider, prompt) but not deleted. Custom roles have no restrictions.
 
 ```bash
-# List all roles
-clawcompany role list
-
-# Show role details
-clawcompany role show cto
-
-# Rename a role
-clawcompany role set chairman --name "President"
-
-# Swap model
 clawcompany role set cto --model deepseek-coder --provider deepseek
-
-# Change reporting line
-clawcompany role set custom_trader --reports-to chairman
-
-# Set monthly budget
-clawcompany role set ceo --budget 50
-
-# Disable (not delete) a builtin role
-clawcompany role disable secretary
-
-# Delete a custom role
-clawcompany role remove custom_trader
-
-# Reset builtin role to defaults
-clawcompany role reset chairman
-
-# Reset everything
-clawcompany role reset --all
+clawcompany role add "Quant Trader" --model claude-sonnet-4-6 --reports-to cto
+clawcompany role disable cmo   # disable, not delete
 ```
-
----
-
-## Company templates
-
-Templates = a set of role configs + org structure + prompts.
-
-| Template | Roles | Best for |
-|----------|-------|----------|
-| Default | Chairman + CEO + CTO + Secretary + Worker | General purpose |
-| Trading Desk | + Analyst + Trader + Data Collector | Crypto / DeFi |
-| Content Agency | + Writer + Editor + SEO + Publisher | Content production |
-| Dev Shop | + Engineers + QA | Software development |
-| Solo Founder | CEO + Worker only | Maximum efficiency |
-
-```bash
-npx clawcompany --template trading-desk
-```
-
----
-
-## Config merge strategy
-
-User config overlays on top of builtin defaults using shallow merge:
-
-```typescript
-// Builtin role provides all defaults
-const builtinCEO = { name: "CEO", model: "claude-sonnet-4-6", ... };
-
-// User only specifies what they changed
-const userOverride = { model: "deepseek-coder" };
-
-// Result: all defaults preserved, model swapped
-const resolved = { ...builtinCEO, ...userOverride };
-```
-
-Users only write the fields they want to change. Everything else uses sensible defaults.
-
----
-
-## Task routing
-
-When a task arrives, the router finds the best role:
-
-1. **Explicit assignment** — user or Chairman specifies the role
-2. **Keyword matching** — match task description against role descriptions
-3. **Cost efficiency** — when multiple roles match equally, prefer cheaper ones
-4. **Custom role bonus** — custom roles get priority (user created them for a reason)

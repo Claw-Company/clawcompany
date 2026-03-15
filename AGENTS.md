@@ -25,6 +25,7 @@ ui/                   → React dashboard
 
 ## Key invariants
 
+- **Human = Chairman.** There is no AI Chairman role. CEO (Opus) is the highest AI executive.
 - **Every role maps to exactly one model via one provider.** The ModelRouter resolves this at call time.
 - **ClawAPI is the default provider but never the only option.** The supply layer is open.
 - **Builtin roles can be modified but not deleted.** Custom roles have no restrictions.
