@@ -159,7 +159,7 @@ Respond ONLY with JSON:
   private async executeWorkStream(
     ws: WorkStream,
     dependencyOutputs: Record<string, string>,
-  ): Promise<{ content: string; cost: number; tokensIn: number; tokensOut: number; model: string }> {
+  ): Promise<{ content: string; cost: number; tokensIn: number; tokensOut: number; model: string; toolCallCount: number }> {
     let context = '';
     if (Object.keys(dependencyOutputs).length > 0) {
       context = '\n\n## Previous work stream outputs:\n';
@@ -169,19 +169,40 @@ Respond ONLY with JSON:
       }
     }
 
-    const response = await this.router.chatAsRole(ws.assignTo, [
-      {
-        role: 'user',
-        content: `## Task: ${ws.title}\n\n${ws.description}\n\nComplexity: ${ws.estimatedComplexity}${context}\n\nToday's date is ${new Date().toISOString().split('T')[0]}. Complete this task. Provide your output clearly and concisely.`,
-      },
-    ]);
+    const role = this.router.getRole(ws.assignTo);
+    if (!role) throw new Error(`Role "${ws.assignTo}" not found`);
+
+    // Use AgentExecutor with full tool support (think → act → observe loop)
+    const result = await this.executor.execute(role, {
+      id: ws.id,
+      companyId: 'default',
+      missionId: ws.missionId,
+      workStreamId: ws.id,
+      title: ws.title,
+      description: `${ws.description}\n\nComplexity: ${ws.estimatedComplexity}${context}\n\nToday's date is ${new Date().toISOString().split('T')[0]}.`,
+      assignedTo: ws.assignTo,
+      createdBy: 'ceo',
+      reportTo: 'ceo',
+      status: 'in_progress' as any,
+      priority: 1,
+      tokensIn: 0,
+      tokensOut: 0,
+      cost: 0,
+      modelUsed: role.model,
+      createdAt: new Date().toISOString(),
+    });
+
+    if (result.toolCallCount > 0) {
+      console.log(`     🔧 ${result.toolCallCount} tool calls executed`);
+    }
 
     return {
-      content: response.content,
-      cost: response.usage.cost,
-      tokensIn: response.usage.inputTokens,
-      tokensOut: response.usage.outputTokens,
-      model: response.model,
+      content: result.output,
+      cost: result.cost,
+      tokensIn: result.tokensIn,
+      tokensOut: result.tokensOut,
+      model: result.modelUsed,
+      toolCallCount: result.toolCallCount,
     };
   }
 
