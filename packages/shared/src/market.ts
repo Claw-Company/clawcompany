@@ -211,3 +211,170 @@ export function getMarketItem(id: string): MarketItem | undefined {
 export function listCategory(category: MarketItem['category']): MarketItem[] {
   return MARKET_CATALOG.filter(item => item.category === category);
 }
+
+// ============================================================
+// Template role definitions (embedded for offline/npm use)
+// ============================================================
+
+export const TEMPLATE_ROLES: Record<string, Record<string, any>> = {
+  'default': {
+    ceo: {}, cto: {}, cfo: {}, cmo: {},
+    researcher: {}, analyst: {}, engineer: {},
+    secretary: {}, worker: {},
+    fallback_a: {}, fallback_b: {},
+  },
+  'trading-desk': {
+    ceo: {}, cto: {}, cfo: {},
+    analyst: {}, researcher: {},
+    engineer: { isActive: false },
+    cmo: { isActive: false },
+    secretary: {}, worker: {},
+    custom_trader: {
+      name: 'Trader',
+      description: 'Execute trades, manage positions, risk control',
+      model: 'claude-sonnet-4-6',
+      reportsTo: 'cto',
+      tools: ['http', 'shell'],
+    },
+    custom_data_collector: {
+      name: 'Data Collector',
+      description: 'Fetch on-chain data, aggregate feeds',
+      model: 'gemini-3.1-flash-lite',
+      reportsTo: 'analyst',
+      tools: ['http', 'filesystem'],
+    },
+    fallback_a: {}, fallback_b: {},
+  },
+  'content-agency': {
+    ceo: {}, cmo: {},
+    cto: { isActive: false }, cfo: { isActive: false },
+    researcher: {}, secretary: {}, worker: {},
+    analyst: { isActive: false },
+    engineer: { isActive: false },
+    custom_writer: {
+      name: 'Writer',
+      description: 'Draft articles, blog posts, social media content',
+      model: 'claude-sonnet-4-6',
+      reportsTo: 'cmo',
+      tools: ['http', 'filesystem'],
+    },
+    custom_editor: {
+      name: 'Editor',
+      description: 'Review and improve content, fact-check, style guide',
+      model: 'claude-opus-4-6',
+      reportsTo: 'cmo',
+      tools: ['filesystem'],
+    },
+    custom_seo: {
+      name: 'SEO Specialist',
+      description: 'Keyword research, meta descriptions, optimization',
+      model: 'gpt-5-mini',
+      reportsTo: 'cmo',
+      tools: ['http'],
+    },
+    fallback_a: {}, fallback_b: {},
+  },
+  'dev-shop': {
+    ceo: {}, cto: {}, engineer: {},
+    cfo: { isActive: false }, cmo: { isActive: false },
+    researcher: {}, analyst: { isActive: false },
+    secretary: {}, worker: {},
+    custom_qa: {
+      name: 'QA Engineer',
+      description: 'Write and run tests, report bugs, verify fixes',
+      model: 'gpt-5-mini',
+      reportsTo: 'cto',
+      tools: ['shell', 'filesystem'],
+    },
+    custom_devops: {
+      name: 'DevOps',
+      description: 'CI/CD, deployment, infrastructure',
+      model: 'gpt-5.4',
+      reportsTo: 'cto',
+      tools: ['shell', 'filesystem', 'http'],
+    },
+    fallback_a: {}, fallback_b: {},
+  },
+  'solo-founder': {
+    ceo: {},
+    cto: { isActive: false }, cfo: { isActive: false },
+    cmo: { isActive: false }, researcher: { isActive: false },
+    analyst: { isActive: false }, engineer: { isActive: false },
+    secretary: { isActive: false },
+    worker: { reportsTo: 'ceo' },
+    fallback_a: {}, fallback_b: {},
+  },
+  'legal-firm': {
+    ceo: {}, cfo: {},
+    cto: { isActive: false }, cmo: { isActive: false },
+    researcher: {}, analyst: {},
+    engineer: { isActive: false },
+    secretary: {}, worker: {},
+    custom_paralegal: {
+      name: 'Paralegal',
+      description: 'Document review, case research, filing preparation',
+      model: 'claude-sonnet-4-6',
+      reportsTo: 'ceo',
+      tools: ['http', 'filesystem'],
+    },
+    custom_contract_analyst: {
+      name: 'Contract Analyst',
+      description: 'Clause analysis, risk assessment, redlining',
+      model: 'gpt-5.4',
+      reportsTo: 'ceo',
+      tools: ['filesystem'],
+    },
+    fallback_a: {}, fallback_b: {},
+  },
+  'ecommerce': {
+    ceo: {}, cfo: {}, cmo: {},
+    cto: { isActive: false },
+    researcher: {}, analyst: {},
+    engineer: { isActive: false },
+    secretary: {}, worker: {},
+    custom_listing_manager: {
+      name: 'Listing Manager',
+      description: 'Product listings, descriptions, pricing optimization',
+      model: 'claude-sonnet-4-6',
+      reportsTo: 'cmo',
+      tools: ['http', 'filesystem'],
+    },
+    custom_support_agent: {
+      name: 'Support Agent',
+      description: 'Customer inquiries, returns, order issues',
+      model: 'gemini-3.1-flash-lite',
+      reportsTo: 'ceo',
+      tools: ['http'],
+    },
+    fallback_a: {}, fallback_b: {},
+  },
+  'consulting': {
+    ceo: {}, cfo: {},
+    cto: { isActive: false }, cmo: { isActive: false },
+    researcher: {}, analyst: {},
+    engineer: { isActive: false },
+    secretary: {}, worker: {},
+    custom_consultant: {
+      name: 'Consultant',
+      description: 'Client analysis, strategy recommendations, deliverables',
+      model: 'claude-sonnet-4-6',
+      reportsTo: 'ceo',
+      tools: ['http', 'filesystem'],
+    },
+    custom_proposal_writer: {
+      name: 'Proposal Writer',
+      description: 'RFP responses, pitch decks, project scoping',
+      model: 'claude-sonnet-4-6',
+      reportsTo: 'ceo',
+      tools: ['filesystem'],
+    },
+    fallback_a: {}, fallback_b: {},
+  },
+};
+
+/**
+ * Get the role overrides for a template.
+ */
+export function getTemplateRoles(templateId: string): Record<string, any> | undefined {
+  return TEMPLATE_ROLES[templateId];
+}

@@ -36,6 +36,7 @@ export interface ClawConfig {
   template: string;
   serverPort: number;
   createdAt: string;
+  roles?: Record<string, any>; // Template role overrides
 }
 
 export function readConfig(): ClawConfig | null {

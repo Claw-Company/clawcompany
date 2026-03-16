@@ -3,6 +3,7 @@ import {
   readConfig,
   apiPost,
   isServerRunning,
+  type ClawConfig,
 } from '../utils.js';
 import {
   getDefaultConfig,
@@ -27,7 +28,7 @@ export async function missionCommand(goal: string) {
   if (await isServerRunning(config.serverPort)) {
     await runViaServer(goal, config.serverPort);
   } else {
-    await runInProcess(goal, config.apiKey);
+    await runInProcess(goal, config);
   }
 }
 
@@ -56,13 +57,18 @@ async function runViaServer(goal: string, port: number) {
  * Route 2: No server → run everything in-process.
  * User never needs to start a server separately.
  */
-async function runInProcess(goal: string, apiKey: string) {
+async function runInProcess(goal: string, userConfig: ClawConfig) {
   console.log('  Running in-process (no server needed)...\n');
 
   try {
-    // Bootstrap
+    // Bootstrap with template roles if available
     const clawConfig = getDefaultConfig();
-    clawConfig.providers[0].apiKey = apiKey;
+    clawConfig.providers[0].apiKey = userConfig.apiKey;
+
+    // Apply template roles from config (set by market install)
+    if (userConfig.roles) {
+      clawConfig.roles = userConfig.roles;
+    }
 
     const registry = new ProviderRegistry();
     await registry.loadFromConfig(clawConfig.providers);

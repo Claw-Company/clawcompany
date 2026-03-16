@@ -4,6 +4,9 @@ import {
   searchMarket,
   listCategory,
   getMarketItem,
+  getTemplateRoles,
+  BUILTIN_ROLES,
+  MODEL_PRICING,
   type MarketItem,
 } from '@clawcompany/shared';
 
@@ -71,19 +74,59 @@ export async function marketInstallCommand(itemId: string) {
   }
 
   if (item.category === 'template') {
+    const templateRoles = getTemplateRoles(itemId);
+    if (!templateRoles) {
+      console.log(`  ✗ Template "${itemId}" has no role definitions.\n`);
+      return;
+    }
+
     console.log(`  Installing template: ${item.name}\n`);
     console.log(`     ${item.description}`);
-    if (item.rolesCount) console.log(`     Roles: ${item.rolesCount}`);
     if (item.estimatedCost) console.log(`     Est. cost: ${item.estimatedCost}`);
     console.log('');
 
-    // Update config with new template
+    // Write template + roles to config
     config.template = item.id;
+    config.roles = templateRoles;
     writeConfig(config);
 
-    console.log(`  ✓ Template "${item.name}" installed.`);
-    console.log('  ✓ Restart server to apply: pnpm dev\n');
-    console.log('  Your company is now running the', item.name, 'template.');
+    // Show the new org chart
+    console.log('  ✓ Template installed. New org chart:\n');
+    console.log('  👤 Chairman = Human (you)\n');
+
+    const activeRoles: Array<{ id: string; name: string; model: string; reportsTo: string }> = [];
+    const disabledRoles: string[] = [];
+
+    for (const [id, overrides] of Object.entries(templateRoles)) {
+      if (id === 'fallback_a' || id === 'fallback_b') continue;
+      if (overrides.isActive === false) {
+        const builtin = BUILTIN_ROLES.find(r => r.id === id);
+        disabledRoles.push(builtin?.name ?? id);
+        continue;
+      }
+
+      // Resolve: custom role or builtin with overrides
+      const builtin = BUILTIN_ROLES.find(r => r.id === id);
+      const name = overrides.name ?? builtin?.name ?? id;
+      const model = overrides.model ?? builtin?.model ?? 'default';
+      const reportsTo = overrides.reportsTo ?? builtin?.reportsTo ?? 'ceo';
+      const pricing = MODEL_PRICING[model];
+      const cost = pricing ? `$${pricing.input}/$${pricing.output}` : '';
+
+      activeRoles.push({ id, name, model, reportsTo });
+      const reports = reportsTo ? `→ ${reportsTo}` : '→ Human';
+      const maxN = 18;
+      console.log(`     ${name.padEnd(maxN)} ${model.padEnd(24)} ${cost.padEnd(12)} reports ${reports}`);
+    }
+
+    console.log('');
+    if (disabledRoles.length > 0) {
+      console.log(`     Disabled: ${disabledRoles.join(', ')}`);
+      console.log('');
+    }
+    console.log(`  Total: ${activeRoles.length} active roles\n`);
+    console.log(`  "${config.companyName}" is now running the ${item.name} template.`);
+    console.log('  Run a mission: clawcompany mission "your goal here"');
     console.log('');
   } else if (item.category === 'skill') {
     console.log(`  Installing skill: ${item.name}\n`);
@@ -106,7 +149,7 @@ function printItems(items: MarketItem[], label: string) {
   };
 
   const emoji = categoryEmoji[label] ?? '📦';
-  const title = label === 'results' ? 'Results' : label.charAt(0).toUpperCase() + label.slice(1) + 's';
+  const title = label.charAt(0).toUpperCase() + label.slice(1) + 's';
   console.log(`  ${emoji} ${title}:\n`);
 
   const maxName = Math.max(...items.map(i => i.name.length));
