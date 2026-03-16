@@ -73,6 +73,22 @@ export const BUILTIN_TOOLS: Record<string, ToolDefinition> = {
       },
     },
   },
+
+  web_fetch: {
+    type: 'function',
+    function: {
+      name: 'web_fetch',
+      description: 'Fetch a web page and extract its text content. Use this to read articles, documentation, blog posts, or any public web page. Returns cleaned text without HTML tags.',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', description: 'URL of the web page to fetch' },
+          maxLength: { type: 'number', description: 'Max characters to return (default: 8000)' },
+        },
+        required: ['url'],
+      },
+    },
+  },
 };
 
 /**

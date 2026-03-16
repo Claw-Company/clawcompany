@@ -21,6 +21,8 @@ export class ToolExecutor {
         return this.execHttp(args);
       case 'code_interpreter':
         return this.execCode(args);
+      case 'web_fetch':
+        return this.execWebFetch(args);
       default:
         return `Unknown tool: ${toolName}`;
     }
@@ -98,5 +100,59 @@ export class ToolExecutor {
     }
 
     return `Unsupported language: ${language}`;
+  }
+
+  private async execWebFetch(args: Record<string, unknown>): Promise<string> {
+    const { url, maxLength } = args as { url: string; maxLength?: number };
+    const limit = maxLength ?? 8000;
+
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'ClawCompany/1.0 (AI Agent)',
+          'Accept': 'text/html,application/xhtml+xml,text/plain,application/json',
+        },
+        redirect: 'follow',
+        signal: AbortSignal.timeout(15_000),
+      });
+
+      if (!response.ok) {
+        return `Error: HTTP ${response.status} ${response.statusText}`;
+      }
+
+      const contentType = response.headers.get('content-type') ?? '';
+      const raw = await response.text();
+
+      // JSON → return as-is (truncated)
+      if (contentType.includes('application/json')) {
+        return raw.slice(0, limit);
+      }
+
+      // HTML → strip tags, extract text content
+      if (contentType.includes('text/html')) {
+        const text = raw
+          .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+          .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+          .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
+          .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
+          .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/\s+/g, ' ')
+          .trim();
+        return text.slice(0, limit);
+      }
+
+      // Plain text
+      return raw.slice(0, limit);
+    } catch (err: any) {
+      if (err.name === 'TimeoutError') return 'Error: Request timed out (15s)';
+      return `Error: ${err.message}`;
+    }
   }
 }

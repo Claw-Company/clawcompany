@@ -7,9 +7,9 @@
 import type { Role, ProviderConfig, ProviderCatalogEntry, ClawCompanyConfig } from './types.js';
 
 // ──────────────────────────────────────────
-// Provider Catalog — built-in providers
-// Ordered by recommendation priority.
-// ClawAPI = default. Users can add more via CLI.
+// Provider Catalog — the default "shelf"
+// Position has commercial value.
+// ClawAPI = always #1. Others by partnership.
 // Users can self-add any OpenAI-compatible provider via CLI.
 // ──────────────────────────────────────────
 
@@ -172,7 +172,7 @@ COST AWARENESS:
     budgetTier: 'earn',
     budgetMonthly: null,
     maxTokensPerTask: null,
-    tools: ['http', 'filesystem'],
+    tools: ['http', 'filesystem', 'web_fetch'],
     skills: [],
     isBuiltin: true,
     isActive: true,
@@ -243,7 +243,7 @@ Own marketing strategy, content creation, brand voice, growth initiatives. Write
     budgetTier: 'earn',
     budgetMonthly: null,
     maxTokensPerTask: null,
-    tools: ['http', 'filesystem'],
+    tools: ['http', 'filesystem', 'web_fetch'],
     skills: [],
     isBuiltin: true,
     isActive: true,
@@ -268,7 +268,7 @@ Conduct deep research — gather information, evaluate sources, analyze competit
     budgetTier: 'earn',
     budgetMonthly: null,
     maxTokensPerTask: null,
-    tools: ['http', 'filesystem'],
+    tools: ['http', 'filesystem', 'web_fetch'],
     skills: [],
     isBuiltin: true,
     isActive: true,
@@ -283,7 +283,7 @@ Conduct deep research — gather information, evaluate sources, analyze competit
     systemPrompt: `You are an Analyst. You report to the CFO or CEO.
 
 Analyze data, detect patterns, calculate metrics, build models. Show calculations step by step. Present findings in tables. State assumptions. Quantify confidence levels.`,
-    model: 'claude-sonnet-4-6',
+    model: 'gpt-5-mini',
     provider: 'clawapi',
     reportsTo: 'cfo',
     canDelegateTo: ['worker'],
@@ -291,7 +291,7 @@ Analyze data, detect patterns, calculate metrics, build models. Show calculation
     budgetTier: 'save',
     budgetMonthly: null,
     maxTokensPerTask: null,
-    tools: ['http', 'filesystem', 'code_interpreter'],
+    tools: ['http', 'filesystem', 'code_interpreter', 'web_fetch'],
     skills: [],
     isBuiltin: true,
     isActive: true,
@@ -360,7 +360,7 @@ Prepare briefings, format reports, summarize documents, organize information. Ma
     budgetTier: 'save',
     budgetMonthly: null,
     maxTokensPerTask: null,
-    tools: ['filesystem', 'http'],
+    tools: ['filesystem', 'http', 'web_fetch'],
     skills: [],
     isBuiltin: true,
     isActive: true,
