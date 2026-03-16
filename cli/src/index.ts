@@ -53,5 +53,32 @@ role
     await roleSetCommand(roleId, opts);
   });
 
+// `clawcompany market`
+const market = program.command('market').description('Browse and install from ClawMarket');
+
+market
+  .command('list [category]')
+  .description('Browse marketplace (category: template, skill, tool, service)')
+  .action(async (category) => {
+    const { marketListCommand } = await import('./commands/market.js');
+    await marketListCommand(category);
+  });
+
+market
+  .command('search <query>')
+  .description('Search the marketplace')
+  .action(async (query) => {
+    const { marketSearchCommand } = await import('./commands/market.js');
+    await marketSearchCommand(query);
+  });
+
+market
+  .command('install <itemId>')
+  .description('Install a template, skill, or tool')
+  .action(async (itemId) => {
+    const { marketInstallCommand } = await import('./commands/market.js');
+    await marketInstallCommand(itemId);
+  });
+
 // Parse
 program.parse();
