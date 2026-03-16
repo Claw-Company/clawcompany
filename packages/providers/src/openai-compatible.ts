@@ -47,8 +47,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
   private static readonly MODEL_FALLBACK: Record<string, string> = {
     'gpt-5-mini': 'gemini-3.1-flash-lite',  // reasoning model timeout → fast model
     'gpt-5.4': 'claude-sonnet-4-6',          // GPT timeout → Sonnet
-    'claude-opus-4-6': 'claude-sonnet-4-6',
-    'claude-sonnet-4-6': 'gemini-3.1-flash-lite',  // Opus timeout → Sonnet
+    'claude-opus-4-6': 'claude-sonnet-4-6',  // Opus timeout → Sonnet
   };
 
   async chat(params: ChatParams): Promise<ChatResponse> {
@@ -72,11 +71,16 @@ export class OpenAICompatibleProvider implements LLMProvider {
 
     const body: Record<string, unknown> = {
       model: params.model,
-      messages: params.messages,
+      messages: this.toApiMessages(params.messages as Array<Record<string, unknown>>),
       temperature: params.temperature ?? 0.7,
       max_tokens: params.maxTokens ?? 4096,
-      stream: params.stream ?? false,
+      stream: true,
     };
+
+    // Reasoning models reject temperature
+    if (this.isReasoningModel(params.model)) {
+      delete body.temperature;
+    }
 
     if (params.tools?.length) {
       body.tools = params.tools;
@@ -100,25 +104,104 @@ export class OpenAICompatibleProvider implements LLMProvider {
       );
     }
 
-    const data = await response.json();
-    const choice = data.choices?.[0];
+    // Collect SSE stream chunks into a single response
+    let content = '';
+    let model = params.model;
+    let finishReason = 'stop';
+    let promptTokens = 0;
+    let completionTokens = 0;
+    const toolCallBuffers: Map<number, { id: string; name: string; args: string }> = new Map();
+
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ') || line === 'data: [DONE]') continue;
+
+        try {
+          const chunk = JSON.parse(line.slice(6));
+          const delta = chunk.choices?.[0]?.delta;
+
+          if (delta?.content) content += delta.content;
+          if (chunk.model) model = chunk.model;
+
+          const fr = chunk.choices?.[0]?.finish_reason;
+          if (fr) finishReason = fr;
+
+          // Collect streamed tool calls
+          if (delta?.tool_calls) {
+            for (const tc of delta.tool_calls) {
+              const idx = tc.index ?? 0;
+              if (!toolCallBuffers.has(idx)) {
+                toolCallBuffers.set(idx, { id: tc.id ?? `call_${idx}`, name: '', args: '' });
+              }
+              const buf = toolCallBuffers.get(idx)!;
+              if (tc.id) buf.id = tc.id;
+              if (tc.function?.name) buf.name = tc.function.name;
+              if (tc.function?.arguments) buf.args += tc.function.arguments;
+            }
+          }
+
+          if (chunk.usage) {
+            promptTokens = chunk.usage.prompt_tokens ?? 0;
+            completionTokens = chunk.usage.completion_tokens ?? 0;
+          }
+        } catch {}
+      }
+    }
+
+    // Assemble tool calls
+    const toolCalls: Array<{ id: string; type: string; function: { name: string; arguments: string } }> = [];
+    for (const [, buf] of [...toolCallBuffers.entries()].sort((a, b) => a[0] - b[0])) {
+      toolCalls.push({ id: buf.id, type: 'function', function: { name: buf.name, arguments: buf.args } });
+    }
 
     return {
-      content: choice?.message?.content ?? '',
-      model: data.model ?? params.model,
+      content,
+      model,
       provider: this.id,
       usage: {
-        inputTokens: data.usage?.prompt_tokens ?? 0,
-        outputTokens: data.usage?.completion_tokens ?? 0,
-        cost: calculateCost(
-          params.model,
-          data.usage?.prompt_tokens ?? 0,
-          data.usage?.completion_tokens ?? 0,
-        ),
+        inputTokens: promptTokens,
+        outputTokens: completionTokens,
+        cost: calculateCost(params.model, promptTokens, completionTokens),
       },
-      toolCalls: choice?.message?.tool_calls,
-      finishReason: choice?.finish_reason ?? 'stop',
+      toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+      finishReason,
     };
+  }
+
+  /** Convert internal message format to OpenAI API format */
+  private toApiMessages(messages: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
+    return messages.map(msg => {
+      const out: Record<string, unknown> = {
+        role: msg.role,
+        content: msg.content,
+      };
+      // assistant message with tool calls
+      if (msg.toolCalls) {
+        out.tool_calls = msg.toolCalls;
+        if (!out.content) out.content = null;
+      }
+      // tool result message
+      if (msg.role === 'tool' && msg.toolCallId) {
+        out.tool_call_id = msg.toolCallId;
+      }
+      if (msg.name) out.name = msg.name;
+      return out;
+    });
+  }
+
+  private isReasoningModel(model: string): boolean {
+    return /^(o1|o3|gpt-5-mini)/.test(model);
   }
 
   async listModels(): Promise<ModelInfo[]> {
