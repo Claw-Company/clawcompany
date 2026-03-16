@@ -23,6 +23,8 @@ export class ToolExecutor {
         return this.execCode(args);
       case 'web_fetch':
         return this.execWebFetch(args);
+      case 'web_search':
+        return this.execWebSearch(args);
       default:
         return `Unknown tool: ${toolName}`;
     }
@@ -152,6 +154,74 @@ export class ToolExecutor {
       return raw.slice(0, limit);
     } catch (err: any) {
       if (err.name === 'TimeoutError') return 'Error: Request timed out (15s)';
+      return `Error: ${err.message}`;
+    }
+  }
+
+  private async execWebSearch(args: Record<string, unknown>): Promise<string> {
+    const { query, maxResults } = args as { query: string; maxResults?: number };
+    const limit = Math.min(maxResults ?? 5, 10);
+
+    try {
+      // Use DuckDuckGo HTML search (no API key needed)
+      const encoded = encodeURIComponent(query);
+      const response = await fetch(`https://html.duckduckgo.com/html/?q=${encoded}`, {
+        headers: {
+          'User-Agent': 'ClawCompany/1.0 (AI Agent)',
+        },
+        signal: AbortSignal.timeout(10_000),
+      });
+
+      if (!response.ok) {
+        return `Error: Search failed with HTTP ${response.status}`;
+      }
+
+      const html = await response.text();
+
+      // Parse DuckDuckGo HTML results
+      const results: Array<{ title: string; url: string; snippet: string }> = [];
+      const resultBlocks = html.split('class="result__body"');
+
+      for (let i = 1; i < resultBlocks.length && results.length < limit; i++) {
+        const block = resultBlocks[i];
+
+        // Extract title
+        const titleMatch = block.match(/class="result__a"[^>]*>([^<]+)</);
+        const title = titleMatch?.[1]?.trim() ?? '';
+
+        // Extract URL
+        const urlMatch = block.match(/href="\/\/duckduckgo\.com\/l\/\?[^"]*uddg=([^&"]+)/);
+        const url = urlMatch?.[1] ? decodeURIComponent(urlMatch[1]) : '';
+
+        // Extract snippet
+        const snippetMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/a>/);
+        const snippet = snippetMatch?.[1]
+          ?.replace(/<[^>]+>/g, '')
+          ?.replace(/\s+/g, ' ')
+          ?.trim() ?? '';
+
+        if (title && url) {
+          results.push({ title, url, snippet });
+        }
+      }
+
+      if (results.length === 0) {
+        return `No results found for "${query}"`;
+      }
+
+      // Format as readable text
+      let output = `Search results for "${query}":\n\n`;
+      for (let i = 0; i < results.length; i++) {
+        output += `${i + 1}. ${results[i].title}\n`;
+        output += `   URL: ${results[i].url}\n`;
+        if (results[i].snippet) {
+          output += `   ${results[i].snippet}\n`;
+        }
+        output += '\n';
+      }
+      return output;
+    } catch (err: any) {
+      if (err.name === 'TimeoutError') return 'Error: Search timed out (10s)';
       return `Error: ${err.message}`;
     }
   }

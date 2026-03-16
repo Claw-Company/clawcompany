@@ -89,6 +89,22 @@ export const BUILTIN_TOOLS: Record<string, ToolDefinition> = {
       },
     },
   },
+
+  web_search: {
+    type: 'function',
+    function: {
+      name: 'web_search',
+      description: 'Search the web for current information. Returns a list of results with titles, URLs, and snippets. Use this to find up-to-date facts, news, prices, or research topics.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search query' },
+          maxResults: { type: 'number', description: 'Max results to return (default: 5, max: 10)' },
+        },
+        required: ['query'],
+      },
+    },
+  },
 };
 
 /**
