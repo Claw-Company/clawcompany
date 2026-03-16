@@ -200,6 +200,26 @@ clawcompany role set cto --model deepseek-coder --provider deepseek
 
 ---
 
+## ClawMarket — download a company, one click, it runs
+
+Browse templates, skills, and tools. Install and run instantly.
+```bash
+clawcompany market list          # Browse all
+clawcompany market search "crypto"  # Search
+clawcompany market install trading-desk  # Install + apply
+```
+
+| Category | Examples | Status |
+|----------|---------|--------|
+| **Templates** | Trading Desk, Content Agency, Dev Shop, Legal Firm, E-commerce, Consulting, Solo Founder | 8 available |
+| **Skills** | Web Scraper, PDF Generator, Crypto Price Feed, Email Sender, GitHub Operations | 5 available |
+| **Tools** | Code execution, browser automation | Coming soon |
+| **Services** | Slack, HubSpot, Stripe integrations | Coming soon |
+
+One click = working company. No configuration needed.
+
+---
+
 ## Why ClawCompany?
 
 | | Single agent (OpenClaw) | Orchestrator (Paperclip) | **ClawCompany** |
