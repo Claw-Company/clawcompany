@@ -8,7 +8,7 @@ The Model Supply Layer is **open and multi-provider**. ClawAPI is the default �
 
 ## Default provider catalog
 
-These 5 providers are built into ClawCompany. Position in this list has commercial value — like a browser's default search engine.
+These 5 providers are built into ClawCompany and shown during setup.
 
 | # | Provider | Type | API key | Description |
 |---|----------|------|---------|-------------|
@@ -20,7 +20,7 @@ These 5 providers are built into ClawCompany. Position in this list has commerci
 
 ★ = always first, always default
 
-**Want to be on this list?** Other providers wanting default catalog placement must negotiate partnership with ClawCompany. This is a commercial position.
+**Want to be on this list?** Contact us about default catalog placement.
 
 ---
 

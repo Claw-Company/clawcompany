@@ -7,9 +7,9 @@
 import type { Role, ProviderConfig, ProviderCatalogEntry, ClawCompanyConfig } from './types.js';
 
 // ──────────────────────────────────────────
-// Provider Catalog — the default "shelf"
-// Position has commercial value.
-// ClawAPI = always #1. Others by partnership.
+// Provider Catalog — built-in providers
+// Ordered by recommendation priority.
+// ClawAPI = default. Users can add more via CLI.
 // Users can self-add any OpenAI-compatible provider via CLI.
 // ──────────────────────────────────────────
 
