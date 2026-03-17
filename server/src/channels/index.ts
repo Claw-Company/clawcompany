@@ -281,24 +281,61 @@ export class ChannelRouter {
   }
 
   /**
-   * Direct price lookup via CoinGecko — no AI, no cost, instant.
+   * Direct price lookup — crypto via CoinGecko, stocks via Yahoo Finance.
+   * No AI, no cost, instant. Auto-detects asset type.
    */
   private async getPrice(asset: string): Promise<string> {
-    // Normalize common names
-    const aliases: Record<string, string> = {
+    // Known crypto aliases
+    const cryptoAliases: Record<string, string> = {
       btc: 'bitcoin', eth: 'ethereum', sol: 'solana', doge: 'dogecoin',
       ada: 'cardano', xrp: 'ripple', dot: 'polkadot', avax: 'avalanche-2',
       bnb: 'binancecoin', matic: 'matic-network', link: 'chainlink',
       '比特币': 'bitcoin', '以太坊': 'ethereum', '狗狗币': 'dogecoin',
     };
-    const id = aliases[asset.toLowerCase()] ?? asset.toLowerCase();
 
+    // Stock ticker aliases (Chinese names → tickers)
+    const stockAliases: Record<string, string> = {
+      '苹果': 'AAPL', '特斯拉': 'TSLA', '英伟达': 'NVDA', '谷歌': 'GOOGL',
+      '亚马逊': 'AMZN', '微软': 'MSFT', '脸书': 'META', 'meta': 'META',
+      '茅台': '600519.SS', '腾讯': '0700.HK', '阿里巴巴': 'BABA', '阿里': 'BABA',
+      '百度': 'BIDU', '京东': 'JD', '拼多多': 'PDD', '网易': 'NTES',
+      '台积电': 'TSM', '三星': '005930.KS',
+    };
+
+    const lower = asset.toLowerCase();
+    const cryptoId = cryptoAliases[lower];
+    const stockTicker = stockAliases[lower] ?? stockAliases[asset];
+
+    // If it's a known crypto alias, go straight to CoinGecko
+    if (cryptoId) return this.getCryptoPrice(cryptoId);
+
+    // If it's a known stock alias, go straight to Yahoo
+    if (stockTicker) return this.getStockPrice(stockTicker);
+
+    // If it looks like a stock ticker (all uppercase, 1-5 chars), try stock first
+    if (/^[A-Z]{1,5}$/.test(asset)) {
+      const stockResult = await this.getStockPrice(asset);
+      if (!stockResult.startsWith('❌')) return stockResult;
+    }
+
+    // Try crypto
+    const cryptoResult = await this.getCryptoPrice(lower);
+    if (!cryptoResult.startsWith('❌')) return cryptoResult;
+
+    // Try stock as last resort
+    const stockResult = await this.getStockPrice(asset.toUpperCase());
+    if (!stockResult.startsWith('❌')) return stockResult;
+
+    return `❌ "${asset}" not found as crypto or stock.\n\nTry: /price bitcoin, /price AAPL, /price 特斯拉`;
+  }
+
+  private async getCryptoPrice(id: string): Promise<string> {
     try {
       const url = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(id)}&vs_currencies=usd&include_market_cap=true&include_24hr_vol=true&include_24hr_change=true`;
       const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
       const data = await res.json() as Record<string, Record<string, number>>;
 
-      if (!data[id]) return `Asset "${asset}" not found. Try: /price bitcoin, /price ethereum, /price solana`;
+      if (!data[id]) return `❌ Crypto "${id}" not found on CoinGecko.`;
 
       const d = data[id];
       const price = d.usd;
@@ -306,16 +343,59 @@ export class ChannelRouter {
       const vol = d.usd_24h_vol;
       const change = d.usd_24h_change;
 
-      return `📊 **${id.charAt(0).toUpperCase() + id.slice(1)}** — Real-time from CoinGecko
+      const fmtPrice = price >= 1
+        ? price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : price.toPrecision(4);
 
-**$${price?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}** USD
+      return `📊 **${id.charAt(0).toUpperCase() + id.slice(1)}** — CoinGecko
+
+**$${fmtPrice}** USD
 Market Cap: $${cap ? (cap / 1e9).toFixed(2) + 'B' : 'N/A'}
 24h Volume: $${vol ? (vol / 1e9).toFixed(2) + 'B' : 'N/A'}
 24h Change: ${change ? (change > 0 ? '+' : '') + change.toFixed(2) + '%' : 'N/A'}
 
 _Free · No AI cost · Direct API_`;
     } catch {
-      return '❌ Price feed unavailable. Try again in a moment.';
+      return '❌ Crypto price feed unavailable.';
+    }
+  }
+
+  private async getStockPrice(ticker: string): Promise<string> {
+    try {
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=2d`;
+      const res = await fetch(url, {
+        signal: AbortSignal.timeout(10000),
+        headers: { 'User-Agent': 'ClawCompany/1.0' },
+      });
+
+      if (!res.ok) return `❌ Stock "${ticker}" not found on Yahoo Finance.`;
+
+      const data = await res.json() as any;
+      const result = data?.chart?.result?.[0];
+      if (!result) return `❌ Stock "${ticker}" not found.`;
+
+      const meta = result.meta;
+      const price = meta.regularMarketPrice;
+      const prevClose = meta.chartPreviousClose ?? meta.previousClose;
+      const change = prevClose ? ((price - prevClose) / prevClose * 100) : null;
+      const currency = meta.currency ?? 'USD';
+      const name = meta.shortName ?? meta.symbol ?? ticker;
+      const cap = meta.marketCap;
+
+      const fmtPrice = price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const fmtChange = change !== null
+        ? (change > 0 ? '+' : '') + change.toFixed(2) + '%'
+        : 'N/A';
+
+      return `📈 **${name}** (${ticker}) — Yahoo Finance
+
+**$${fmtPrice}** ${currency}
+${cap ? `Market Cap: $${(cap / 1e9).toFixed(2)}B` : ''}
+Change: ${fmtChange}
+
+_Free · No AI cost · Direct API_`;
+    } catch {
+      return '❌ Stock price feed unavailable.';
     }
   }
 
@@ -324,7 +404,7 @@ _Free · No AI cost · Direct API_`;
 
 **Commands:**
 /mission <goal> — Give your company a mission
-/price <asset> — Real-time price (free, no AI cost)
+/price <asset> — Real-time price: crypto or stocks (free)
 /ceo <message> — Talk to the CEO
 /cto <message> — Talk to the CTO
 /chat <role> <message> — Talk to any role
@@ -334,7 +414,8 @@ _Free · No AI cost · Direct API_`;
 **Examples:**
 /mission Analyze Bitcoin price trends and recommend a strategy
 /price bitcoin
-/price ethereum
+/price AAPL
+/price 特斯拉
 /ceo What's our competitive advantage?
 
 Just type anything to chat with the CEO directly.`;
