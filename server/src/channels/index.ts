@@ -128,6 +128,8 @@ export class ChannelRouter {
         responseText = this.getHelpText();
       } else if (intent.type === 'status') {
         responseText = await this.getStatus();
+      } else if (intent.type === 'price') {
+        responseText = await this.getPrice(intent.asset);
       } else {
         // Default: chat with CEO
         responseText = await this.runChat('ceo', msg.text);
@@ -191,6 +193,12 @@ export class ChannelRouter {
 
     if (trimmed === '/status') {
       return { type: 'status' };
+    }
+
+    // /price <asset> — direct price lookup, no AI needed
+    if (trimmed.startsWith('/price')) {
+      const asset = trimmed.slice(6).trim() || 'bitcoin';
+      return { type: 'price', asset };
     }
 
     // Default: chat with CEO
@@ -272,11 +280,51 @@ export class ChannelRouter {
     }
   }
 
+  /**
+   * Direct price lookup via CoinGecko — no AI, no cost, instant.
+   */
+  private async getPrice(asset: string): Promise<string> {
+    // Normalize common names
+    const aliases: Record<string, string> = {
+      btc: 'bitcoin', eth: 'ethereum', sol: 'solana', doge: 'dogecoin',
+      ada: 'cardano', xrp: 'ripple', dot: 'polkadot', avax: 'avalanche-2',
+      bnb: 'binancecoin', matic: 'matic-network', link: 'chainlink',
+      '比特币': 'bitcoin', '以太坊': 'ethereum', '狗狗币': 'dogecoin',
+    };
+    const id = aliases[asset.toLowerCase()] ?? asset.toLowerCase();
+
+    try {
+      const url = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(id)}&vs_currencies=usd&include_market_cap=true&include_24hr_vol=true&include_24hr_change=true`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      const data = await res.json() as Record<string, Record<string, number>>;
+
+      if (!data[id]) return `Asset "${asset}" not found. Try: /price bitcoin, /price ethereum, /price solana`;
+
+      const d = data[id];
+      const price = d.usd;
+      const cap = d.usd_market_cap;
+      const vol = d.usd_24h_vol;
+      const change = d.usd_24h_change;
+
+      return `📊 **${id.charAt(0).toUpperCase() + id.slice(1)}** — Real-time from CoinGecko
+
+**$${price?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}** USD
+Market Cap: $${cap ? (cap / 1e9).toFixed(2) + 'B' : 'N/A'}
+24h Volume: $${vol ? (vol / 1e9).toFixed(2) + 'B' : 'N/A'}
+24h Change: ${change ? (change > 0 ? '+' : '') + change.toFixed(2) + '%' : 'N/A'}
+
+_Free · No AI cost · Direct API_`;
+    } catch {
+      return '❌ Price feed unavailable. Try again in a moment.';
+    }
+  }
+
   private getHelpText(): string {
     return `🦞 **ClawCompany** — Your AI company in a chat.
 
 **Commands:**
 /mission <goal> — Give your company a mission
+/price <asset> — Real-time price (free, no AI cost)
 /ceo <message> — Talk to the CEO
 /cto <message> — Talk to the CTO
 /chat <role> <message> — Talk to any role
@@ -285,8 +333,9 @@ export class ChannelRouter {
 
 **Examples:**
 /mission Analyze Bitcoin price trends and recommend a strategy
+/price bitcoin
+/price ethereum
 /ceo What's our competitive advantage?
-/cto Review the authentication architecture
 
 Just type anything to chat with the CEO directly.`;
   }
@@ -339,6 +388,7 @@ type Intent =
   | { type: 'chat'; role: string; content: string }
   | { type: 'help' }
   | { type: 'status' }
+  | { type: 'price'; asset: string }
   | { type: 'default'; content: string };
 
 /**

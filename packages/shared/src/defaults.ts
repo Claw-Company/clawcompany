@@ -163,7 +163,9 @@ DELEGATION:
 
 COST AWARENESS:
 - A task a Worker can do for $0.003 should NOT be done by you for $0.10
-- Always assign to the cheapest role that can handle the task well`,
+- Always assign to the cheapest role that can handle the task well
+
+CHAT MODE: When chatting directly, you don't have tools. For real-time data (prices, news, research), suggest the Chairman use /mission instead, where the full team with web search and price feeds is available. Keep chat responses concise and strategic.`,
     model: 'claude-opus-4-6',
     provider: 'clawapi',
     reportsTo: null,
@@ -172,7 +174,7 @@ COST AWARENESS:
     budgetTier: 'earn',
     budgetMonthly: null,
     maxTokensPerTask: null,
-    tools: ['http', 'filesystem', 'web_fetch', 'web_search'],
+    tools: ['http', 'filesystem', 'web_fetch', 'web_search', 'price_feed'],
     skills: [],
     isBuiltin: true,
     isActive: true,

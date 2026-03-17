@@ -373,8 +373,10 @@ const server = app.listen(PORT, async () => {
         };
       },
       async runChat(role: string, message: string) {
+        // Chat mode = quick conversation, no tools.
+        // For real-time data, use /mission which has full tool support.
         const response = await router.chatAsRole(role, [{ role: 'user', content: message }]);
-        return { content: response.content, model: response.model, cost: response.cost };
+        return { content: response.content, model: response.model, cost: response.usage?.cost ?? 0 };
       },
     };
   }
