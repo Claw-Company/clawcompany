@@ -3,10 +3,14 @@ import {
   readConfig,
   apiPost,
   isServerRunning,
+  readMemory,
+  writeMemory,
   type ClawConfig,
 } from '../utils.js';
 import {
   getDefaultConfig,
+  buildMemoryContext,
+  updateMemoryFromMission,
 } from '@clawcompany/shared';
 import { ProviderRegistry } from '@clawcompany/providers';
 import { ModelRouter } from '@clawcompany/model-router';
@@ -76,6 +80,14 @@ async function runInProcess(goal: string, userConfig: ClawConfig) {
     const router = new ModelRouter(registry, clawConfig);
     const orchestrator = new TaskOrchestrator(router);
 
+    // Load company memory and inject into orchestrator
+    const memory = readMemory();
+    const memoryCtx = buildMemoryContext(memory);
+    if (memoryCtx) {
+      orchestrator.setMemoryContext(memoryCtx);
+      console.log('  🧠 Company memory loaded\n');
+    }
+
     // Phase 2: CEO decomposes
     console.log('  Phase 2: CEO decomposing...');
     const mission = {
@@ -97,6 +109,21 @@ async function runInProcess(goal: string, userConfig: ClawConfig) {
     const report = await orchestrator.executeMission(mission, workStreams);
 
     console.log('  Phase 6: Delivering to Chairman\n');
+
+    // Update company memory with mission insights
+    const updatedMemory = updateMemoryFromMission(memory, {
+      goal,
+      cost: report.totalCost,
+      duration: report.totalTimeSeconds,
+      workStreams: report.workStreams.map(ws => ({
+        title: ws.title,
+        assignedTo: ws.assignedTo,
+        status: ws.status,
+        output: ws.output,
+      })),
+    }, goal);
+    writeMemory(updatedMemory);
+    console.log('  🧠 Memory updated\n');
 
     const result = {
       status: 'completed',

@@ -13,9 +13,15 @@ export { MissionLifecycle } from './lifecycle.js';
 
 export class TaskOrchestrator {
   private executor: AgentExecutor;
+  private memoryContext: string = '';
 
   constructor(private router: ModelRouter) {
     this.executor = new AgentExecutor(router, new ToolExecutor());
+  }
+
+  /** Set company memory context to inject into all agent prompts */
+  setMemoryContext(ctx: string): void {
+    this.memoryContext = ctx;
   }
 
   /**
@@ -40,7 +46,7 @@ export class TaskOrchestrator {
 Priority: ${mission.priority}
 ${mission.deadline ? `Deadline: ${mission.deadline}` : ''}
 ${mission.budgetLimit ? `Budget limit: $${mission.budgetLimit}` : ''}
-
+${this.memoryContext ? `${this.memoryContext}\n` : ''}
 Your team:
 ${roleList}
 
@@ -179,7 +185,7 @@ Respond ONLY with JSON:
       missionId: ws.missionId,
       workStreamId: ws.id,
       title: ws.title,
-      description: `${ws.description}\n\nComplexity: ${ws.estimatedComplexity}${context}\n\nToday's date is ${new Date().toISOString().split('T')[0]}.`,
+      description: `${ws.description}\n\nComplexity: ${ws.estimatedComplexity}${context}${this.memoryContext ? `\n${this.memoryContext}` : ''}\n\nToday's date is ${new Date().toISOString().split('T')[0]}.`,
       assignedTo: ws.assignTo,
       createdBy: 'ceo',
       reportTo: 'ceo',

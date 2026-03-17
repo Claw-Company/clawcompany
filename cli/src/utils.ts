@@ -7,7 +7,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 
 export function banner() {
   console.log('');
-  console.log('  🦞 ClawCompany v0.3.0');
+  console.log('  🦞 ClawCompany v0.1.0');
   console.log('  Build for OPC. Every human being is a chairman.');
   console.log('');
 }
@@ -50,6 +50,29 @@ export function readConfig(): ClawConfig | null {
 
 export function writeConfig(config: ClawConfig): void {
   writeFileSync(getConfigPath(), JSON.stringify(config, null, 2));
+}
+
+// ──────────────────────────────────────────
+// Memory file: ~/.clawcompany/memory.json
+// ──────────────────────────────────────────
+
+import { createEmptyMemory, type ClawMemory } from '@clawcompany/shared';
+
+export function getMemoryPath(): string {
+  return join(getConfigDir(), 'memory.json');
+}
+
+export function readMemory(): ClawMemory {
+  try {
+    if (existsSync(getMemoryPath())) {
+      return JSON.parse(readFileSync(getMemoryPath(), 'utf-8'));
+    }
+  } catch {}
+  return createEmptyMemory();
+}
+
+export function writeMemory(memory: ClawMemory): void {
+  writeFileSync(getMemoryPath(), JSON.stringify(memory, null, 2));
 }
 
 // ──────────────────────────────────────────
