@@ -25,6 +25,8 @@ export class ToolExecutor {
         return this.execWebFetch(args);
       case 'web_search':
         return this.execWebSearch(args);
+      case 'price_feed':
+        return this.execPriceFeed(args);
       default:
         return `Unknown tool: ${toolName}`;
     }
@@ -223,6 +225,49 @@ export class ToolExecutor {
     } catch (err: any) {
       if (err.name === 'TimeoutError') return 'Error: Search timed out (10s)';
       return `Error: ${err.message}`;
+    }
+  }
+
+  private async execPriceFeed(args: Record<string, unknown>): Promise<string> {
+    const asset = (args.asset as string ?? 'bitcoin').toLowerCase();
+    const currency = (args.currency as string ?? 'usd').toLowerCase();
+
+    try {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(), 10000);
+
+      const url = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(asset)}&vs_currencies=${currency}&include_market_cap=true&include_24hr_vol=true&include_24hr_change=true`;
+
+      const res = await fetch(url, { signal: controller.signal });
+      const data = await res.json() as Record<string, Record<string, number>>;
+
+      if (!data[asset]) {
+        // Try search API for fuzzy match
+        const searchUrl = `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(asset)}`;
+        const searchRes = await fetch(searchUrl, { signal: controller.signal });
+        const searchData = await searchRes.json() as { coins: Array<{ id: string; name: string; symbol: string }> };
+
+        if (searchData.coins?.length > 0) {
+          const match = searchData.coins[0];
+          return `Asset "${asset}" not found. Did you mean "${match.id}" (${match.name}, ${match.symbol})? Try again with the correct ID.`;
+        }
+        return `Asset "${asset}" not found on CoinGecko. Check the asset ID.`;
+      }
+
+      const d = data[asset];
+      const price = d[currency];
+      const marketCap = d[`${currency}_market_cap`];
+      const vol24h = d[`${currency}_24h_vol`];
+      const change24h = d[`${currency}_24h_change`];
+
+      return `${asset.toUpperCase()} Price Feed (real-time from CoinGecko):
+  Price: $${price?.toLocaleString() ?? 'N/A'} ${currency.toUpperCase()}
+  Market Cap: $${marketCap ? (marketCap / 1e9).toFixed(2) + 'B' : 'N/A'}
+  24h Volume: $${vol24h ? (vol24h / 1e9).toFixed(2) + 'B' : 'N/A'}
+  24h Change: ${change24h?.toFixed(2) ?? 'N/A'}%`;
+    } catch (err: any) {
+      if (err.name === 'AbortError') return 'Error: Price feed timed out (10s)';
+      return `Error fetching price: ${err.message}`;
     }
   }
 }

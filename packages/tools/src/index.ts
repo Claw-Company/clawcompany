@@ -105,6 +105,22 @@ export const BUILTIN_TOOLS: Record<string, ToolDefinition> = {
       },
     },
   },
+
+  price_feed: {
+    type: 'function',
+    function: {
+      name: 'price_feed',
+      description: 'Get real-time cryptocurrency or asset prices from CoinGecko. Use this INSTEAD of guessing prices from memory. Returns current price, market cap, 24h volume, and 24h change.',
+      parameters: {
+        type: 'object',
+        properties: {
+          asset: { type: 'string', description: 'Asset ID, e.g. "bitcoin", "ethereum", "solana", "dogecoin"' },
+          currency: { type: 'string', description: 'Target currency (default: "usd"). E.g. "usd", "eur", "cny"' },
+        },
+        required: ['asset'],
+      },
+    },
+  },
 };
 
 /**

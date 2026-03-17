@@ -220,7 +220,7 @@ Handle all financial work — budget analysis, cost projections, financial model
     budgetTier: 'save',
     budgetMonthly: null,
     maxTokensPerTask: null,
-    tools: ['http', 'filesystem', 'code_interpreter'],
+    tools: ['http', 'filesystem', 'code_interpreter', 'price_feed'],
     skills: [],
     isBuiltin: true,
     isActive: true,
@@ -259,7 +259,9 @@ Own marketing strategy, content creation, brand voice, growth initiatives. Write
     description: 'Deep research, source evaluation, competitive analysis.',
     systemPrompt: `You are a Researcher. You report to whoever delegates to you.
 
-Conduct deep research — gather information, evaluate sources, analyze competitors, investigate topics thoroughly. Cite sources. Distinguish facts from opinions. Flag data gaps.`,
+Conduct deep research — gather information, evaluate sources, analyze competitors, investigate topics thoroughly. Cite sources. Distinguish facts from opinions. Flag data gaps.
+
+CRITICAL: All data, figures, prices, and statistics MUST come from tool calls (web_search, web_fetch, http). NEVER fabricate or estimate numbers from memory. If a tool call fails to return data, explicitly state "data not available" rather than making up numbers.`,
     model: 'claude-sonnet-4-6',
     provider: 'clawapi',
     reportsTo: 'ceo',
@@ -268,7 +270,7 @@ Conduct deep research — gather information, evaluate sources, analyze competit
     budgetTier: 'earn',
     budgetMonthly: null,
     maxTokensPerTask: null,
-    tools: ['http', 'filesystem', 'web_fetch', 'web_search'],
+    tools: ['http', 'filesystem', 'web_fetch', 'web_search', 'price_feed'],
     skills: [],
     isBuiltin: true,
     isActive: true,
@@ -282,7 +284,9 @@ Conduct deep research — gather information, evaluate sources, analyze competit
     description: 'Data analysis, pattern detection, metrics, quantitative work.',
     systemPrompt: `You are an Analyst. You report to the CFO or CEO.
 
-Analyze data, detect patterns, calculate metrics, build models. Show calculations step by step. Present findings in tables. State assumptions. Quantify confidence levels.`,
+Analyze data, detect patterns, calculate metrics, build models. Show calculations step by step. Present findings in tables. State assumptions. Quantify confidence levels.
+
+CRITICAL: Base all analysis on data from tool calls or from previous work stream outputs. NEVER fabricate prices, statistics, or market data from memory. If source data is missing, state the gap explicitly.`,
     model: 'gpt-5-mini',
     provider: 'clawapi',
     reportsTo: 'cfo',
@@ -291,7 +295,7 @@ Analyze data, detect patterns, calculate metrics, build models. Show calculation
     budgetTier: 'save',
     budgetMonthly: null,
     maxTokensPerTask: null,
-    tools: ['http', 'filesystem', 'code_interpreter', 'web_fetch', 'web_search'],
+    tools: ['http', 'filesystem', 'code_interpreter', 'web_fetch', 'web_search', 'price_feed'],
     skills: [],
     isBuiltin: true,
     isActive: true,
@@ -351,7 +355,9 @@ Prepare briefings, format reports, summarize documents, organize information. Ma
     id: 'worker',
     name: 'Worker',
     description: 'Fast routine tasks, data collection, formatting, translation.',
-    systemPrompt: `You are a Worker. Execute routine tasks quickly and reliably. Data collection, formatting, translation, classification, tagging. Focus on speed and accuracy. Keep outputs structured.`,
+    systemPrompt: `You are a Worker. Execute routine tasks quickly and reliably. Data collection, formatting, translation, classification, tagging. Focus on speed and accuracy. Keep outputs structured.
+
+CRITICAL: When collecting data (prices, statistics, figures), you MUST use tools (web_search, web_fetch, http) to get real-time data. NEVER fabricate numbers from memory. If you cannot retrieve actual data, say "data unavailable" instead of guessing.`,
     model: 'gemini-3.1-flash-lite',
     provider: 'clawapi',
     reportsTo: 'ceo',
@@ -360,7 +366,7 @@ Prepare briefings, format reports, summarize documents, organize information. Ma
     budgetTier: 'save',
     budgetMonthly: null,
     maxTokensPerTask: null,
-    tools: ['filesystem', 'http', 'web_fetch', 'web_search'],
+    tools: ['filesystem', 'http', 'web_fetch', 'web_search', 'price_feed'],
     skills: [],
     isBuiltin: true,
     isActive: true,
