@@ -44,7 +44,7 @@ npx clawcompany
 That's it. The wizard guides you through everything:
 
 ```
-  🦞 ClawCompany v0.1.0
+  🦞 ClawCompany v0.4.0
   Build for OPC. Every human being is a chairman.
 
   Step 1/3: Connect to ClawAPI
@@ -217,6 +217,58 @@ clawcompany market install trading-desk  # Install + apply
 | **Services** | Slack, HubSpot, Stripe integrations | Coming soon |
 
 One click = working company. No configuration needed.
+
+---
+
+## Agent tools — agents that do things, not just say things
+
+6 built-in tools. Your agents can search the web, read pages, call APIs, write files, and execute code — autonomously.
+
+| Tool | What it does |
+|------|-------------|
+| **Web Search** | Search the web for real-time info (DuckDuckGo, no API key needed) |
+| **Web Fetch** | Read any web page, strip HTML, return clean text |
+| **HTTP Requests** | Call any API — GET, POST, PUT, DELETE |
+| **Filesystem** | Read, write, list, delete files |
+| **Shell** | Execute shell commands (30s timeout) |
+| **Code Interpreter** | Run JavaScript or Python code |
+
+Agents use a **think → act → observe** loop: reason about the task, use tools, observe results, repeat until done. Verified: Researcher made 16 tool calls in one mission to gather real-time data.
+
+---
+
+## Chat with your company from anywhere
+
+| Channel | Status | How |
+|---------|--------|-----|
+| **WebChat** | ✅ Live | `http://localhost:3200/chat.html` |
+| **Telegram** | ✅ Live | Add `TELEGRAM_BOT_TOKEN` to `.env` |
+| **Discord** | 🔜 Soon | Coming next |
+| **Slack** | 🔜 Soon | Planned |
+| **Feishu** | 🔜 Soon | Planned |
+
+Two modes in WebChat:
+- **Mission mode** — CEO decomposes, team executes, real-time SSE progress
+- **Chat mode** — direct conversation with any role (CEO, CTO, CFO...)
+
+Channel architecture: one `ChannelAdapter` interface for all platforms. Adding a new chat app = ~40 lines of code.
+
+---
+
+## Company memory — gets smarter every mission
+
+Your company auto-learns your preferences, domain, and patterns. Zero configuration.
+```
+🧠 Company memory loaded
+
+chairman.language: "zh"              // auto-detected
+chairman.domains: ["crypto", "finance"]  // learned from missions
+chairman.commonMissions: ["analysis", "research"]
+company.missionCount: 12
+company.recentMissions: ["BTC分析", "ETH对比", ...]
+```
+
+**~300 tokens** injected per mission. OpenClaw's SOUL.md loads 4,000-10,000 tokens every session. Same memory quality, **1/17 the cost**.
 
 ---
 
