@@ -98,6 +98,9 @@ export class ChannelRouter {
       let responseText: string;
 
       if (intent.type === 'mission') {
+        // Auto-enrich: if mission mentions prices, pre-fetch real data
+        const enrichedGoal = await this.enrichMissionWithData(intent.content);
+
         // Missions are async — ack immediately, deliver results later
         if (sendFn) {
           // Send acknowledgment
@@ -108,7 +111,7 @@ export class ChannelRouter {
           });
 
           // Run mission in background, deliver results when done
-          this.runMission(intent.content).then(result => {
+          this.runMission(enrichedGoal).then(result => {
             sendFn({ chatId: msg.chatId, text: result, isMarkdown: true });
           }).catch(err => {
             sendFn({ chatId: msg.chatId, text: `Mission failed: ${err.message}` });
@@ -121,7 +124,7 @@ export class ChannelRouter {
           };
         }
         // No sendFn — wait synchronously (WebChat fallback)
-        responseText = await this.runMission(intent.content);
+        responseText = await this.runMission(enrichedGoal);
       } else if (intent.type === 'chat') {
         responseText = await this.runChat(intent.role, intent.content);
       } else if (intent.type === 'help') {
@@ -203,6 +206,50 @@ export class ChannelRouter {
 
     // Default: chat with CEO
     return { type: 'default', content: trimmed };
+  }
+
+  /**
+   * Auto-enrich mission with real-time data when it mentions assets/prices.
+   * This prevents agents from hallucinating prices.
+   */
+  private async enrichMissionWithData(goal: string): Promise<string> {
+    const lower = goal.toLowerCase();
+
+    // Detect mentioned assets
+    const assetPatterns: Array<{ pattern: RegExp; id: string; type: 'crypto' | 'stock' }> = [
+      { pattern: /比特币|bitcoin|btc/i, id: 'bitcoin', type: 'crypto' },
+      { pattern: /以太坊|ethereum|eth(?!er)/i, id: 'ethereum', type: 'crypto' },
+      { pattern: /狗狗币|dogecoin|doge/i, id: 'dogecoin', type: 'crypto' },
+      { pattern: /solana|sol(?!ar)/i, id: 'solana', type: 'crypto' },
+      { pattern: /特斯拉|tesla|tsla/i, id: 'TSLA', type: 'stock' },
+      { pattern: /苹果|apple|aapl/i, id: 'AAPL', type: 'stock' },
+      { pattern: /英伟达|nvidia|nvda/i, id: 'NVDA', type: 'stock' },
+      { pattern: /谷歌|google|googl/i, id: 'GOOGL', type: 'stock' },
+      { pattern: /茅台|moutai/i, id: '600519.SS', type: 'stock' },
+      { pattern: /腾讯|tencent/i, id: '0700.HK', type: 'stock' },
+      { pattern: /阿里|alibaba|baba/i, id: 'BABA', type: 'stock' },
+      { pattern: /微软|microsoft|msft/i, id: 'MSFT', type: 'stock' },
+      { pattern: /亚马逊|amazon|amzn/i, id: 'AMZN', type: 'stock' },
+    ];
+
+    const matched: string[] = [];
+    for (const { pattern, id, type } of assetPatterns) {
+      if (pattern.test(goal)) {
+        try {
+          const priceData = type === 'crypto'
+            ? await this.getCryptoPrice(id)
+            : await this.getStockPrice(id);
+          if (!priceData.startsWith('❌')) {
+            // Extract just the key numbers (strip markdown formatting)
+            matched.push(priceData.replace(/\*\*/g, '').replace(/_.*_/, '').trim());
+          }
+        } catch {}
+      }
+    }
+
+    if (matched.length === 0) return goal;
+
+    return `${goal}\n\n--- REAL-TIME DATA (pre-fetched, use these exact numbers) ---\n${matched.join('\n\n')}`;
   }
 
   private async runMission(goal: string): Promise<string> {
