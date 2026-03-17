@@ -12,6 +12,7 @@ import {
 import { ProviderRegistry } from '@clawcompany/providers';
 import { ModelRouter } from '@clawcompany/model-router';
 import { TaskOrchestrator } from '@clawcompany/task-orchestrator';
+import type { DirectRunner } from './channels/index.js';
 
 config({ path: '../.env' });
 
@@ -289,6 +290,10 @@ app.post('/api/mission/run-stream', async (req, res) => {
 });
 
 app.post('/api/mission/run', async (req, res) => {
+  // Mission can take 10+ minutes — disable HTTP timeout
+  req.setTimeout(0);
+  res.setTimeout(0);
+
   if (!orchestrator) return res.status(503).json({ error: bootError ?? 'Not initialized' });
   const { mission } = req.body;
   if (!mission) return res.status(400).json({ error: 'Required: { mission: "..." }' });
@@ -315,11 +320,11 @@ app.post('/api/mission/run', async (req, res) => {
       status: 'completed',
       mission: report.mission,
       totalCost: `$${report.totalCost.toFixed(4)}`,
-      totalTime: `${report.totalTimeSeconds}s`,
+      totalTimeSeconds: report.totalTimeSeconds,
       workStreams: report.workStreams.map(ws => ({
-        id: ws.workStreamId, title: ws.title, role: ws.assignedTo,
+        id: ws.workStreamId, title: ws.title, assignedTo: ws.assignedTo,
         model: ws.model, status: ws.status, cost: `$${ws.cost.toFixed(4)}`,
-        outputPreview: ws.output.slice(0, 300) + (ws.output.length > 300 ? '...' : ''),
+        output: ws.output,
       })),
     });
   } catch (err: any) {
@@ -327,7 +332,12 @@ app.post('/api/mission/run', async (req, res) => {
   }
 });
 
-app.listen(PORT, async () => {
+const server = app.listen(PORT, async () => {
+  // Disable default 5-minute request timeout — missions can take 10+ minutes
+  server.requestTimeout = 0;
+  server.headersTimeout = 0;
+  server.timeout = 0;
+
   console.log('');
   console.log('  🦞 ClawCompany server running');
   console.log(`  → Dashboard: http://localhost:${PORT}`);
@@ -336,6 +346,39 @@ app.listen(PORT, async () => {
   console.log('');
   await bootstrap();
 
+  // Build direct runner for channel adapters (no HTTP self-request)
+  let directRunner: DirectRunner | undefined;
+  if (orchestrator && router) {
+    directRunner = {
+      async runMission(goal: string) {
+        const mission = {
+          id: `mission-${Date.now()}`, companyId: 'default', content: goal,
+          status: 'decomposing' as const, priority: 'normal' as const,
+          approvalRequired: false, totalCost: 0, createdAt: new Date().toISOString(),
+        };
+        console.log(`\n  🎯 Mission from Chairman: "${goal}"\n`);
+        console.log('  Phase 2: CEO decomposing...');
+        const workStreams = await orchestrator.decompose(mission);
+        console.log(`  ✅ Decomposed into ${workStreams.length} work streams\n`);
+        console.log('  Phase 3-5: Executing...');
+        const report = await orchestrator.executeMission(mission, workStreams);
+        console.log('  Phase 6: Delivering result to Chairman\n');
+        return {
+          totalCost: report.totalCost,
+          totalTimeSeconds: report.totalTimeSeconds,
+          workStreams: report.workStreams.map(ws => ({
+            title: ws.title, assignedTo: ws.assignedTo,
+            status: ws.status, output: ws.output,
+          })),
+        };
+      },
+      async runChat(role: string, message: string) {
+        const response = await router.chatAsRole(role, [{ role: 'user', content: message }]);
+        return { content: response.content, model: response.model, cost: response.cost };
+      },
+    };
+  }
+
   // Auto-start Telegram bot if token is configured
   if (process.env.TELEGRAM_BOT_TOKEN) {
     try {
@@ -343,10 +386,26 @@ app.listen(PORT, async () => {
       const telegram = new TelegramAdapter(
         process.env.TELEGRAM_BOT_TOKEN,
         `http://localhost:${PORT}`,
+        directRunner,
       );
       await telegram.start();
     } catch (err: any) {
       console.error(`  ❌ Telegram bot failed: ${err.message}`);
+    }
+  }
+
+  // Auto-start Discord bot if token is configured
+  if (process.env.DISCORD_BOT_TOKEN) {
+    try {
+      const { DiscordAdapter } = await import('./channels/discord.js');
+      const discord = new DiscordAdapter(
+        process.env.DISCORD_BOT_TOKEN,
+        `http://localhost:${PORT}`,
+        directRunner,
+      );
+      await discord.start();
+    } catch (err: any) {
+      console.error(`  ❌ Discord bot failed: ${err.message}`);
     }
   }
 

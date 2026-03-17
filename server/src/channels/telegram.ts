@@ -10,8 +10,9 @@
 //   3. Server auto-starts the bot if token is present
 // ============================================================
 
-import type { ChannelAdapter, InboundMessage, SendOptions } from './index.js';
+import type { ChannelAdapter, InboundMessage, OutboundMessage, SendOptions } from './index.js';
 import { ChannelRouter } from './index.js';
+import type { DirectRunner } from './index.js';
 
 export class TelegramAdapter implements ChannelAdapter {
   readonly name = 'telegram';
@@ -22,9 +23,9 @@ export class TelegramAdapter implements ChannelAdapter {
   private polling = false;
   private offset = 0;
 
-  constructor(token: string, apiBase?: string) {
+  constructor(token: string, apiBase?: string, directRunner?: DirectRunner) {
     this.token = token;
-    this.router = new ChannelRouter(apiBase);
+    this.router = new ChannelRouter(apiBase, directRunner);
   }
 
   async start(): Promise<void> {
@@ -100,13 +101,18 @@ export class TelegramAdapter implements ChannelAdapter {
     // Send "typing" indicator
     this.api('sendChatAction', { chat_id: inbound.chatId, action: 'typing' }).catch(() => {});
 
-    // Route through shared ChannelRouter
-    const response = await this.router.handleMessage(inbound);
+    // Route through shared ChannelRouter (with sendFn for async missions)
+    const sendFn = async (out: OutboundMessage) => {
+      if (out.text) await this.sendText(out.chatId, out.text, { replyToId: out.replyToId });
+    };
+    const response = await this.router.handleMessage(inbound, sendFn);
 
-    // Send response back
-    await this.sendText(response.chatId, response.text, {
-      replyToId: response.replyToId,
-    });
+    // Send response back (skip if empty — already sent via sendFn)
+    if (response.text) {
+      await this.sendText(response.chatId, response.text, {
+        replyToId: response.replyToId,
+      });
+    }
   }
 
   private async api(method: string, params?: Record<string, unknown>): Promise<any> {

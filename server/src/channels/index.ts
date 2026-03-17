@@ -76,22 +76,51 @@ export interface SendOptions {
 
 export class ChannelRouter {
   private apiBase: string;
+  private directRunner?: DirectRunner;
 
-  constructor(apiBase: string = 'http://localhost:3200') {
+  constructor(apiBase: string = 'http://localhost:3200', directRunner?: DirectRunner) {
     this.apiBase = apiBase;
+    this.directRunner = directRunner;
   }
 
   /**
    * Process an inbound message from any platform.
-   * Returns the response text to send back.
+   * Returns the immediate response text.
+   * For missions, sends an ack immediately, then delivers results via sendFn.
    */
-  async handleMessage(msg: InboundMessage): Promise<OutboundMessage> {
+  async handleMessage(
+    msg: InboundMessage,
+    sendFn?: (out: OutboundMessage) => Promise<void>,
+  ): Promise<OutboundMessage> {
     const intent = this.parseIntent(msg.text);
 
     try {
       let responseText: string;
 
       if (intent.type === 'mission') {
+        // Missions are async — ack immediately, deliver results later
+        if (sendFn) {
+          // Send acknowledgment
+          sendFn({
+            chatId: msg.chatId,
+            text: `🦞 Mission received: "${intent.content}"\n\nCEO is decomposing. Results will be delivered here when ready...`,
+            replyToId: msg.id,
+          });
+
+          // Run mission in background, deliver results when done
+          this.runMission(intent.content).then(result => {
+            sendFn({ chatId: msg.chatId, text: result, isMarkdown: true });
+          }).catch(err => {
+            sendFn({ chatId: msg.chatId, text: `Mission failed: ${err.message}` });
+          });
+
+          return {
+            chatId: msg.chatId,
+            text: '', // Already sent via sendFn
+            replyToId: msg.id,
+          };
+        }
+        // No sendFn — wait synchronously (WebChat fallback)
         responseText = await this.runMission(intent.content);
       } else if (intent.type === 'chat') {
         responseText = await this.runChat(intent.role, intent.content);
@@ -169,23 +198,38 @@ export class ChannelRouter {
   }
 
   private async runMission(goal: string): Promise<string> {
-    const res = await fetch(`${this.apiBase}/api/mission/run`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mission: goal }),
-    });
+    // Direct runner — no HTTP, no timeout issues
+    if (this.directRunner) {
+      const report = await this.directRunner.runMission(goal);
+      return this.formatMissionReport(report);
+    }
 
-    const data = await res.json();
+    // Fallback: HTTP API
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10 * 60 * 1000);
 
-    if (data.error) return `Mission failed: ${data.error}`;
+    try {
+      const res = await fetch(`${this.apiBase}/api/mission/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mission: goal }),
+        signal: controller.signal,
+      });
 
-    // Format mission results
-    let output = `**Mission complete** · ${data.totalCost} · ${data.totalTimeSeconds}s\n\n`;
+      const data = await res.json();
+      if (data.error) return `Mission failed: ${data.error}`;
+      return this.formatMissionReport(data);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  private formatMissionReport(data: any): string {
+    let output = `**Mission complete** · $${typeof data.totalCost === 'number' ? data.totalCost.toFixed(4) : data.totalCost} · ${data.totalTimeSeconds}s\n\n`;
     for (const ws of data.workStreams ?? []) {
       const icon = ws.status === 'completed' ? '✅' : '❌';
       output += `${icon} **${ws.title}** (${ws.assignedTo})\n`;
       if (ws.output && ws.status === 'completed') {
-        // Truncate each work stream to keep message manageable
         const preview = ws.output.length > 500
           ? ws.output.slice(0, 500) + '\n...(truncated)'
           : ws.output;
@@ -196,6 +240,13 @@ export class ChannelRouter {
   }
 
   private async runChat(role: string, message: string): Promise<string> {
+    // Direct runner — no HTTP
+    if (this.directRunner) {
+      const data = await this.directRunner.runChat(role, message);
+      return `${data.content}\n\n_${data.model} · $${data.cost.toFixed(4)}_`;
+    }
+
+    // Fallback: HTTP API
     const res = await fetch(`${this.apiBase}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -289,3 +340,16 @@ type Intent =
   | { type: 'help' }
   | { type: 'status' }
   | { type: 'default'; content: string };
+
+/**
+ * Direct runner — bypasses HTTP, calls orchestrator in-process.
+ * Eliminates the self-request timeout problem.
+ */
+export interface DirectRunner {
+  runMission(goal: string): Promise<{
+    totalCost: number;
+    totalTimeSeconds: number;
+    workStreams: Array<{ title: string; assignedTo: string; status: string; output: string }>;
+  }>;
+  runChat(role: string, message: string): Promise<{ content: string; model: string; cost: number }>;
+}
