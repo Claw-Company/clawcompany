@@ -243,7 +243,7 @@ Agents use a **think → act → observe** loop: reason about the task, use tool
 |---------|--------|-----|
 | **WebChat** | ✅ Live | `http://localhost:3200/chat.html` |
 | **Telegram** | ✅ Live | Add `TELEGRAM_BOT_TOKEN` to `.env` |
-| **Discord** | 🔜 Soon | Coming next |
+| **Discord** | ✅ Live | Coming next |
 | **Slack** | 🔜 Soon | Planned |
 | **Feishu** | 🔜 Soon | Planned |
 
