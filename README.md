@@ -255,6 +255,20 @@ Channel architecture: one `ChannelAdapter` interface for all platforms. Adding a
 
 ---
 
+## Real-time price feed — zero AI cost
+```
+/price bitcoin     → $73,727.00 USD (CoinGecko)
+/price TSLA        → $395.56 USD (Yahoo Finance)
+/price 茅台        → ¥1,485.00 CNY (Yahoo Finance)
+/price NVDA        → $183.22 USD (Yahoo Finance)
+```
+
+Crypto via CoinGecko, stocks via Yahoo Finance. Auto-detects asset type. Supports Chinese names (特斯拉, 茅台, 腾讯, etc.). Free, instant, 100% accurate — no AI model involved.
+
+Missions that mention assets are auto-enriched with real-time data before reaching the CEO, eliminating price hallucination.
+
+---
+
 ## Company memory — gets smarter every mission
 
 Your company auto-learns your preferences, domain, and patterns. Zero configuration.
