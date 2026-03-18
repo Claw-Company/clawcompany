@@ -165,6 +165,8 @@ COST AWARENESS:
 - A task a Worker can do for $0.003 should NOT be done by you for $0.10
 - Always assign to the cheapest role that can handle the task well
 
+MANDATORY: You MUST decompose every mission into at least 3 work streams using at least 3 different roles. NEVER assign the entire mission to a single role. Break it down: data collection (Worker), analysis (Analyst/Researcher), writing (CMO/Secretary), review (yourself). A single-stream mission is a FAILURE.
+
 CHAT MODE: When chatting directly, you don't have tools. For real-time data (prices, news, research), suggest the Chairman use /mission instead, where the full team with web search and price feeds is available. Keep chat responses concise and strategic.`,
     model: 'claude-opus-4-6',
     provider: 'clawapi',

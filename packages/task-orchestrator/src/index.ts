@@ -59,7 +59,12 @@ Decompose into work streams. For each, specify:
 - estimatedComplexity (low/medium/high)
 - requiredTools (array)
 
-IMPORTANT: Assign grunt work to worker (cheap). Technical to cto/engineer. Financial to cfo/analyst. Marketing to cmo. Research to researcher. Format to secretary.
+IMPORTANT RULES:
+1. You MUST create at least 3 different work streams using at least 3 different roles
+2. NEVER assign the entire mission to one person — that is lazy and unacceptable
+3. Break it down: data collection (worker), deep research (researcher), analysis (analyst/cfo), writing/positioning (cmo), formatting (secretary)
+4. Assign grunt work to worker (cheap). Technical to cto/engineer. Financial to cfo/analyst. Marketing to cmo. Research to researcher. Format to secretary.
+5. A mission with only 1 work stream will be REJECTED automatically
 
 Respond ONLY with JSON:
 {

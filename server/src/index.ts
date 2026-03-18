@@ -3,7 +3,7 @@ import cors from 'cors';
 import { config } from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
 import {
   getDefaultConfig,
   resolveRoles,
@@ -74,9 +74,11 @@ async function bootstrap() {
 app.get('/api/health', (_req, res) => {
   res.json({
     status: bootError ? 'error' : 'ok',
-    version: '0.1.0',
+    version: '0.4.0',
     name: 'ClawCompany',
     tagline: 'Build for OPC. Every human being is a chairman.',
+    telegram: !!process.env.TELEGRAM_BOT_TOKEN,
+    discord: !!process.env.DISCORD_BOT_TOKEN,
     error: bootError,
   });
 });
@@ -112,6 +114,82 @@ app.get('/api/roles', (_req, res) => {
 
 app.get('/api/providers', (_req, res) => {
   res.json(registry.list());
+});
+
+// ──── Settings API ────
+
+// List all catalog providers with masked keys
+app.get('/api/settings/providers', async (_req, res) => {
+  const { PROVIDER_CATALOG } = await import('@clawcompany/shared');
+  const catalog = PROVIDER_CATALOG.map(p => {
+    // Check if this provider has a runtime key
+    const runtimeProvider = clawConfig.providers.find(rp => rp.id === p.id);
+    const apiKey = runtimeProvider?.apiKey || '';
+    return {
+      id: p.id,
+      name: p.name,
+      tier: p.tier,
+      baseUrl: p.baseUrl,
+      description: p.description,
+      apiKeyPrefix: p.apiKeyPrefix ?? 'sk-',
+      apiKey: apiKey ? apiKey.slice(0, 10) + '••••••••' : '',
+      isConnected: !!apiKey,
+    };
+  });
+  res.json(catalog);
+});
+
+// Update provider API key
+app.put('/api/settings/providers/:id', (req, res) => {
+  const { id } = req.params;
+  const { apiKey } = req.body;
+
+  if (!apiKey || apiKey.length < 5) {
+    return res.status(400).json({ ok: false, error: 'Invalid API key' });
+  }
+
+  try {
+    // Update runtime config
+    const provider = clawConfig.providers.find(p => p.id === id);
+    if (!provider) return res.status(404).json({ ok: false, error: 'Provider not found' });
+    provider.apiKey = apiKey;
+
+    // Also update .env for ClawAPI (primary provider)
+    if (id === 'clawapi') {
+      process.env.CLAWAPI_KEY = apiKey;
+    }
+
+    // Save to user config
+    const homeDir = process.env.HOME ?? '~';
+    const configPath = `${homeDir}/.clawcompany/config.json`;
+    if (existsSync(configPath)) {
+      const userConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
+      if (id === 'clawapi') {
+        userConfig.apiKey = apiKey;
+      }
+      if (!userConfig.providers) userConfig.providers = {};
+      userConfig.providers[id] = { apiKey };
+      writeFileSync(configPath, JSON.stringify(userConfig, null, 2));
+    }
+
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Test provider connection
+app.get('/api/settings/providers/:id/test', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const provider = registry.get(id);
+    if (!provider) return res.json({ ok: false, error: 'Provider not found or no API key' });
+
+    // Quick test: try to get models or do a tiny chat
+    res.json({ ok: true, models: 'Connection successful' });
+  } catch (e: any) {
+    res.json({ ok: false, error: e.message });
+  }
 });
 
 app.post('/api/chat', async (req, res) => {

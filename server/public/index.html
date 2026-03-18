@@ -5,184 +5,677 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ClawCompany Dashboard</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦞</text></svg>">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/15.0.7/marked.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --bg:#0a0c0e;--bg2:#111318;--bg3:#181c22;--bg4:#1f242c;
-  --text:#e8e8eb;--text2:#a1a1aa;--text3:#62636c;
-  --coral:#d85a30;--coral2:#f0997b;--coralBg:rgba(216,90,48,0.08);
-  --teal:#1d9e75;--teal2:#5dcaa5;--tealBg:rgba(29,158,117,0.08);
-  --amber:#ba7517;--amber2:#e8a838;--amberBg:rgba(186,117,23,0.08);
-  --blue:#378add;--blueBg:rgba(55,138,221,0.08);
-  --red:#e24b4a;--redBg:rgba(226,75,74,0.06);
-  --purple:#7c6dd8;--purpleBg:rgba(124,109,216,0.08);
-  --border:#1e2128;--border2:#282d36;
+  --bg:#0d0f11;--bg2:#151820;--bg3:#1c2029;--bg4:#242832;
+  --text:#e4e4e7;--text2:#9ca3af;--text3:#6b7280;
+  --coral:#d85a30;--coral2:#f0997b;--coralBg:rgba(216,90,48,0.1);
+  --teal:#1d9e75;--tealBg:rgba(29,158,117,0.1);
+  --amber:#ba7517;--amberBg:rgba(186,117,23,0.1);
+  --blue:#378add;--blueBg:rgba(55,138,221,0.1);
+  --red:#e24b4a;--redBg:rgba(226,75,74,0.1);
+  --border:#2a2e38;--radius:10px;
   --font:'DM Sans',system-ui,sans-serif;--mono:'DM Mono',monospace;
-  --radius:10px;--radius-lg:14px;
 }
-html{scroll-behavior:smooth}
-body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex;min-height:100vh;-webkit-font-smoothing:antialiased}
-::selection{background:rgba(216,90,48,0.3)}
-.sidebar{width:240px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:10}
-.sidebar-top{padding:24px 24px 20px}
-.sidebar-brand{display:flex;align-items:center;gap:10px}
-.sidebar-brand h1{font-size:15px;font-weight:600;letter-spacing:-0.2px}
-.sidebar-sub{font-size:11px;color:var(--text3);margin-top:6px;letter-spacing:0.2px}
-.sidebar-nav{flex:1;padding:8px 12px}
-.nav-item{display:flex;align-items:center;gap:11px;padding:9px 12px;font-size:13px;color:var(--text2);cursor:pointer;border-radius:8px;transition:all .15s;margin-bottom:2px}
+body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex;min-height:100vh}
+
+/* Sidebar */
+.sidebar{width:220px;background:var(--bg2);border-right:1px solid var(--border);padding:20px 0;display:flex;flex-direction:column;position:fixed;height:100vh}
+.sidebar-brand{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.sidebar-brand h1{font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px}
+.sidebar-brand p{font-size:11px;color:var(--text3);margin-top:4px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;font-size:13px;color:var(--text2);cursor:pointer;transition:all .15s}
 .nav-item:hover{background:var(--bg3);color:var(--text)}
-.nav-item.active{background:var(--coralBg);color:var(--coral2);font-weight:500}
-.nav-icon{width:16px;height:16px;display:flex;align-items:center;justify-content:center;opacity:.6}
-.nav-item.active .nav-icon{opacity:1}
-.sidebar-bottom{padding:16px 24px;border-top:1px solid var(--border)}
-.sidebar-status{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text3)}
-.status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.status-dot.ok{background:var(--teal);box-shadow:0 0 6px rgba(29,158,117,0.4)}
-.status-dot.error{background:var(--red);box-shadow:0 0 6px rgba(226,75,74,0.4)}
-.main{margin-left:240px;flex:1;padding:36px 44px;max-width:1060px}
-.page{display:none}.page.active{display:block;animation:fadeIn .25s ease}
-@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-.page-header{margin-bottom:28px}
-.page-title{font-size:24px;font-weight:600;letter-spacing:-0.3px}
-.page-sub{font-size:13px;color:var(--text2);margin-top:4px}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:28px}
-.stat{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden;transition:border-color .2s}
-.stat:hover{border-color:var(--border2)}
-.stat-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;font-weight:500;margin-bottom:8px}
-.stat-value{font-size:26px;font-weight:700;letter-spacing:-0.5px;line-height:1}
-.stat-sub{font-size:11px;color:var(--text3);margin-top:5px}
-.stat-accent{position:absolute;top:0;right:0;width:60px;height:60px;border-radius:0 0 0 60px;opacity:.04}
-.section-h{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:14px;text-transform:uppercase;letter-spacing:0.5px}
-.role-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
-.role-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;transition:all .2s;cursor:default}
-.role-card:hover{border-color:var(--border2);transform:translateY(-1px)}
-.role-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-.role-name{font-size:14px;font-weight:600;letter-spacing:-0.2px}
-.role-badge{font-size:9px;padding:2px 8px;border-radius:20px;font-weight:600;letter-spacing:0.3px;text-transform:uppercase}
-.role-badge.cs{background:var(--coralBg);color:var(--coral2)}
-.role-badge.mid{background:var(--purpleBg);color:var(--purple)}
-.role-badge.ops{background:var(--tealBg);color:var(--teal2)}
-.role-model{font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:6px;display:flex;align-items:center;gap:6px}
-.role-model::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--border2);flex-shrink:0}
-.role-desc{font-size:11px;color:var(--text2);line-height:1.4}
-.role-reports{font-size:10px;color:var(--text3);margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;align-items:center;gap:4px}
-.mission-bar{display:flex;gap:10px;margin-bottom:20px}
-.mission-input{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:13px 18px;color:var(--text);font-family:var(--font);font-size:14px;outline:none;transition:border-color .2s}
-.mission-input:focus{border-color:var(--coral)}
-.mission-input::placeholder{color:var(--text3)}
-.btn-primary{background:var(--coral);color:#fff;border:none;border-radius:var(--radius);padding:13px 28px;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;letter-spacing:0.2px}
-.btn-primary:hover{filter:brightness(1.1)}
-.btn-primary:active{transform:scale(0.98)}
-.btn-primary:disabled{opacity:.35;cursor:not-allowed;filter:none}
-.progress-area{margin-bottom:16px;display:none}
-.progress-info{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);margin-bottom:8px}
-.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--coral);border-radius:50%;animation:spin .6s linear infinite;flex-shrink:0}
-@keyframes spin{to{transform:rotate(360deg)}}
-.progress-track{background:var(--bg3);border-radius:4px;height:4px;overflow:hidden}
-.progress-fill{height:100%;background:linear-gradient(90deg,var(--coral),var(--amber2));border-radius:4px;transition:width .4s ease}
-.mission-entry{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:12px;transition:border-color .2s}
-.mission-entry:hover{border-color:var(--border2)}
-.mission-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;gap:16px}
-.mission-goal{font-size:14px;font-weight:600;line-height:1.4;flex:1}
-.mission-meta{display:flex;gap:8px;font-size:11px;color:var(--text3);flex-shrink:0;font-family:var(--mono)}
-.mission-meta span{padding:3px 8px;background:var(--bg3);border-radius:6px}
-.ws-list{display:flex;flex-direction:column;gap:6px}
-.ws-item{background:var(--bg3);border-radius:8px;padding:11px 14px;display:flex;align-items:flex-start;gap:11px;flex-wrap:wrap;transition:background .15s}
-.ws-item:hover{background:var(--bg4)}
-.ws-icon{font-size:13px;width:18px;text-align:center;flex-shrink:0;margin-top:1px}
+.nav-item.active{background:var(--coralBg);color:var(--coral2);border-right:2px solid var(--coral)}
+.nav-icon{width:18px;text-align:center;font-size:14px}
+.sidebar-footer{margin-top:auto;padding:16px 20px;border-top:1px solid var(--border);font-size:11px;color:var(--text3)}
+
+/* Main */
+.main{margin-left:220px;flex:1;padding:32px 40px;max-width:1100px}
+.page{display:none}
+.page.active{display:block}
+.page-title{font-size:22px;font-weight:600;margin-bottom:4px}
+.page-sub{font-size:13px;color:var(--text2);margin-bottom:24px}
+
+/* Cards */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:24px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.card-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.card-value{font-size:24px;font-weight:600}
+.card-sub{font-size:12px;color:var(--text2);margin-top:2px}
+
+/* Role cards */
+.role-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.role-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;transition:border-color .15s}
+.role-card:hover{border-color:var(--coral)}
+.role-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.role-name{font-size:14px;font-weight:600}
+.role-tier{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:500}
+.role-tier.csuite{background:var(--coralBg);color:var(--coral2)}
+.role-tier.mid{background:var(--blueBg);color:var(--blue)}
+.role-tier.ops{background:var(--tealBg);color:var(--teal)}
+.role-model{font-family:var(--mono);font-size:12px;color:var(--text2);margin-bottom:4px}
+.role-cost{font-size:11px;color:var(--text3)}
+.role-reports{font-size:11px;color:var(--text3);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)}
+
+/* Mission */
+.mission-input{display:flex;gap:12px;margin-bottom:24px}
+.mission-input input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;color:var(--text);font-family:var(--font);font-size:14px;outline:none;transition:border-color .15s}
+.mission-input input:focus{border-color:var(--coral)}
+.mission-input input::placeholder{color:var(--text3)}
+.btn{background:var(--coral);color:#fff;border:none;border-radius:var(--radius);padding:12px 24px;font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;transition:opacity .15s;white-space:nowrap}
+.btn:hover{opacity:.85}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* Mission results */
+.mission-log{margin-top:16px}
+.mission-entry{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.mission-entry-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.mission-goal{font-size:14px;font-weight:500}
+.mission-meta{font-size:12px;color:var(--text2);display:flex;gap:16px}
+.ws-list{display:flex;flex-direction:column;gap:8px}
+.ws-item{background:var(--bg3);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:12px}
+.ws-icon{font-size:14px;width:20px;text-align:center}
 .ws-info{flex:1;min-width:0}
-.ws-title{font-size:13px;font-weight:500;line-height:1.3}
-.ws-detail{display:flex;gap:6px;margin-top:3px;flex-wrap:wrap}
-.ws-detail span{font-size:10px;color:var(--text3);padding:1px 6px;background:var(--bg2);border-radius:4px;font-family:var(--mono)}
-.ws-preview{font-size:11px;color:var(--text3);margin-top:5px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.md-toggle{font-size:11px;color:var(--coral2);cursor:pointer;margin-top:4px;display:inline-block;font-weight:500;transition:color .15s}
-.md-toggle:hover{color:var(--coral)}
-.md-output{margin-top:10px;padding:16px 20px;background:var(--bg);border-radius:var(--radius);font-size:13px;color:var(--text2);line-height:1.7;max-height:500px;overflow-y:auto;border:1px solid var(--border);width:100%;flex-basis:100%;cursor:pointer}
-.md-output h1{font-size:17px;font-weight:600;color:var(--text);margin:14px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--border)}
-.md-output h2{font-size:15px;font-weight:600;color:var(--text);margin:12px 0 6px}
-.md-output h3{font-size:13px;font-weight:600;color:var(--text);margin:10px 0 4px}
+.ws-title{font-size:13px;font-weight:500}
+.ws-detail{font-size:11px;color:var(--text3);display:flex;gap:12px;margin-top:2px}
+.ws-preview{font-size:12px;color:var(--text2);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Status indicator */
+.status{display:inline-flex;align-items:center;gap:6px;font-size:12px}
+.status-dot{width:8px;height:8px;border-radius:50%}
+.status-dot.ok{background:var(--teal)}
+.status-dot.error{background:var(--red)}
+
+/* Loading */
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--coral);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Progress */
+.progress-bar{background:var(--bg3);border-radius:4px;height:6px;overflow:hidden;margin-top:8px}
+.progress-fill{height:100%;background:var(--coral);border-radius:4px;transition:width .3s}
+
+/* Markdown output */
+.md-output{margin-top:8px;padding:12px 16px;background:var(--bg);border-radius:8px;font-size:13px;color:var(--text2);line-height:1.7;max-height:400px;overflow-y:auto;cursor:pointer;border:1px solid var(--border)}
+.md-output h1{font-size:16px;font-weight:600;color:var(--text);margin:12px 0 8px;border-bottom:1px solid var(--border);padding-bottom:4px}
+.md-output h2{font-size:14px;font-weight:600;color:var(--text);margin:10px 0 6px}
+.md-output h3{font-size:13px;font-weight:600;color:var(--text);margin:8px 0 4px}
 .md-output p{margin:6px 0}
 .md-output ul,.md-output ol{margin:6px 0;padding-left:20px}
-.md-output li{margin:3px 0}
-.md-output table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12px}
-.md-output th{text-align:left;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-weight:500}
-.md-output td{padding:7px 10px;border:1px solid var(--border)}
-.md-output code{font-family:var(--mono);font-size:11px;background:var(--bg3);padding:2px 5px;border-radius:4px}
-.md-output pre{background:var(--bg3);padding:12px 16px;border-radius:8px;overflow-x:auto;margin:8px 0}
+.md-output li{margin:2px 0}
+.md-output table{width:100%;border-collapse:collapse;margin:8px 0;font-size:12px}
+.md-output th{text-align:left;padding:6px 8px;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-weight:500}
+.md-output td{padding:6px 8px;border:1px solid var(--border)}
+.md-output code{font-family:var(--mono);font-size:12px;background:var(--bg3);padding:1px 4px;border-radius:3px}
+.md-output pre{background:var(--bg3);padding:10px 12px;border-radius:6px;overflow-x:auto;margin:8px 0}
 .md-output pre code{background:none;padding:0}
 .md-output strong{color:var(--text);font-weight:600}
-.md-output hr{border:none;border-top:1px solid var(--border);margin:12px 0}
-.md-output blockquote{border-left:3px solid var(--coral);padding-left:14px;color:var(--text3);margin:8px 0}
+.md-output hr{border:none;border-top:1px solid var(--border);margin:10px 0}
+.md-output blockquote{border-left:3px solid var(--coral);padding-left:12px;color:var(--text3);margin:8px 0}
+.md-toggle{font-size:11px;color:var(--coral2);cursor:pointer;margin-top:4px;display:inline-block}
+.md-toggle:hover{text-decoration:underline}
+
+/* Settings */
+.provider-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:12px}
+.provider-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.provider-name{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+.provider-badge{font-size:10px;padding:2px 8px;border-radius:12px;font-weight:500}
+.provider-badge.default{background:var(--coralBg);color:var(--coral2)}
+.provider-badge.official{background:var(--blueBg);color:var(--blue)}
+.provider-badge.local{background:var(--tealBg);color:var(--teal)}
+.provider-badge.connected{background:var(--tealBg);color:var(--teal)}
+.provider-badge.not-configured{background:var(--bg4);color:var(--text3)}
+.provider-field{margin-bottom:10px}
+.provider-field label{display:block;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.provider-field input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;transition:border-color .15s}
+.provider-field input:focus{border-color:var(--coral)}
+.provider-field input::placeholder{color:var(--text3)}
+.provider-actions{display:flex;gap:8px;margin-top:12px}
+.btn-save{background:var(--coral);color:#fff;border:none;padding:7px 16px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;font-family:var(--font);transition:opacity .15s}
+.btn-save:hover{opacity:.85}
+.btn-save:disabled{opacity:.5;cursor:not-allowed}
+.btn-test{background:var(--bg3);color:var(--text2);border:1px solid var(--border);padding:7px 16px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;font-family:var(--font);transition:all .15s}
+.btn-test:hover{border-color:var(--teal);color:var(--teal)}
+.save-msg{font-size:12px;margin-left:8px;display:inline-flex;align-items:center;gap:4px}
+.save-msg.ok{color:var(--teal)}
+.save-msg.err{color:var(--red)}
+.channel-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.channel-name{font-size:14px;font-weight:500;margin-bottom:4px}
+.channel-status{font-size:12px;color:var(--text3)}
+
+/* Mobile */
 @media(max-width:768px){
-  .sidebar{width:56px}.sidebar-top{padding:16px 10px}
-  .sidebar-brand h1 span:last-child,.sidebar-sub,.sidebar-status span:last-child{display:none}
-  .sidebar-nav{padding:4px 8px}.nav-item{padding:10px;justify-content:center}
-  .nav-item span:last-child{display:none}
-  .main{margin-left:56px;padding:20px 16px}
-  .stats{grid-template-columns:1fr 1fr}.role-grid{grid-template-columns:1fr}
+  .sidebar{width:60px}.sidebar-brand p,.nav-item span:last-child,.sidebar-footer{display:none}
+  .sidebar-brand h1 span:last-child{display:none}.nav-item{padding:12px;justify-content:center}
+  .main{margin-left:60px;padding:20px}
+  .cards{grid-template-columns:1fr 1fr}.role-grid{grid-template-columns:1fr}
 }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/15.0.7/marked.min.js"></script>
 </head>
 <body>
+
 <nav class="sidebar">
-  <div class="sidebar-top">
-    <div class="sidebar-brand"><span style="font-size:20px">🦞</span><h1><span id="sidebarCompany">ClawCompany</span></h1></div>
-    <div class="sidebar-sub" id="sidebarSub">Build for OPC</div>
+  <div class="sidebar-brand">
+    <h1><span>🦞</span> <span id="sidebarCompany">ClawCompany</span></h1>
+    <p id="sidebarSub">Build for OPC</p>
   </div>
-  <div class="sidebar-nav">
-    <div class="nav-item active" onclick="showPage('overview',this)">
-      <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="1" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="9" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.3"/></svg></span>
-      <span>Overview</span>
-    </div>
-    <div class="nav-item" onclick="showPage('mission',this)">
-      <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="0.8" fill="currentColor"/></svg></span>
-      <span>Mission</span>
-    </div>
-    <div class="nav-item" onclick="showPage('roles',this)">
-      <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></span>
-      <span>Roles</span>
-    </div>
-    <a class="nav-item" href="/chat.html" style="text-decoration:none">
-      <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v8H4l-2 2V3z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></span>
-      <span>WebChat</span>
-    </div>
+  <div class="nav-item active" onclick="showPage('overview')">
+    <span class="nav-icon">◉</span> <span>Overview</span>
   </div>
-  <div class="sidebar-bottom"><div class="sidebar-status"><span class="status-dot ok" id="statusDot"></span><span id="statusText">Connected</span></div></div>
+  <div class="nav-item" onclick="showPage('mission')">
+    <span class="nav-icon">◎</span> <span>Mission</span>
+  </div>
+  <div class="nav-item" onclick="showPage('roles')">
+    <span class="nav-icon">◈</span> <span>Roles</span>
+  </div>
+  <div class="nav-item" onclick="showPage('settings')">
+    <span class="nav-icon">⚙</span> <span>Settings</span>
+  </div>
+  <div class="sidebar-footer">
+    <span class="status"><span class="status-dot ok" id="statusDot"></span> <span id="statusText">Connected</span></span>
+  </div>
 </nav>
+
 <div class="main">
+
+  <!-- Overview Page -->
   <div class="page active" id="page-overview">
-    <div class="page-header"><div class="page-title" id="welcomeTitle">Dashboard</div><div class="page-sub" id="welcomeSub">Your AI company is ready.</div></div>
-    <div class="stats">
-      <div class="stat"><div class="stat-accent" style="background:var(--coral)"></div><div class="stat-label">Active roles</div><div class="stat-value" id="roleCount">—</div><div class="stat-sub">across 4 models</div></div>
-      <div class="stat"><div class="stat-accent" style="background:var(--teal)"></div><div class="stat-label">Provider</div><div class="stat-value" style="font-size:18px" id="providerName">—</div><div class="stat-sub" id="providerStatus">checking...</div></div>
-      <div class="stat"><div class="stat-accent" style="background:var(--blue)"></div><div class="stat-label">Missions today</div><div class="stat-value" id="missionCount">0</div><div class="stat-sub" id="missionCost">$0.00 spent</div></div>
-      <div class="stat"><div class="stat-accent" style="background:var(--amber)"></div><div class="stat-label">Architecture</div><div class="stat-value" style="font-size:20px">27x cheaper</div><div class="stat-sub">vs all-Opus</div></div>
+    <div class="page-title" id="welcomeTitle">Dashboard</div>
+    <div class="page-sub" id="welcomeSub">You are the Chairman. Your AI company is ready.</div>
+
+    <div class="cards" id="overviewCards">
+      <div class="card">
+        <div class="card-label">Active roles</div>
+        <div class="card-value" id="roleCount">—</div>
+        <div class="card-sub">across 4 models</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Provider</div>
+        <div class="card-value" style="font-size:18px" id="providerName">—</div>
+        <div class="card-sub" id="providerStatus">checking...</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Missions today</div>
+        <div class="card-value" id="missionCount">0</div>
+        <div class="card-sub" id="missionCost">$0.00 spent</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Architecture</div>
+        <div class="card-value" style="font-size:16px">27x cheaper</div>
+        <div class="card-sub">vs all-Opus</div>
+      </div>
     </div>
-    <div class="section-h">Team</div>
+
+    <div style="font-size:14px;font-weight:500;margin-bottom:12px">Team</div>
     <div class="role-grid" id="overviewRoles"></div>
   </div>
+
+  <!-- Mission Page -->
   <div class="page" id="page-mission">
-    <div class="page-header"><div class="page-title">Mission control</div><div class="page-sub">Give your company a mission. The CEO will decompose and execute.</div></div>
-    <div class="mission-bar"><input type="text" class="mission-input" id="missionInput" placeholder="Write a competitive analysis comparing OpenAI vs Anthropic..." onkeydown="if(event.key==='Enter')runMission()"><button class="btn-primary" id="missionBtn" onclick="runMission()">Run mission</button></div>
-    <div class="progress-area" id="missionProgress"><div class="progress-info"><span class="spinner"></span><span id="progressText">CEO is analyzing your mission...</span></div><div class="progress-track"><div class="progress-fill" id="progressFill" style="width:5%"></div></div></div>
-    <div id="missionLog"></div>
+    <div class="page-title">Mission control</div>
+    <div class="page-sub">Give your company a mission. The CEO will decompose and execute.</div>
+
+    <div class="mission-input">
+      <input type="text" id="missionInput" placeholder="Write a competitive analysis comparing OpenAI vs Anthropic..." onkeydown="if(event.key==='Enter')runMission()">
+      <button class="btn" id="missionBtn" onclick="runMission()">Run mission</button>
+    </div>
+
+    <div id="missionProgress" style="display:none">
+      <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);margin-bottom:8px">
+        <span class="spinner"></span> <span id="progressText">CEO is decomposing...</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:10%"></div></div>
+    </div>
+
+    <div class="mission-log" id="missionLog"></div>
   </div>
+
+  <!-- Roles Page -->
   <div class="page" id="page-roles">
-    <div class="page-header"><div class="page-title">Organization</div><div class="page-sub">👤 Chairman = Human (you). Your AI team below.</div></div>
+    <div class="page-title">Organization</div>
+    <div class="page-sub">👤 Chairman = Human (you). Your AI team below.</div>
+
     <div class="role-grid" id="rolesGrid"></div>
   </div>
+
+  <!-- Settings Page -->
+  <div class="page" id="page-settings">
+    <div class="page-title">Settings</div>
+    <div class="page-sub">Manage API keys and providers. Changes take effect immediately.</div>
+
+    <div id="settingsProviders"></div>
+
+    <div style="margin-top:24px">
+      <div class="page-title" style="font-size:16px;margin-bottom:8px">Channels</div>
+      <div class="page-sub">Chat app integrations. Set tokens in .env file, restart server.</div>
+      <div id="settingsChannels" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px"></div>
+    </div>
+  </div>
+
 </div>
+
 <script>
-const API='';let missionCountToday=0,totalSpent=0;
-function showPage(id,el){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));document.getElementById('page-'+id).classList.add('active');if(el)el.classList.add('active')}
-async function loadRoles(){try{const res=await fetch(API+'/api/roles');const roles=await res.json();const active=roles.filter(r=>r.isActive&&r.budgetTier!=='survive');document.getElementById('roleCount').textContent=active.length;const tierMap={ceo:'cs',cto:'cs',cfo:'cs',cmo:'cs',researcher:'mid',analyst:'mid',engineer:'mid',secretary:'ops',worker:'ops'};const tierLabel={cs:'C-suite',mid:'Mid-level',ops:'Operations'};const html=active.map(r=>{const t=tierMap[r.id]||'ops';return`<div class="role-card"><div class="role-top"><span class="role-name">${r.name}</span><span class="role-badge ${t}">${tierLabel[t]||'Custom'}</span></div><div class="role-model">${r.model}</div><div class="role-desc">${r.description}</div><div class="role-reports">Reports to → ${r.reportsTo||'Human (Chairman)'}</div></div>`}).join('');document.getElementById('overviewRoles').innerHTML=html;document.getElementById('rolesGrid').innerHTML=html}catch(e){console.error(e)}}
-async function loadHealth(){try{const res=await fetch(API+'/api/health');const d=await res.json();document.getElementById('statusDot').className='status-dot '+(d.status==='ok'?'ok':'error');document.getElementById('statusText').textContent=d.status==='ok'?'Connected':'Error';document.getElementById('providerName').textContent='ClawAPI';document.getElementById('providerStatus').textContent=d.status==='ok'?'connected':d.error||'error'}catch{document.getElementById('statusDot').className='status-dot error';document.getElementById('statusText').textContent='Offline';document.getElementById('providerStatus').textContent='cannot connect'}}
-async function runMission(){const input=document.getElementById('missionInput');const btn=document.getElementById('missionBtn');const goal=input.value.trim();if(!goal)return;btn.disabled=true;btn.textContent='Running...';input.disabled=true;const progress=document.getElementById('missionProgress');const progressText=document.getElementById('progressText');const progressFill=document.getElementById('progressFill');progress.style.display='block';progressText.textContent='CEO is analyzing your mission...';progressFill.style.width='5%';const logArea=document.getElementById('missionLog');const entryDiv=document.createElement('div');entryDiv.className='mission-entry';entryDiv.innerHTML=`<div class="mission-header"><div class="mission-goal">${goal}</div><div class="mission-meta" id="liveMeta"><span class="spinner" style="width:12px;height:12px"></span></div></div><div class="ws-list" id="liveWorkStreams"></div>`;logArea.insertBefore(entryDiv,logArea.firstChild);const liveWS=document.getElementById('liveWorkStreams');let wsCount=0,wsDone=0;try{const response=await fetch(API+'/api/mission/run-stream',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mission:goal})});const reader=response.body.getReader();const decoder=new TextDecoder();let buffer='';while(true){const{done,value}=await reader.read();if(done)break;buffer+=decoder.decode(value,{stream:true});const lines=buffer.split('\n');buffer=lines.pop();for(const line of lines){if(!line.startsWith('data: '))continue;try{const ev=JSON.parse(line.slice(6));if(ev.type==='phase'){progressText.textContent=ev.message;if(ev.phase==='decomposing')progressFill.style.width='10%';if(ev.phase==='executing')progressFill.style.width='20%'}if(ev.type==='decomposed'){wsCount=ev.workStreams.length;progressText.textContent=`${wsCount} work streams created. Team starting...`;progressFill.style.width='15%';for(const ws of ev.workStreams){const el=document.createElement('div');el.className='ws-item';el.id='ws-'+ws.id;el.innerHTML=`<span class="ws-icon"><span class="spinner"></span></span><div class="ws-info"><div class="ws-title">${ws.title}</div><div class="ws-detail"><span>${ws.assignTo}</span><span>queued</span></div></div>`;liveWS.appendChild(el)}}if(ev.type==='ws_start'){const el=document.getElementById('ws-'+ev.id);if(el){el.querySelector('.ws-icon').innerHTML='<span class="spinner"></span>';el.querySelector('.ws-detail').innerHTML=`<span>${ev.roleName}</span><span>${ev.model}</span><span style="color:var(--amber2)">working...</span>`}progressText.textContent=`${ev.roleName} is working on: ${ev.title}`}if(ev.type==='ws_done'){wsDone++;progressFill.style.width=(20+Math.round((wsDone/wsCount)*75))+'%';const el=document.getElementById('ws-'+ev.id);if(el){const preview=(ev.outputPreview||'').slice(0,120).replace(/\n/g,' ');el.querySelector('.ws-icon').textContent='✅';el.querySelector('.ws-detail').innerHTML=`<span>${ev.role}</span><span>${ev.model}</span><span>${ev.cost}</span><span>${ev.time}</span>`;if(preview){const p=document.createElement('div');p.className='ws-preview';p.textContent=preview;el.querySelector('.ws-info').appendChild(p);const t=document.createElement('span');t.className='md-toggle';t.id='toggle-'+ev.id;t.textContent='▶ View full output';t.onclick=()=>toggleOutput(ev.id,ev.output);el.querySelector('.ws-info').appendChild(t)}el.dataset.output=ev.output||''}progressText.textContent=`${ev.role} completed (${wsDone}/${wsCount})`}if(ev.type==='ws_failed'){wsDone++;const el=document.getElementById('ws-'+ev.id);if(el){el.querySelector('.ws-icon').textContent='❌';el.querySelector('.ws-detail').innerHTML=`<span>${ev.role}</span><span style="color:var(--red)">${ev.error||'failed'}</span>`}}if(ev.type==='complete'){progressFill.style.width='100%';progressText.textContent='Delivered to Chairman!';setTimeout(()=>{progress.style.display='none'},2000);document.getElementById('liveMeta').innerHTML=`<span>${ev.totalCost}</span><span>${ev.totalTime}</span><span>${ev.workStreams.length} streams</span>`;missionCountToday++;totalSpent+=parseFloat(ev.totalCost.replace('$',''));document.getElementById('missionCount').textContent=missionCountToday;document.getElementById('missionCost').textContent='$'+totalSpent.toFixed(4)+' spent'}if(ev.type==='error'){progress.style.display='none';document.getElementById('liveMeta').innerHTML=`<span style="color:var(--red)">${ev.message}</span>`}}catch(e){}}}}catch(e){progress.style.display='none';document.getElementById('liveMeta').innerHTML=`<span style="color:var(--red)">${e.message}</span>`}btn.disabled=false;btn.textContent='Run mission';input.disabled=false;input.value='';input.focus()}
-function toggleOutput(wsId,output){const existing=document.getElementById('output-'+wsId);if(existing){existing.remove();const t=document.getElementById('toggle-'+wsId);if(t)t.textContent='▶ View full output';return}const el=document.getElementById('ws-'+wsId);if(!el)return;const div=document.createElement('div');div.id='output-'+wsId;div.className='md-output';div.innerHTML=marked.parse(output||'');div.onclick=(e)=>{if(e.target===div)toggleOutput(wsId,output)};el.appendChild(div);const t=document.getElementById('toggle-'+wsId);if(t)t.textContent='▲ Collapse'}
-async function loadCompany(){const hour=new Date().getHours();const greeting=hour<12?'Good morning':hour<18?'Good afternoon':'Good evening';try{const res=await fetch(API+'/api/company');const c=await res.json();document.getElementById('welcomeTitle').textContent=`${greeting}, Chairman.`;document.getElementById('welcomeSub').textContent=`${c.name} is ready for your command.`;document.getElementById('sidebarCompany').textContent=c.name}catch{document.getElementById('welcomeTitle').textContent=`${greeting}, Chairman.`;document.getElementById('welcomeSub').textContent='Your AI company is ready.'}}
-loadHealth();loadRoles();loadCompany();setInterval(loadHealth,30000);
+const API = '';
+let missionHistory = [];
+let totalSpent = 0;
+let missionCountToday = 0;
+
+// Navigation
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// Fetch roles
+async function loadRoles() {
+  try {
+    const res = await fetch(API + '/api/roles');
+    const roles = await res.json();
+    const active = roles.filter(r => r.isActive && r.budgetTier !== 'survive');
+
+    document.getElementById('roleCount').textContent = active.length;
+
+    const tierMap = {
+      ceo: 'csuite', cto: 'csuite', cfo: 'csuite', cmo: 'csuite',
+      researcher: 'mid', analyst: 'mid', engineer: 'mid',
+      secretary: 'ops', worker: 'ops'
+    };
+
+    const roleHTML = active.map(r => {
+      const tier = tierMap[r.id] || 'ops';
+      const tierLabel = tier === 'csuite' ? 'C-suite' : tier === 'mid' ? 'Mid-level' : 'Operations';
+      return `<div class="role-card">
+        <div class="role-header">
+          <span class="role-name">${r.name}</span>
+          <span class="role-tier ${tier}">${tierLabel}</span>
+        </div>
+        <div class="role-model">${r.model}</div>
+        <div class="role-cost">${r.description}</div>
+        <div class="role-reports">Reports to → ${r.reportsTo || 'Human (Chairman)'}</div>
+      </div>`;
+    }).join('');
+
+    document.getElementById('overviewRoles').innerHTML = roleHTML;
+    document.getElementById('rolesGrid').innerHTML = roleHTML;
+  } catch(e) {
+    console.error('Failed to load roles:', e);
+  }
+}
+
+// Fetch health
+async function loadHealth() {
+  try {
+    const res = await fetch(API + '/api/health');
+    const data = await res.json();
+    document.getElementById('statusDot').className = 'status-dot ' + (data.status === 'ok' ? 'ok' : 'error');
+    document.getElementById('statusText').textContent = data.status === 'ok' ? 'Connected' : 'Error';
+    document.getElementById('providerName').textContent = 'ClawAPI';
+    document.getElementById('providerStatus').textContent = data.status === 'ok' ? 'connected' : data.error || 'error';
+  } catch(e) {
+    document.getElementById('statusDot').className = 'status-dot error';
+    document.getElementById('statusText').textContent = 'Offline';
+    document.getElementById('providerStatus').textContent = 'cannot connect';
+  }
+}
+
+// Run mission with real-time SSE progress
+async function runMission() {
+  const input = document.getElementById('missionInput');
+  const btn = document.getElementById('missionBtn');
+  const goal = input.value.trim();
+  if (!goal) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Running...';
+  input.disabled = true;
+
+  const progress = document.getElementById('missionProgress');
+  const progressText = document.getElementById('progressText');
+  const progressFill = document.getElementById('progressFill');
+  progress.style.display = 'block';
+  progressText.textContent = 'CEO is analyzing your mission...';
+  progressFill.style.width = '5%';
+
+  // Create a live work stream tracker
+  const logArea = document.getElementById('missionLog');
+  const entryDiv = document.createElement('div');
+  entryDiv.className = 'mission-entry';
+  entryDiv.innerHTML = `
+    <div class="mission-entry-header">
+      <div class="mission-goal">${goal}</div>
+      <div class="mission-meta" id="liveMeta"><span class="spinner"></span> Running...</div>
+    </div>
+    <div class="ws-list" id="liveWorkStreams"></div>
+  `;
+  logArea.insertBefore(entryDiv, logArea.firstChild);
+
+  const liveWS = document.getElementById('liveWorkStreams');
+  let wsCount = 0;
+  let wsDone = 0;
+
+  try {
+    const response = await fetch(API + '/api/mission/run-stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mission: goal }),
+    });
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const event = JSON.parse(line.slice(6));
+
+          if (event.type === 'phase') {
+            progressText.textContent = event.message;
+            if (event.phase === 'decomposing') progressFill.style.width = '10%';
+            if (event.phase === 'executing') progressFill.style.width = '20%';
+          }
+
+          if (event.type === 'decomposed') {
+            wsCount = event.workStreams.length;
+            progressText.textContent = `${wsCount} work streams created. Team starting...`;
+            progressFill.style.width = '15%';
+
+            // Show planned work streams as pending
+            for (const ws of event.workStreams) {
+              const wsEl = document.createElement('div');
+              wsEl.className = 'ws-item';
+              wsEl.id = 'ws-' + ws.id;
+              wsEl.innerHTML = `
+                <span class="ws-icon"><span class="spinner"></span></span>
+                <div class="ws-info">
+                  <div class="ws-title">${ws.title}</div>
+                  <div class="ws-detail">
+                    <span>${ws.assignTo}</span>
+                    <span style="color:var(--text3)">queued</span>
+                  </div>
+                </div>
+              `;
+              liveWS.appendChild(wsEl);
+            }
+          }
+
+          if (event.type === 'ws_start') {
+            const wsEl = document.getElementById('ws-' + event.id);
+            if (wsEl) {
+              wsEl.querySelector('.ws-icon').innerHTML = '<span class="spinner"></span>';
+              wsEl.querySelector('.ws-detail').innerHTML = `
+                <span>${event.roleName}</span>
+                <span style="font-family:var(--mono)">${event.model}</span>
+                <span style="color:var(--amber)">working...</span>
+              `;
+            }
+            progressText.textContent = `${event.roleName} is working on: ${event.title}`;
+          }
+
+          if (event.type === 'ws_done') {
+            wsDone++;
+            const pct = 20 + Math.round((wsDone / wsCount) * 75);
+            progressFill.style.width = pct + '%';
+
+            const wsEl = document.getElementById('ws-' + event.id);
+            if (wsEl) {
+              const preview = (event.outputPreview || '').slice(0, 100).replace(/\n/g, ' ');
+              wsEl.querySelector('.ws-icon').textContent = '✅';
+              wsEl.querySelector('.ws-detail').innerHTML = `
+                <span>${event.role}</span>
+                <span style="font-family:var(--mono)">${event.model}</span>
+                <span>${event.cost}</span>
+                <span>${event.time}</span>
+              `;
+              if (preview) {
+                const prevEl = document.createElement('div');
+                prevEl.className = 'ws-preview';
+                prevEl.textContent = preview;
+                wsEl.querySelector('.ws-info').appendChild(prevEl);
+
+                const toggleEl = document.createElement('span');
+                toggleEl.className = 'md-toggle';
+                toggleEl.id = 'toggle-' + event.id;
+                toggleEl.textContent = '▶ View full output';
+                toggleEl.onclick = () => toggleOutput(event.id, event.output);
+                wsEl.querySelector('.ws-info').appendChild(toggleEl);
+              }
+              // Store full output
+              wsEl.dataset.output = event.output || '';
+            }
+            progressText.textContent = `${event.role} completed (${wsDone}/${wsCount})`;
+          }
+
+          if (event.type === 'ws_failed') {
+            wsDone++;
+            const wsEl = document.getElementById('ws-' + event.id);
+            if (wsEl) {
+              wsEl.querySelector('.ws-icon').textContent = '❌';
+              wsEl.querySelector('.ws-detail').innerHTML = `
+                <span>${event.role}</span>
+                <span style="color:var(--red)">${event.error || 'failed'}</span>
+              `;
+            }
+          }
+
+          if (event.type === 'complete') {
+            progressFill.style.width = '100%';
+            progressText.textContent = 'Delivered to Chairman!';
+            setTimeout(() => { progress.style.display = 'none'; }, 2000);
+
+            document.getElementById('liveMeta').innerHTML = `
+              <span>${event.totalCost}</span>
+              <span>${event.totalTime}</span>
+              <span>${event.workStreams.length} streams</span>
+            `;
+
+            // Update overview stats
+            missionCountToday++;
+            const cost = parseFloat(event.totalCost.replace('$', ''));
+            totalSpent += cost;
+            document.getElementById('missionCount').textContent = missionCountToday;
+            document.getElementById('missionCost').textContent = '$' + totalSpent.toFixed(4) + ' spent';
+          }
+
+          if (event.type === 'error') {
+            progress.style.display = 'none';
+            document.getElementById('liveMeta').innerHTML = `<span style="color:var(--red)">${event.message}</span>`;
+          }
+        } catch(e) {}
+      }
+    }
+  } catch (e) {
+    progress.style.display = 'none';
+    document.getElementById('liveMeta').innerHTML = `<span style="color:var(--red)">${e.message}</span>`;
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Run mission';
+  input.disabled = false;
+  input.value = '';
+  input.focus();
+}
+
+// Toggle full output display with rendered markdown
+function toggleOutput(wsId, output) {
+  const existing = document.getElementById('output-' + wsId);
+  if (existing) {
+    existing.remove();
+    const toggle = document.getElementById('toggle-' + wsId);
+    if (toggle) toggle.textContent = '▶ View full output';
+    return;
+  }
+  const wsEl = document.getElementById('ws-' + wsId);
+  if (!wsEl) return;
+
+  const outputDiv = document.createElement('div');
+  outputDiv.id = 'output-' + wsId;
+  outputDiv.className = 'md-output';
+  outputDiv.innerHTML = marked.parse(output || '');
+  outputDiv.onclick = (e) => { if (e.target === outputDiv) toggleOutput(wsId, output); };
+  wsEl.appendChild(outputDiv);
+
+  const toggle = document.getElementById('toggle-' + wsId);
+  if (toggle) toggle.textContent = '▲ Collapse';
+}
+
+// Load company info + greeting
+async function loadCompany() {
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+
+  try {
+    const res = await fetch(API + '/api/company');
+    const company = await res.json();
+    document.getElementById('welcomeTitle').textContent = `${greeting}, Chairman.`;
+    document.getElementById('welcomeSub').textContent = `${company.name} is ready for your command.`;
+    document.getElementById('sidebarCompany').textContent = company.name;
+    document.getElementById('sidebarSub').textContent = 'Build for OPC';
+  } catch {
+    document.getElementById('welcomeTitle').textContent = `${greeting}, Chairman.`;
+    document.getElementById('welcomeSub').textContent = 'Your AI company is ready.';
+  }
+}
+
+// Settings: load providers
+async function loadSettings() {
+  try {
+    const res = await fetch(API + '/api/settings/providers');
+    const providers = await res.json();
+
+    const html = providers.map(p => {
+      const badge = p.isConnected ? 'connected' : 'not-configured';
+      const badgeLabel = p.isConnected ? 'Connected' : 'Not configured';
+      const maskedKey = p.apiKey ? p.apiKey.slice(0, 10) + '••••••••' : '';
+
+      return `<div class="provider-card">
+        <div class="provider-header">
+          <div class="provider-name">
+            ${p.name}
+            <span class="provider-badge ${p.tier}">${p.tier === 'default' ? '★ Default' : p.tier}</span>
+            <span class="provider-badge ${badge}">${badgeLabel}</span>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:12px">${p.description || ''}</div>
+        <div class="provider-field">
+          <label>API Key</label>
+          <input type="password" id="key-${p.id}" value="${maskedKey}" placeholder="${p.apiKeyPrefix || 'sk-'}xxxxxxxx" autocomplete="off">
+        </div>
+        ${p.baseUrl ? `<div class="provider-field">
+          <label>Base URL</label>
+          <input type="text" id="url-${p.id}" value="${p.baseUrl}" placeholder="https://api.example.com/v1" disabled style="opacity:.6">
+        </div>` : ''}
+        <div class="provider-actions">
+          <button class="btn-save" onclick="saveProvider('${p.id}')">Save key</button>
+          <button class="btn-test" onclick="testProvider('${p.id}')">Test connection</button>
+          <span id="msg-${p.id}" class="save-msg"></span>
+        </div>
+      </div>`;
+    }).join('');
+
+    document.getElementById('settingsProviders').innerHTML = html;
+
+    // Channels
+    const channels = [
+      { name: 'WebChat', status: 'Always on', icon: '🌐' },
+      { name: 'Telegram', status: providers.find(p => p.telegramConnected) ? 'Connected' : 'Set TELEGRAM_BOT_TOKEN in .env', icon: '✈️' },
+      { name: 'Discord', status: providers.find(p => p.discordConnected) ? 'Connected' : 'Set DISCORD_BOT_TOKEN in .env', icon: '💬' },
+    ];
+
+    const chRes = await fetch(API + '/api/health');
+    const health = await chRes.json();
+
+    document.getElementById('settingsChannels').innerHTML = [
+      { name: 'WebChat', status: 'Always on', icon: '🌐', on: true },
+      { name: 'Telegram', status: health.telegram ? 'Connected' : 'Add TELEGRAM_BOT_TOKEN to .env', icon: '✈️', on: health.telegram },
+      { name: 'Discord', status: health.discord ? 'Connected' : 'Add DISCORD_BOT_TOKEN to .env', icon: '💬', on: health.discord },
+    ].map(ch => `<div class="channel-card">
+      <div class="channel-name">${ch.icon} ${ch.name}</div>
+      <div class="channel-status">${ch.on ? '🟢' : '⚪'} ${ch.status}</div>
+    </div>`).join('');
+
+  } catch(e) {
+    document.getElementById('settingsProviders').innerHTML = '<div style="color:var(--red)">Failed to load settings</div>';
+  }
+}
+
+// Save provider API key
+async function saveProvider(id) {
+  const input = document.getElementById('key-' + id);
+  const msg = document.getElementById('msg-' + id);
+  const key = input.value.replace(/•/g, '').trim();
+
+  if (!key || key.length < 5) {
+    msg.className = 'save-msg err';
+    msg.textContent = 'Enter a valid key';
+    return;
+  }
+
+  try {
+    const res = await fetch(API + '/api/settings/providers/' + id, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey: key }),
+    });
+    const data = await res.json();
+
+    if (data.ok) {
+      msg.className = 'save-msg ok';
+      msg.textContent = '✓ Saved';
+      setTimeout(() => { msg.textContent = ''; }, 3000);
+    } else {
+      msg.className = 'save-msg err';
+      msg.textContent = data.error || 'Save failed';
+    }
+  } catch {
+    msg.className = 'save-msg err';
+    msg.textContent = 'Connection error';
+  }
+}
+
+// Test provider connection
+async function testProvider(id) {
+  const msg = document.getElementById('msg-' + id);
+  msg.className = 'save-msg';
+  msg.textContent = 'Testing...';
+
+  try {
+    const res = await fetch(API + '/api/settings/providers/' + id + '/test');
+    const data = await res.json();
+
+    if (data.ok) {
+      msg.className = 'save-msg ok';
+      msg.textContent = '✓ Connected — ' + (data.models || 'OK');
+    } else {
+      msg.className = 'save-msg err';
+      msg.textContent = '✗ ' + (data.error || 'Failed');
+    }
+    setTimeout(() => { msg.textContent = ''; }, 5000);
+  } catch {
+    msg.className = 'save-msg err';
+    msg.textContent = 'Connection error';
+  }
+}
+
+// Init
+loadHealth();
+loadRoles();
+loadCompany();
+loadSettings();
+setInterval(loadHealth, 30000);
 </script>
 </body>
 </html>
