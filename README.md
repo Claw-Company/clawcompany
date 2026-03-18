@@ -27,9 +27,9 @@ CEO (Opus) decomposes into work streams ($0.027):
 You: read the report, approve or revise. Done.
 ```
 
-**Total: 76 seconds, $0.064.** Your AI company just delivered a professional report.
+**Total: 3 minutes, $0.12.** Your AI company just delivered a professional report.
 
-If you ran the same mission using only Opus? **$1.73.** ClawCompany's multi-model architecture is **27x cheaper**.
+If you ran the same mission using only Opus? **$3.50.** ClawCompany's multi-model architecture is **30x cheaper**.
 
 → [See the full example mission with cost breakdown](doc/EXAMPLE-MISSION.md)
 
@@ -116,7 +116,7 @@ Professional work deserves professional models. Routine work deserves fast, chea
 | Deep analysis | Researcher | sonnet | $0.026 | ~$0.45 |
 | Market positioning | CMO | sonnet | $0.009 | ~$0.45 |
 | Report formatting | Secretary | flash-lite | $0.001 | ~$0.40 |
-| **Total** | | | **$0.064** | **$1.73** |
+| **Total** | | | **$0.12** | **$3.50** |
 
 **96% cheaper. 27x less cost.** Routine work goes to flash-lite at $0.001 per call instead of Opus at $0.40+. The quality is identical because these tasks don't need deep reasoning.
 
