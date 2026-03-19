@@ -224,7 +224,7 @@ app.get('/api/settings/channels', (_req, res) => {
       tokenField: true,
       tokenLabel: 'Bot Token',
       placeholder: '123456:ABC-DEF1234ghIkl-zyx57W2v...',
-      guideUrl: 'https://clawcompany.org/setup.html#telegram',
+      guideUrl: 'https://clawcompany.org/setup#telegram',
     },
     {
       id: 'discord',
@@ -237,7 +237,7 @@ app.get('/api/settings/channels', (_req, res) => {
       tokenField: true,
       tokenLabel: 'Bot Token',
       placeholder: 'MTIzNDU2Nzg5MDEyMzQ1Njc4OQ...',
-      guideUrl: 'https://clawcompany.org/setup.html#discord',
+      guideUrl: 'https://clawcompany.org/setup#discord',
     },
   ]);
 });
@@ -755,6 +755,12 @@ const server = app.listen(PORT, async () => {
 
   console.log('  Build for OPC. Every human being is a chairman.');
   console.log('');
+
+  // Auto-open Dashboard in browser
+  const url = `http://localhost:${PORT}`;
+  const { exec } = await import('child_process');
+  const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
+  exec(`${cmd} ${url}`, () => {});
 });
 
 export default app;
