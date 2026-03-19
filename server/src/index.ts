@@ -13,6 +13,7 @@ import { ProviderRegistry } from '@clawcompany/providers';
 import { ModelRouter } from '@clawcompany/model-router';
 import { TaskOrchestrator } from '@clawcompany/task-orchestrator';
 import type { DirectRunner } from './channels/index.js';
+import { CronScheduler, ROUTINE_TEMPLATES, describeCron } from './scheduler.js';
 
 config({ path: '../.env' });
 
@@ -189,6 +190,82 @@ app.get('/api/settings/providers/:id/test', async (req, res) => {
     res.json({ ok: true, models: 'Connection successful' });
   } catch (e: any) {
     res.json({ ok: false, error: e.message });
+  }
+});
+
+// ──── Routines API ────
+
+let scheduler: CronScheduler | undefined;
+
+// List all routines
+app.get('/api/routines', (_req, res) => {
+  if (!scheduler) return res.json([]);
+  const running = scheduler.getRunning();
+  res.json(scheduler.list().map(r => ({
+    ...r,
+    cronDescription: describeCron(r.cron),
+    isRunning: running.includes(r.id),
+  })));
+});
+
+// List available templates
+app.get('/api/routines/templates', (_req, res) => {
+  res.json(ROUTINE_TEMPLATES.map(t => ({ ...t, cronDescription: describeCron(t.cron) })));
+});
+
+// Execution log
+app.get('/api/routines/log', (_req, res) => {
+  if (!scheduler) return res.json([]);
+  res.json(scheduler.getLog());
+});
+
+// Running status (lightweight poll)
+app.get('/api/routines/status', (_req, res) => {
+  if (!scheduler) return res.json({ running: [] });
+  res.json({ running: scheduler.getRunning() });
+});
+
+// Add a routine
+app.post('/api/routines', (req, res) => {
+  if (!scheduler) return res.status(503).json({ error: 'Scheduler not initialized' });
+  try {
+    const routine = scheduler.add(req.body);
+    res.json({ ok: true, routine });
+  } catch (e: any) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+// Update a routine
+app.put('/api/routines/:id', (req, res) => {
+  if (!scheduler) return res.status(503).json({ error: 'Scheduler not initialized' });
+  const result = scheduler.update(req.params.id, req.body);
+  if (!result) return res.status(404).json({ ok: false, error: 'Routine not found' });
+  res.json({ ok: true, routine: result });
+});
+
+// Delete a routine
+app.delete('/api/routines/:id', (req, res) => {
+  if (!scheduler) return res.status(503).json({ error: 'Scheduler not initialized' });
+  const ok = scheduler.remove(req.params.id);
+  res.json({ ok });
+});
+
+// Stop a running routine (disables + stops future triggers)
+app.post('/api/routines/:id/stop', (req, res) => {
+  if (!scheduler) return res.status(503).json({ error: 'Scheduler not initialized' });
+  const ok = scheduler.stopRoutine(req.params.id);
+  res.json({ ok });
+});
+
+// Run a routine immediately (for testing)
+app.post('/api/routines/:id/run', async (req, res) => {
+  if (!scheduler) return res.status(503).json({ error: 'Scheduler not initialized' });
+  try {
+    const result = await scheduler.runNow(req.params.id);
+    res.json({ ok: true, result: result.slice(0, 500) + (result.length > 500 ? '...' : '') });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e.message });
   }
 });
 
@@ -459,16 +536,20 @@ const server = app.listen(PORT, async () => {
     };
   }
 
+  // Channel adapters (stored for scheduler access)
+  let telegramAdapter: any;
+  let discordAdapter: any;
+
   // Auto-start Telegram bot if token is configured
   if (process.env.TELEGRAM_BOT_TOKEN) {
     try {
       const { TelegramAdapter } = await import('./channels/telegram.js');
-      const telegram = new TelegramAdapter(
+      telegramAdapter = new TelegramAdapter(
         process.env.TELEGRAM_BOT_TOKEN,
         `http://localhost:${PORT}`,
         directRunner,
       );
-      await telegram.start();
+      await telegramAdapter.start();
     } catch (err: any) {
       console.error(`  ❌ Telegram bot failed: ${err.message}`);
     }
@@ -478,15 +559,43 @@ const server = app.listen(PORT, async () => {
   if (process.env.DISCORD_BOT_TOKEN) {
     try {
       const { DiscordAdapter } = await import('./channels/discord.js');
-      const discord = new DiscordAdapter(
+      discordAdapter = new DiscordAdapter(
         process.env.DISCORD_BOT_TOKEN,
         `http://localhost:${PORT}`,
         directRunner,
       );
-      await discord.start();
+      await discordAdapter.start();
     } catch (err: any) {
       console.error(`  ❌ Discord bot failed: ${err.message}`);
     }
+  }
+
+  // Start scheduler — your company runs itself
+  if (directRunner) {
+    const sendResult: import('./scheduler.js').ResultSender = async (channel, chatId, text) => {
+      // Truncate for chat platforms (Telegram 4096 char limit)
+      const truncated = text.length > 3800 ? text.slice(0, 3800) + '\n\n_(truncated)_' : text;
+
+      if ((channel === 'telegram' || channel === 'all') && telegramAdapter && chatId) {
+        try { await telegramAdapter.sendText(chatId, truncated); } catch (e: any) {
+          console.error(`  ❌ Scheduler → Telegram failed: ${e.message}`);
+        }
+      }
+
+      if ((channel === 'discord' || channel === 'all') && discordAdapter && chatId) {
+        try { await discordAdapter.sendText(chatId, truncated); } catch (e: any) {
+          console.error(`  ❌ Scheduler → Discord failed: ${e.message}`);
+        }
+      }
+
+      if (channel === 'dashboard' || channel === 'all') {
+        // Dashboard delivery: log for now, SSE push in Phase 2
+        console.log(`  📅 [Dashboard] Routine result delivered (${text.length} chars)`);
+      }
+    };
+
+    scheduler = new CronScheduler(directRunner, sendResult);
+    scheduler.start();
   }
 
   console.log('  Build for OPC. Every human being is a chairman.');

@@ -362,6 +362,34 @@ export interface AuditEntry {
 }
 
 // ──────────────────────────────────────────
+// Scheduler — Cron Routines
+// ──────────────────────────────────────────
+
+export interface Routine {
+  id: string;
+  /** Human-readable name, e.g. "Daily market brief" */
+  name: string;
+  /** Cron expression: minute hour day month weekday */
+  cron: string;
+  /** Mission goal template. Can use {date}, {weekday}, {company} */
+  mission: string;
+  /** Which role initiates (default: researcher) */
+  role?: string;
+  /** Where to send results: 'telegram', 'discord', 'dashboard', 'all' */
+  channel: string;
+  /** Platform-specific chat ID for delivery */
+  chatId?: string;
+  /** Is this routine active? */
+  enabled: boolean;
+  /** Last execution timestamp */
+  lastRunAt?: string;
+  /** Last execution cost */
+  lastCost?: number;
+  /** Created timestamp */
+  createdAt: string;
+}
+
+// ──────────────────────────────────────────
 // Config file shape (~/.clawcompany/config.json)
 // ──────────────────────────────────────────
 

@@ -145,6 +145,34 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 .channel-name{font-size:14px;font-weight:500;margin-bottom:4px}
 .channel-status{font-size:12px;color:var(--text3)}
 
+/* Routines */
+.routine-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px;display:flex;align-items:flex-start;gap:14px}
+.routine-toggle{margin-top:2px;cursor:pointer;accent-color:var(--coral)}
+.routine-info{flex:1;min-width:0}
+.routine-name{font-size:14px;font-weight:500;margin-bottom:2px}
+.routine-cron{font-size:12px;color:var(--text3);font-family:var(--mono);margin-bottom:4px}
+.routine-desc{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.routine-meta{font-size:11px;color:var(--text3);margin-top:4px}
+.routine-actions{display:flex;gap:6px;align-items:center;flex-shrink:0}
+.btn-sm{padding:5px 10px;font-size:11px;border-radius:5px;cursor:pointer;font-family:var(--font);border:1px solid var(--border);background:var(--bg3);color:var(--text2);transition:all .15s}
+.btn-sm:hover{border-color:var(--coral);color:var(--coral)}
+.btn-sm.run{border-color:var(--teal);color:var(--teal)}
+.btn-sm.run:hover{background:var(--tealBg)}
+.btn-sm.del{border-color:var(--red);color:var(--red)}
+.btn-sm.del:hover{background:var(--redBg)}
+.add-routine{background:var(--bg2);border:1px dashed var(--border);border-radius:var(--radius);padding:16px;text-align:center;cursor:pointer;color:var(--text3);transition:all .15s;margin-bottom:10px}
+.add-routine:hover{border-color:var(--coral);color:var(--coral2)}
+.routine-form{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;display:none}
+.routine-form.show{display:block}
+.routine-form label{display:block;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;margin-top:12px}
+.routine-form label:first-child{margin-top:0}
+.routine-form input,.routine-form select,.routine-form textarea{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:var(--text);font-family:var(--font);font-size:13px;outline:none}
+.routine-form textarea{font-family:var(--font);resize:vertical;min-height:60px}
+.routine-form input:focus,.routine-form select:focus,.routine-form textarea:focus{border-color:var(--coral)}
+.template-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.template-chip{padding:5px 12px;font-size:11px;border-radius:16px;cursor:pointer;border:1px solid var(--border);background:var(--bg3);color:var(--text2);transition:all .15s}
+.template-chip:hover{border-color:var(--coral);color:var(--coral2)}
+
 /* Mobile */
 @media(max-width:768px){
   .sidebar{width:60px}.sidebar-brand p,.nav-item span:last-child,.sidebar-footer{display:none}
@@ -170,6 +198,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
   </div>
   <div class="nav-item" onclick="showPage('roles')">
     <span class="nav-icon">◈</span> <span>Roles</span>
+  </div>
+  <div class="nav-item" onclick="showPage('routines')">
+    <span class="nav-icon">◷</span> <span>Routines</span>
   </div>
   <div class="nav-item" onclick="showPage('settings')">
     <span class="nav-icon">⚙</span> <span>Settings</span>
@@ -239,6 +270,85 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
     <div class="page-sub">👤 Chairman = Human (you). Your AI team below.</div>
 
     <div class="role-grid" id="rolesGrid"></div>
+  </div>
+
+  <!-- Routines Page -->
+  <div class="page" id="page-routines">
+    <div class="page-title">Routines</div>
+    <div class="page-sub">Scheduled tasks. Your company runs itself — even while you sleep.</div>
+
+    <!-- Add form (hidden by default) -->
+    <div class="routine-form" id="routineForm">
+      <label>Name</label>
+      <input type="text" id="rf-name" placeholder="e.g. Daily market brief">
+
+      <label>Schedule</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="rf-schedule" onchange="onScheduleChange()" style="flex:1">
+          <option value="*/5 * * * *">Every 5 minutes</option>
+          <option value="*/15 * * * *">Every 15 minutes</option>
+          <option value="*/30 * * * *">Every 30 minutes</option>
+          <option value="0 * * * *">Every hour</option>
+          <option value="0 9 * * *" selected>Daily</option>
+          <option value="0 9 * * 1-5">Weekdays (Mon–Fri)</option>
+          <option value="0 10 * * 1">Weekly (Monday)</option>
+          <option value="0 9 1 * *">Monthly (1st)</option>
+          <option value="custom">Custom cron...</option>
+        </select>
+        <input type="time" id="rf-time" value="09:00" style="width:110px" onchange="onScheduleChange()">
+      </div>
+      <input type="text" id="rf-cron" placeholder="0 9 * * *" style="font-family:var(--mono);display:none;margin-top:6px">
+      <div style="font-size:11px;color:var(--text3);margin-top:4px" id="rf-cron-desc"></div>
+
+      <label>Type</label>
+      <select id="rf-type">
+        <option value="mission">Mission (full team execution)</option>
+        <option value="chat">Chat (single role reply)</option>
+      </select>
+
+      <label>Mission goal / message</label>
+      <textarea id="rf-content" placeholder="Analyze today's crypto and stock market trends..."></textarea>
+
+      <label>Role (for chat type)</label>
+      <select id="rf-role">
+        <option value="ceo">CEO</option>
+        <option value="researcher">Researcher</option>
+        <option value="cfo">CFO</option>
+        <option value="cmo">CMO</option>
+        <option value="analyst">Analyst</option>
+      </select>
+
+      <label>Deliver to</label>
+      <select id="rf-channel">
+        <option value="dashboard">Dashboard</option>
+        <option value="telegram">Telegram</option>
+        <option value="discord">Discord</option>
+        <option value="all">All channels</option>
+      </select>
+
+      <label>Chat ID (Telegram/Discord channel ID)</label>
+      <input type="text" id="rf-chatid" placeholder="Optional — leave empty for default">
+
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button class="btn-save" onclick="saveRoutine()">Save routine</button>
+        <button class="btn-test" onclick="toggleRoutineForm()">Cancel</button>
+      </div>
+
+      <div style="margin-top:16px">
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Quick start from template</div>
+        <div class="template-chips" id="templateChips"></div>
+      </div>
+    </div>
+
+    <div class="add-routine" onclick="toggleRoutineForm()">+ Add routine</div>
+
+    <div id="routinesList"></div>
+
+    <!-- Routine execution log -->
+    <div style="margin-top:24px">
+      <div style="font-size:14px;font-weight:500;margin-bottom:8px">Execution log</div>
+      <div id="routineLog" style="font-size:12px;color:var(--text3)">No routine results yet.</div>
+    </div>
   </div>
 
   <!-- Settings Page -->
@@ -670,11 +780,329 @@ async function testProvider(id) {
   }
 }
 
+// ── Routines ──
+
+let routinesData = [];
+let routineLogEntries = [];
+
+async function loadRoutines() {
+  try {
+    const res = await fetch(API + '/api/routines');
+    routinesData = await res.json();
+    renderRoutines();
+
+    // If anything is running, start fast status polling
+    if (routinesData.some(r => r.isRunning)) startStatusPoll();
+
+    // Load templates
+    const tRes = await fetch(API + '/api/routines/templates');
+    const templates = await tRes.json();
+    document.getElementById('templateChips').innerHTML = templates.map((t, i) =>
+      `<div class="template-chip" onclick="applyTemplate(${i})">${t.name}</div>`
+    ).join('');
+    window._routineTemplates = templates;
+
+    // Load execution log
+    try {
+      const lRes = await fetch(API + '/api/routines/log');
+      routineLogEntries = await lRes.json();
+      renderRoutineLog();
+    } catch {}
+  } catch(e) {
+    document.getElementById('routinesList').innerHTML = '<div style="color:var(--red)">Failed to load routines</div>';
+  }
+}
+
+function renderRoutines() {
+  const list = document.getElementById('routinesList');
+  if (!routinesData.length) {
+    list.innerHTML = '<div style="color:var(--text3);text-align:center;padding:32px 0">No routines yet. Add one to automate your company.</div>';
+    return;
+  }
+
+  list.innerHTML = routinesData.map(r => {
+    const running = r.isRunning;
+    return `
+    <div class="routine-card" style="${r.enabled || running ? '' : 'opacity:.5'}${running ? ';border-color:var(--teal)' : ''}">
+      <input type="checkbox" class="routine-toggle" ${r.enabled ? 'checked' : ''} onchange="toggleRoutine('${r.id}')" ${running ? 'disabled' : ''}>
+      <div class="routine-info">
+        <div class="routine-name">${running ? '<span class="spinner" style="display:inline-block;margin-right:6px"></span>' : ''}${r.name}</div>
+        <div class="routine-cron">${r.cronDescription || r.cron}</div>
+        <div class="routine-desc">${r.type === 'mission' ? '🎯' : '💬'} ${escHtml(r.content.slice(0, 100))}</div>
+        <div class="routine-meta">
+          → ${r.channel}${running ? ' · <span style="color:var(--teal)">Running now...</span>' : r.lastRun ? ' · Last: ' + new Date(r.lastRun).toLocaleString() : ' · Never run'}
+        </div>
+      </div>
+      <div class="routine-actions">
+        ${running
+          ? `<button class="btn-sm del" onclick="stopRoutine('${r.id}')" style="border-color:var(--amber);color:var(--amber)">◼ Stop</button>`
+          : `<button class="btn-sm run" onclick="runRoutineNow('${r.id}')">▶ Run</button>`
+        }
+        <button class="btn-sm del" onclick="deleteRoutine('${r.id}')" ${running ? 'disabled style="opacity:.3"' : ''}>✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function renderRoutineLog() {
+  const el = document.getElementById('routineLog');
+  if (!routineLogEntries.length) {
+    el.innerHTML = '<div style="color:var(--text3)">No routine results yet. Results will appear here after execution.</div>';
+    return;
+  }
+  el.innerHTML = routineLogEntries.slice(0, 20).map((entry, i) => `
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-weight:500;color:var(--text)">${escHtml(entry.name)}</span>
+        <span style="color:var(--text3);font-size:11px">${new Date(entry.timestamp).toLocaleString()}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:${entry.ok ? 'var(--teal)' : 'var(--red)'}">
+          ${entry.ok ? '✅' : '❌'} ${entry.ok ? 'Completed' : 'Failed'} ${entry.cost ? '· $' + entry.cost.toFixed(4) : ''} ${entry.time ? '· ' + entry.time.toFixed(0) + 's' : ''}
+        </span>
+        ${entry.fullResult ? `<span class="md-toggle" id="rlog-toggle-${i}" onclick="toggleRoutineReport(${i})">▶ View report</span>` : ''}
+        ${entry.error ? `<span style="font-size:12px;color:var(--red)">${escHtml(entry.error)}</span>` : ''}
+      </div>
+      ${entry.summary ? `<div class="routine-desc" style="margin-top:4px;white-space:normal">${escHtml(entry.summary.slice(0, 200))}</div>` : ''}
+      <div id="rlog-output-${i}" style="display:none"></div>
+    </div>
+  `).join('');
+}
+
+function toggleRoutineReport(idx) {
+  const outputEl = document.getElementById('rlog-output-' + idx);
+  const toggleEl = document.getElementById('rlog-toggle-' + idx);
+  if (!outputEl || !toggleEl) return;
+
+  if (outputEl.style.display === 'none') {
+    const entry = routineLogEntries[idx];
+    if (entry?.fullResult) {
+      outputEl.innerHTML = '<div class="md-output" style="margin-top:8px">' + marked.parse(entry.fullResult) + '</div>';
+    }
+    outputEl.style.display = 'block';
+    toggleEl.textContent = '▲ Collapse';
+  } else {
+    outputEl.style.display = 'none';
+    toggleEl.textContent = '▶ View report';
+  }
+}
+
+// Schedule picker logic
+function onScheduleChange() {
+  const sel = document.getElementById('rf-schedule');
+  const cronInput = document.getElementById('rf-cron');
+  const timeInput = document.getElementById('rf-time');
+
+  if (sel.value === 'custom') {
+    cronInput.style.display = 'block';
+    cronInput.focus();
+    updateCronDesc();
+    return;
+  }
+
+  cronInput.style.display = 'none';
+
+  // Parse selected preset and inject time
+  const time = timeInput.value || '09:00';
+  const [h, m] = time.split(':').map(Number);
+
+  const presetMap = {
+    '*/5 * * * *':   `*/${5} * * * *`,
+    '*/15 * * * *':  `*/${15} * * * *`,
+    '*/30 * * * *':  `*/${30} * * * *`,
+    '0 * * * *':     `${m} * * * *`,
+    '0 9 * * *':     `${m} ${h} * * *`,
+    '0 9 * * 1-5':   `${m} ${h} * * 1-5`,
+    '0 10 * * 1':    `${m} ${h} * * 1`,
+    '0 9 1 * *':     `${m} ${h} 1 * *`,
+  };
+
+  const cron = presetMap[sel.value] ?? sel.value;
+  cronInput.value = cron;
+  updateCronDesc();
+}
+
+function toggleRoutineForm() {
+  const form = document.getElementById('routineForm');
+  form.classList.toggle('show');
+  if (form.classList.contains('show')) {
+    onScheduleChange(); // init cron from preset
+    document.getElementById('rf-name').focus();
+  }
+}
+
+function applyTemplate(idx) {
+  const t = window._routineTemplates?.[idx];
+  if (!t) return;
+  document.getElementById('rf-name').value = t.name;
+  document.getElementById('rf-type').value = t.type;
+  document.getElementById('rf-content').value = t.content;
+  if (t.role) document.getElementById('rf-role').value = t.role;
+
+  // Try to match cron to a preset
+  const sel = document.getElementById('rf-schedule');
+  const presets = [...sel.options].map(o => o.value);
+  if (presets.includes(t.cron)) {
+    sel.value = t.cron;
+  } else {
+    sel.value = 'custom';
+    document.getElementById('rf-cron').style.display = 'block';
+  }
+  document.getElementById('rf-cron').value = t.cron;
+
+  // Extract time from cron
+  const parts = t.cron.split(/\s+/);
+  if (parts.length === 5 && !parts[0].includes('*') && !parts[1].includes('*')) {
+    document.getElementById('rf-time').value = `${parts[1].padStart(2,'0')}:${parts[0].padStart(2,'0')}`;
+  }
+
+  updateCronDesc();
+}
+
+function updateCronDesc() {
+  const cron = document.getElementById('rf-cron').value.trim();
+  const parts = cron.split(/\s+/);
+  let desc = '';
+  if (parts.length === 5) {
+    const [min, hour, dom, mon, dow] = parts;
+    const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    if (min.startsWith('*/')) desc = `Every ${min.slice(2)} minutes`;
+    else if (hour.startsWith('*/')) desc = `Every ${hour.slice(2)} hours`;
+    else if (dow !== '*' && dow.includes('-')) {
+      const [lo,hi] = dow.split('-');
+      desc = `${days[lo]||lo}-${days[hi]||hi} at ${hour.padStart(2,'0')}:${min.padStart(2,'0')}`;
+    }
+    else if (dow !== '*') desc = `${dow.split(',').map(d => days[d] || d).join(', ')} at ${hour.padStart(2,'0')}:${min.padStart(2,'0')}`;
+    else if (dom !== '*') desc = `Day ${dom} of month at ${hour.padStart(2,'0')}:${min.padStart(2,'0')}`;
+    else if (hour !== '*' && min !== '*') desc = `Daily at ${hour.padStart(2,'0')}:${min.padStart(2,'0')}`;
+    else desc = cron;
+  }
+  document.getElementById('rf-cron-desc').textContent = desc ? `→ ${desc}` : '';
+}
+
+document.getElementById('rf-cron')?.addEventListener('input', updateCronDesc);
+
+async function saveRoutine() {
+  // Build cron from picker if not custom
+  const sel = document.getElementById('rf-schedule');
+  if (sel.value !== 'custom') onScheduleChange();
+
+  const body = {
+    name: document.getElementById('rf-name').value.trim(),
+    cron: document.getElementById('rf-cron').value.trim(),
+    type: document.getElementById('rf-type').value,
+    content: document.getElementById('rf-content').value.trim(),
+    role: document.getElementById('rf-role').value,
+    channel: document.getElementById('rf-channel').value,
+    chatId: document.getElementById('rf-chatid').value.trim() || undefined,
+    enabled: true,
+  };
+  if (!body.name || !body.cron || !body.content) return alert('Fill in name, schedule, and content');
+
+  try {
+    const res = await fetch(API + '/api/routines', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      toggleRoutineForm();
+      ['rf-name','rf-cron','rf-content','rf-chatid'].forEach(id => document.getElementById(id).value = '');
+      await loadRoutines();
+    }
+  } catch(e) { alert('Failed to save: ' + e.message); }
+}
+
+async function toggleRoutine(id) {
+  const routine = routinesData.find(r => r.id === id);
+  if (!routine) return;
+  await fetch(API + '/api/routines/' + id, {
+    method: 'PUT', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ enabled: !routine.enabled }),
+  });
+  await loadRoutines();
+}
+
+async function deleteRoutine(id) {
+  if (!confirm('Delete this routine?')) return;
+  await fetch(API + '/api/routines/' + id, { method: 'DELETE' });
+  await loadRoutines();
+}
+
+async function runRoutineNow(id) {
+  // Fire and forget — don't wait for completion, poll for status
+  fetch(API + '/api/routines/' + id + '/run', { method: 'POST' })
+    .then(() => loadRoutines())
+    .catch(e => console.error('Run failed:', e));
+
+  // Immediately show running state
+  const routine = routinesData.find(r => r.id === id);
+  if (routine) { routine.isRunning = true; renderRoutines(); }
+
+  // Start fast polling
+  startStatusPoll();
+}
+
+async function stopRoutine(id) {
+  await fetch(API + '/api/routines/' + id + '/stop', { method: 'POST' });
+  await loadRoutines();
+}
+
+// Status polling — fast (5s) when routines running, slow (30s) otherwise
+let statusPollTimer = null;
+
+function startStatusPoll() {
+  if (statusPollTimer) return; // already polling
+  statusPollTimer = setInterval(async () => {
+    if (!document.getElementById('page-routines')?.classList.contains('active')) return;
+
+    try {
+      const res = await fetch(API + '/api/routines/status');
+      const { running } = await res.json();
+
+      // Update running state in local data
+      let changed = false;
+      routinesData.forEach(r => {
+        const wasRunning = r.isRunning;
+        r.isRunning = running.includes(r.id);
+        if (wasRunning !== r.isRunning) changed = true;
+      });
+
+      if (changed) {
+        renderRoutines();
+        // If something just finished, reload log
+        if (running.length === 0) {
+          await loadRoutines();
+          stopStatusPoll();
+        }
+      }
+
+      // No routines running anymore — switch to slow poll
+      if (running.length === 0) stopStatusPoll();
+    } catch {}
+  }, 5000);
+}
+
+function stopStatusPoll() {
+  if (statusPollTimer) { clearInterval(statusPollTimer); statusPollTimer = null; }
+}
+
+// Slow background refresh when on routines page
+setInterval(() => {
+  if (document.getElementById('page-routines')?.classList.contains('active')) {
+    loadRoutines();
+    // Check if anything is running, start fast poll
+    if (routinesData.some(r => r.isRunning)) startStatusPoll();
+  }
+}, 30000);
+
 // Init
 loadHealth();
 loadRoles();
 loadCompany();
 loadSettings();
+loadRoutines();
 setInterval(loadHealth, 30000);
 </script>
 </body>
