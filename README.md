@@ -44,7 +44,7 @@ npx clawcompany
 That's it. The wizard guides you through everything:
 
 ```
-  🦞 ClawCompany v0.5.0
+  🦞 ClawCompany v0.6.0
   Build for OPC. Every human being is a chairman.
 
   Step 1/3: Connect to ClawAPI
