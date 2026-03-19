@@ -224,7 +224,7 @@ app.get('/api/settings/channels', (_req, res) => {
       tokenField: true,
       tokenLabel: 'Bot Token',
       placeholder: '123456:ABC-DEF1234ghIkl-zyx57W2v...',
-      guideUrl: 'https://clawcompany.org/setup#telegram',
+      guideUrl: 'https://clawcompany.org/setup.html#telegram',
     },
     {
       id: 'discord',
@@ -237,7 +237,7 @@ app.get('/api/settings/channels', (_req, res) => {
       tokenField: true,
       tokenLabel: 'Bot Token',
       placeholder: 'MTIzNDU2Nzg5MDEyMzQ1Njc4OQ...',
-      guideUrl: 'https://clawcompany.org/setup#discord',
+      guideUrl: 'https://clawcompany.org/setup.html#discord',
     },
   ]);
 });
