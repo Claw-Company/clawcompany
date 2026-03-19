@@ -959,15 +959,18 @@ function onScheduleChange() {
   const sel = document.getElementById('rf-schedule');
   const cronInput = document.getElementById('rf-cron');
   const timeInput = document.getElementById('rf-time');
+  const cronDesc = document.getElementById('rf-cron-desc');
 
   if (sel.value === 'custom') {
     cronInput.style.display = 'block';
+    cronDesc.style.display = 'block';
     cronInput.focus();
     updateCronDesc();
     return;
   }
 
   cronInput.style.display = 'none';
+  cronDesc.style.display = 'none';
 
   // Parse selected preset and inject time
   const time = timeInput.value || '09:00';
@@ -986,7 +989,6 @@ function onScheduleChange() {
 
   const cron = presetMap[sel.value] ?? sel.value;
   cronInput.value = cron;
-  updateCronDesc();
 }
 
 function toggleRoutineForm() {
@@ -1008,22 +1010,29 @@ function applyTemplate(idx) {
 
   // Try to match cron to a preset
   const sel = document.getElementById('rf-schedule');
+  const cronInput = document.getElementById('rf-cron');
+  const cronDesc = document.getElementById('rf-cron-desc');
   const presets = [...sel.options].map(o => o.value);
+
+  // Always hide cron raw text — user doesn't need to see it
+  cronInput.style.display = 'none';
+  cronDesc.style.display = 'none';
+  cronInput.value = t.cron;
+
   if (presets.includes(t.cron)) {
     sel.value = t.cron;
   } else {
+    // Non-standard cron — pick closest preset, keep real cron hidden
     sel.value = 'custom';
-    document.getElementById('rf-cron').style.display = 'block';
+    cronDesc.style.display = 'block';
+    cronDesc.textContent = '→ ' + t.cron;
   }
-  document.getElementById('rf-cron').value = t.cron;
 
   // Extract time from cron
   const parts = t.cron.split(/\s+/);
   if (parts.length === 5 && !parts[0].includes('*') && !parts[1].includes('*')) {
     document.getElementById('rf-time').value = `${parts[1].padStart(2,'0')}:${parts[0].padStart(2,'0')}`;
   }
-
-  updateCronDesc();
 }
 
 function updateCronDesc() {
