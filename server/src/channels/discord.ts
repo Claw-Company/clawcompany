@@ -24,6 +24,7 @@ const GATEWAY_URL = 'wss://gateway.discord.gg/?v=10&encoding=json';
 export class DiscordAdapter implements ChannelAdapter {
   readonly name = 'discord';
   readonly maxMessageLength = 2000;
+  public lastChatId: string = '';
 
   private token: string;
   private router: ChannelRouter;
@@ -180,6 +181,9 @@ export class DiscordAdapter implements ChannelAdapter {
     };
 
     console.log(`  [Discord] ${inbound.userName}: ${text.slice(0, 50)}`);
+
+    // Track last chatId for scheduler delivery
+    this.lastChatId = inbound.chatId;
 
     // Show typing indicator
     this.rest('POST', `/channels/${msg.channel_id}/typing`).catch(() => {});

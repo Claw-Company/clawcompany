@@ -17,6 +17,7 @@ import type { DirectRunner } from './index.js';
 export class TelegramAdapter implements ChannelAdapter {
   readonly name = 'telegram';
   readonly maxMessageLength = 4096;
+  public lastChatId: string = '';
 
   private token: string;
   private router: ChannelRouter;
@@ -97,6 +98,9 @@ export class TelegramAdapter implements ChannelAdapter {
     };
 
     console.log(`  [Telegram] ${inbound.userName}: ${inbound.text.slice(0, 50)}`);
+
+    // Track last chatId for scheduler delivery
+    this.lastChatId = inbound.chatId;
 
     // Send "typing" indicator
     this.api('sendChatAction', { chat_id: inbound.chatId, action: 'typing' }).catch(() => {});

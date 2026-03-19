@@ -576,15 +576,25 @@ const server = app.listen(PORT, async () => {
       // Truncate for chat platforms (Telegram 4096 char limit)
       const truncated = text.length > 3800 ? text.slice(0, 3800) + '\n\n_(truncated)_' : text;
 
-      if ((channel === 'telegram' || channel === 'all') && telegramAdapter && chatId) {
-        try { await telegramAdapter.sendText(chatId, truncated); } catch (e: any) {
-          console.error(`  ❌ Scheduler → Telegram failed: ${e.message}`);
+      if ((channel === 'telegram' || channel === 'all') && telegramAdapter) {
+        const tgChatId = chatId || telegramAdapter.lastChatId;
+        if (tgChatId) {
+          try { await telegramAdapter.sendText(tgChatId, truncated); } catch (e: any) {
+            console.error(`  ❌ Scheduler → Telegram failed: ${e.message}`);
+          }
+        } else {
+          console.log('  ⚠ Scheduler → Telegram: no chatId (send a message to the bot first)');
         }
       }
 
-      if ((channel === 'discord' || channel === 'all') && discordAdapter && chatId) {
-        try { await discordAdapter.sendText(chatId, truncated); } catch (e: any) {
-          console.error(`  ❌ Scheduler → Discord failed: ${e.message}`);
+      if ((channel === 'discord' || channel === 'all') && discordAdapter) {
+        const dcChatId = chatId || discordAdapter.lastChatId;
+        if (dcChatId) {
+          try { await discordAdapter.sendText(dcChatId, truncated); } catch (e: any) {
+            console.error(`  ❌ Scheduler → Discord failed: ${e.message}`);
+          }
+        } else {
+          console.log('  ⚠ Scheduler → Discord: no chatId (send a message to the bot first)');
         }
       }
 
