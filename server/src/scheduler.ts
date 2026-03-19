@@ -420,4 +420,12 @@ export const ROUTINE_TEMPLATES: Array<Omit<Routine, 'id' | 'createdAt' | 'lastRu
     channel: 'telegram',
     enabled: false,
   },
+  {
+    name: 'BTC trend — Polymarket + Price',
+    cron: '*/5 * * * *',
+    type: 'mission',
+    content: 'BTC trend analysis: 1) Fetch current BTC price from CoinGecko. 2) Check Polymarket (polymarket.com) for any active BTC prediction markets — look for markets about BTC price targets, BTC above/below certain levels, or BTC monthly close predictions. Report the current odds/probabilities. 3) Check Fear & Greed Index from alternative.me/crypto/fear-and-greed-index/. 4) Based on all data, give a clear SHORT-TERM verdict: UP or DOWN trend with confidence level (high/medium/low) and key reasons. Keep it concise — max 200 words.',
+    channel: 'all',
+    enabled: false,
+  },
 ];

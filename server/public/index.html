@@ -883,21 +883,25 @@ function renderRoutines() {
 
   list.innerHTML = routinesData.map(r => {
     const running = r.isRunning;
+    const stopping = running && !r.enabled; // Stop clicked but still executing
+    const borderColor = stopping ? 'var(--amber)' : running ? 'var(--teal)' : '';
     return `
-    <div class="routine-card" style="${r.enabled || running ? '' : 'opacity:.5'}${running ? ';border-color:var(--teal)' : ''}">
+    <div class="routine-card" style="${r.enabled || running ? '' : 'opacity:.5'}${borderColor ? ';border-color:' + borderColor : ''}">
       <input type="checkbox" class="routine-toggle" ${r.enabled ? 'checked' : ''} onchange="toggleRoutine('${r.id}')" ${running ? 'disabled' : ''}>
       <div class="routine-info">
         <div class="routine-name">${running ? '<span class="spinner" style="display:inline-block;margin-right:6px"></span>' : ''}${r.name}</div>
         <div class="routine-cron">${r.cronDescription || r.cron}</div>
         <div class="routine-desc">${r.type === 'mission' ? '🎯' : '💬'} ${escHtml(r.content.slice(0, 100))}</div>
         <div class="routine-meta">
-          → ${r.channel}${running ? ' · <span style="color:var(--teal)">Running now...</span>' : r.lastRun ? ' · Last: ' + new Date(r.lastRun).toLocaleString() : ' · Never run'}
+          → ${r.channel}${stopping ? ' · <span style="color:var(--amber)">Stopping after current run...</span>' : running ? ' · <span style="color:var(--teal)">Running now...</span>' : r.lastRun ? ' · Last: ' + new Date(r.lastRun).toLocaleString() : ' · Never run'}
         </div>
       </div>
       <div class="routine-actions">
-        ${running
-          ? `<button class="btn-sm del" onclick="stopRoutine('${r.id}')" style="border-color:var(--amber);color:var(--amber)">◼ Stop</button>`
-          : `<button class="btn-sm run" onclick="runRoutineNow('${r.id}')">▶ Run</button>`
+        ${stopping
+          ? `<button class="btn-sm" disabled style="opacity:.5">Stopping...</button>`
+          : running
+            ? `<button class="btn-sm del" onclick="stopRoutine('${r.id}')" style="border-color:var(--amber);color:var(--amber)">◼ Stop</button>`
+            : `<button class="btn-sm run" onclick="runRoutineNow('${r.id}')">▶ Run</button>`
         }
         <button class="btn-sm del" onclick="deleteRoutine('${r.id}')" ${running ? 'disabled style="opacity:.3"' : ''}>✕</button>
       </div>
@@ -1106,8 +1110,18 @@ async function runRoutineNow(id) {
 }
 
 async function stopRoutine(id) {
-  await fetch(API + '/api/routines/' + id + '/stop', { method: 'POST' });
-  await loadRoutines();
+  try {
+    const res = await fetch(API + '/api/routines/' + id + '/stop', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      // Update local state immediately
+      const routine = routinesData.find(r => r.id === id);
+      if (routine) routine.enabled = false;
+      renderRoutines();
+    }
+  } catch(e) { console.error('Stop failed:', e); }
+  // Refresh full state
+  setTimeout(() => loadRoutines(), 1000);
 }
 
 // Status polling — fast (5s) when routines running, slow (30s) otherwise
