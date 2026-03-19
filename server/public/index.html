@@ -360,8 +360,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 
     <div style="margin-top:24px">
       <div class="page-title" style="font-size:16px;margin-bottom:8px">Channels</div>
-      <div class="page-sub">Chat app integrations. Set tokens in .env file, restart server.</div>
-      <div id="settingsChannels" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px"></div>
+      <div class="page-sub">Connect chat apps. Agents will deliver routine results here.</div>
+      <div id="settingsChannels"></div>
     </div>
   </div>
 
@@ -699,23 +699,39 @@ async function loadSettings() {
     document.getElementById('settingsProviders').innerHTML = html;
 
     // Channels
-    const channels = [
-      { name: 'WebChat', status: 'Always on', icon: '🌐' },
-      { name: 'Telegram', status: providers.find(p => p.telegramConnected) ? 'Connected' : 'Set TELEGRAM_BOT_TOKEN in .env', icon: '✈️' },
-      { name: 'Discord', status: providers.find(p => p.discordConnected) ? 'Connected' : 'Set DISCORD_BOT_TOKEN in .env', icon: '💬' },
-    ];
+    const chRes = await fetch(API + '/api/settings/channels');
+    const channels = await chRes.json();
 
-    const chRes = await fetch(API + '/api/health');
-    const health = await chRes.json();
+    document.getElementById('settingsChannels').innerHTML = channels.map(ch => {
+      const badge = ch.connected ? 'connected' : 'not-configured';
+      const badgeLabel = ch.connected ? 'Connected' : 'Not configured';
+      const maskedToken = ch.token ? ch.token.slice(0, 8) + '••••••••' : '';
 
-    document.getElementById('settingsChannels').innerHTML = [
-      { name: 'WebChat', status: 'Always on', icon: '🌐', on: true },
-      { name: 'Telegram', status: health.telegram ? 'Connected' : 'Add TELEGRAM_BOT_TOKEN to .env', icon: '✈️', on: health.telegram },
-      { name: 'Discord', status: health.discord ? 'Connected' : 'Add DISCORD_BOT_TOKEN to .env', icon: '💬', on: health.discord },
-    ].map(ch => `<div class="channel-card">
-      <div class="channel-name">${ch.icon} ${ch.name}</div>
-      <div class="channel-status">${ch.on ? '🟢' : '⚪'} ${ch.status}</div>
-    </div>`).join('');
+      return `<div class="provider-card">
+        <div class="provider-header">
+          <div class="provider-name">
+            ${ch.icon} ${ch.name}
+            <span class="provider-badge ${badge}">${badgeLabel}</span>
+            ${ch.botInfo ? `<span style="font-size:11px;color:var(--text3);font-weight:400;margin-left:4px">${ch.botInfo}</span>` : ''}
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:12px">${ch.description}</div>
+        ${ch.tokenField ? `
+          <div class="provider-field">
+            <label>${ch.tokenLabel}</label>
+            <input type="password" id="chkey-${ch.id}" value="${maskedToken}" placeholder="${ch.placeholder}" autocomplete="off">
+          </div>
+          <div class="provider-actions">
+            <button class="btn-save" onclick="saveChannel('${ch.id}')">Save token</button>
+            ${ch.connected ? `<button class="btn-test" onclick="disconnectChannel('${ch.id}')">Disconnect</button>` : ''}
+            <span id="chmsg-${ch.id}" class="save-msg"></span>
+          </div>
+          <div style="font-size:11px;color:var(--text3);margin-top:8px">
+            📖 <a href="${ch.guideUrl}" target="_blank" style="color:var(--coral2);text-decoration:none">How to get this token?</a>
+          </div>
+        ` : `<div style="font-size:12px;color:var(--teal)">🟢 ${ch.status}</div>`}
+      </div>`;
+    }).join('');
 
   } catch(e) {
     document.getElementById('settingsProviders').innerHTML = '<div style="color:var(--red)">Failed to load settings</div>';
@@ -778,6 +794,51 @@ async function testProvider(id) {
     msg.className = 'save-msg err';
     msg.textContent = 'Connection error';
   }
+}
+
+// Save channel token
+async function saveChannel(id) {
+  const input = document.getElementById('chkey-' + id);
+  const msg = document.getElementById('chmsg-' + id);
+  const token = input.value.replace(/•/g, '').trim();
+
+  if (!token || token.length < 5) {
+    msg.className = 'save-msg err';
+    msg.textContent = 'Enter a valid token';
+    return;
+  }
+
+  try {
+    const res = await fetch(API + '/api/settings/channels/' + id, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+    const data = await res.json();
+
+    if (data.ok) {
+      msg.className = 'save-msg ok';
+      msg.textContent = data.connected ? '✓ Connected!' : '✓ Saved — restart to connect';
+      setTimeout(() => { msg.textContent = ''; loadSettings(); }, 2000);
+    } else {
+      msg.className = 'save-msg err';
+      msg.textContent = data.error || 'Save failed';
+    }
+  } catch {
+    msg.className = 'save-msg err';
+    msg.textContent = 'Connection error';
+  }
+}
+
+// Disconnect channel
+async function disconnectChannel(id) {
+  if (!confirm('Disconnect this channel? The token will be removed.')) return;
+  try {
+    await fetch(API + '/api/settings/channels/' + id, {
+      method: 'DELETE',
+    });
+    await loadSettings();
+  } catch {}
 }
 
 // ── Routines ──

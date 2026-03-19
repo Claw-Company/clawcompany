@@ -25,6 +25,7 @@ export class DiscordAdapter implements ChannelAdapter {
   readonly name = 'discord';
   readonly maxMessageLength = 2000;
   public lastChatId: string = '';
+  public botName: string = '';
 
   private token: string;
   private router: ChannelRouter;
@@ -47,7 +48,8 @@ export class DiscordAdapter implements ChannelAdapter {
     const me = await this.rest('GET', '/users/@me');
     if (!me.id) throw new Error('Invalid Discord bot token');
     this.botUserId = me.id;
-    console.log(`  ✅ Discord bot ${me.username}#${me.discriminator} connected`);
+    this.botName = `${me.username}#${me.discriminator}`;
+    console.log(`  ✅ Discord bot ${this.botName} connected`);
 
     // Connect to Gateway
     await this.connectGateway();

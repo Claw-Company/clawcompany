@@ -193,6 +193,141 @@ app.get('/api/settings/providers/:id/test', async (req, res) => {
   }
 });
 
+// ──── Channel Settings API ────
+
+// Module-level adapter refs (set during server startup)
+let telegramAdapterRef: any = null;
+let discordAdapterRef: any = null;
+
+app.get('/api/settings/channels', (_req, res) => {
+  const tgToken = process.env.TELEGRAM_BOT_TOKEN || '';
+  const dcToken = process.env.DISCORD_BOT_TOKEN || '';
+
+  res.json([
+    {
+      id: 'webchat',
+      name: 'WebChat',
+      icon: '🌐',
+      description: 'Browser-based chat. Always available at /chat.html.',
+      connected: true,
+      status: 'Always on',
+      tokenField: false,
+    },
+    {
+      id: 'telegram',
+      name: 'Telegram',
+      icon: '✈️',
+      description: 'Create a bot via @BotFather on Telegram, then paste the token here.',
+      connected: !!telegramAdapterRef,
+      token: tgToken ? tgToken.slice(0, 8) + '••••••••' : '',
+      botInfo: telegramAdapterRef?.botName ? `@${telegramAdapterRef.botName}` : '',
+      tokenField: true,
+      tokenLabel: 'Bot Token',
+      placeholder: '123456:ABC-DEF1234ghIkl-zyx57W2v...',
+      guideUrl: 'https://clawcompany.org/setup#telegram',
+    },
+    {
+      id: 'discord',
+      name: 'Discord',
+      icon: '💬',
+      description: 'Create a bot in Discord Developer Portal, then paste the token here.',
+      connected: !!discordAdapterRef,
+      token: dcToken ? dcToken.slice(0, 8) + '••••••••' : '',
+      botInfo: discordAdapterRef?.botName || '',
+      tokenField: true,
+      tokenLabel: 'Bot Token',
+      placeholder: 'MTIzNDU2Nzg5MDEyMzQ1Njc4OQ...',
+      guideUrl: 'https://clawcompany.org/setup#discord',
+    },
+  ]);
+});
+
+app.put('/api/settings/channels/:id', async (req, res) => {
+  const { id } = req.params;
+  const { token } = req.body;
+
+  if (!token || token.length < 5) {
+    return res.status(400).json({ ok: false, error: 'Invalid token' });
+  }
+
+  try {
+    // Save to user config
+    const homeDir = process.env.HOME ?? '~';
+    const configPath = `${homeDir}/.clawcompany/config.json`;
+    let userConfig: any = {};
+    if (existsSync(configPath)) {
+      userConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
+    }
+    if (!userConfig.channels) userConfig.channels = {};
+    userConfig.channels[id] = { token };
+    writeFileSync(configPath, JSON.stringify(userConfig, null, 2));
+
+    // Update process.env
+    let connected = false;
+    if (id === 'telegram') {
+      process.env.TELEGRAM_BOT_TOKEN = token;
+      // Try to start adapter if not already running
+      if (!telegramAdapterRef) {
+        try {
+          const { TelegramAdapter } = await import('./channels/telegram.js');
+          telegramAdapterRef = new TelegramAdapter(token, `http://localhost:${PORT}`);
+          await telegramAdapterRef.start();
+          connected = true;
+        } catch (e: any) {
+          return res.json({ ok: true, connected: false, error: 'Saved but failed to connect: ' + e.message });
+        }
+      }
+      connected = true;
+    } else if (id === 'discord') {
+      process.env.DISCORD_BOT_TOKEN = token;
+      if (!discordAdapterRef) {
+        try {
+          const { DiscordAdapter } = await import('./channels/discord.js');
+          discordAdapterRef = new DiscordAdapter(token, `http://localhost:${PORT}`);
+          await discordAdapterRef.start();
+          connected = true;
+        } catch (e: any) {
+          return res.json({ ok: true, connected: false, error: 'Saved but failed to connect: ' + e.message });
+        }
+      }
+      connected = true;
+    }
+
+    res.json({ ok: true, connected });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.delete('/api/settings/channels/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    // Remove from config
+    const homeDir = process.env.HOME ?? '~';
+    const configPath = `${homeDir}/.clawcompany/config.json`;
+    if (existsSync(configPath)) {
+      const userConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
+      if (userConfig.channels) delete userConfig.channels[id];
+      writeFileSync(configPath, JSON.stringify(userConfig, null, 2));
+    }
+
+    // Stop adapter
+    if (id === 'telegram' && telegramAdapterRef) {
+      try { await telegramAdapterRef.stop(); } catch {}
+      telegramAdapterRef = null;
+      delete process.env.TELEGRAM_BOT_TOKEN;
+    } else if (id === 'discord' && discordAdapterRef) {
+      try { await discordAdapterRef.stop(); } catch {}
+      discordAdapterRef = null;
+      delete process.env.DISCORD_BOT_TOKEN;
+    }
+
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ──── Routines API ────
 
 let scheduler: CronScheduler | undefined;
@@ -536,20 +671,31 @@ const server = app.listen(PORT, async () => {
     };
   }
 
-  // Channel adapters (stored for scheduler access)
-  let telegramAdapter: any;
-  let discordAdapter: any;
+  // Load channel tokens from config (saved from Dashboard)
+  const homeDir = process.env.HOME ?? '~';
+  const configPath = `${homeDir}/.clawcompany/config.json`;
+  if (existsSync(configPath)) {
+    try {
+      const userConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
+      if (userConfig.channels?.telegram?.token && !process.env.TELEGRAM_BOT_TOKEN) {
+        process.env.TELEGRAM_BOT_TOKEN = userConfig.channels.telegram.token;
+      }
+      if (userConfig.channels?.discord?.token && !process.env.DISCORD_BOT_TOKEN) {
+        process.env.DISCORD_BOT_TOKEN = userConfig.channels.discord.token;
+      }
+    } catch {}
+  }
 
   // Auto-start Telegram bot if token is configured
   if (process.env.TELEGRAM_BOT_TOKEN) {
     try {
       const { TelegramAdapter } = await import('./channels/telegram.js');
-      telegramAdapter = new TelegramAdapter(
+      telegramAdapterRef = new TelegramAdapter(
         process.env.TELEGRAM_BOT_TOKEN,
         `http://localhost:${PORT}`,
         directRunner,
       );
-      await telegramAdapter.start();
+      await telegramAdapterRef.start();
     } catch (err: any) {
       console.error(`  ❌ Telegram bot failed: ${err.message}`);
     }
@@ -559,12 +705,12 @@ const server = app.listen(PORT, async () => {
   if (process.env.DISCORD_BOT_TOKEN) {
     try {
       const { DiscordAdapter } = await import('./channels/discord.js');
-      discordAdapter = new DiscordAdapter(
+      discordAdapterRef = new DiscordAdapter(
         process.env.DISCORD_BOT_TOKEN,
         `http://localhost:${PORT}`,
         directRunner,
       );
-      await discordAdapter.start();
+      await discordAdapterRef.start();
     } catch (err: any) {
       console.error(`  ❌ Discord bot failed: ${err.message}`);
     }
@@ -576,10 +722,10 @@ const server = app.listen(PORT, async () => {
       // Truncate for chat platforms (Telegram 4096 char limit)
       const truncated = text.length > 3800 ? text.slice(0, 3800) + '\n\n_(truncated)_' : text;
 
-      if ((channel === 'telegram' || channel === 'all') && telegramAdapter) {
-        const tgChatId = chatId || telegramAdapter.lastChatId;
+      if ((channel === 'telegram' || channel === 'all') && telegramAdapterRef) {
+        const tgChatId = chatId || telegramAdapterRef.lastChatId;
         if (tgChatId) {
-          try { await telegramAdapter.sendText(tgChatId, truncated); } catch (e: any) {
+          try { await telegramAdapterRef.sendText(tgChatId, truncated); } catch (e: any) {
             console.error(`  ❌ Scheduler → Telegram failed: ${e.message}`);
           }
         } else {
@@ -587,10 +733,10 @@ const server = app.listen(PORT, async () => {
         }
       }
 
-      if ((channel === 'discord' || channel === 'all') && discordAdapter) {
-        const dcChatId = chatId || discordAdapter.lastChatId;
+      if ((channel === 'discord' || channel === 'all') && discordAdapterRef) {
+        const dcChatId = chatId || discordAdapterRef.lastChatId;
         if (dcChatId) {
-          try { await discordAdapter.sendText(dcChatId, truncated); } catch (e: any) {
+          try { await discordAdapterRef.sendText(dcChatId, truncated); } catch (e: any) {
             console.error(`  ❌ Scheduler → Discord failed: ${e.message}`);
           }
         } else {
@@ -599,7 +745,6 @@ const server = app.listen(PORT, async () => {
       }
 
       if (channel === 'dashboard' || channel === 'all') {
-        // Dashboard delivery: log for now, SSE push in Phase 2
         console.log(`  📅 [Dashboard] Routine result delivered (${text.length} chars)`);
       }
     };

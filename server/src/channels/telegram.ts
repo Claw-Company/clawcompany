@@ -18,6 +18,7 @@ export class TelegramAdapter implements ChannelAdapter {
   readonly name = 'telegram';
   readonly maxMessageLength = 4096;
   public lastChatId: string = '';
+  public botName: string = '';
 
   private token: string;
   private router: ChannelRouter;
@@ -36,7 +37,8 @@ export class TelegramAdapter implements ChannelAdapter {
     // Verify token
     const me = await this.api('getMe');
     if (!me.ok) throw new Error('Invalid Telegram bot token');
-    console.log(`  ✅ Telegram bot @${me.result.username} connected`);
+    this.botName = me.result.username ?? '';
+    console.log(`  ✅ Telegram bot @${this.botName} connected`);
 
     // Start polling loop
     this.poll();
