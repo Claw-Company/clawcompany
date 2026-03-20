@@ -145,6 +145,20 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 .channel-name{font-size:14px;font-weight:500;margin-bottom:4px}
 .channel-status{font-size:12px;color:var(--text3)}
 
+/* Role edit */
+.role-card{position:relative}
+.role-edit-btn{position:absolute;top:10px;right:10px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 8px;font-size:11px;color:var(--text3);cursor:pointer;opacity:0;transition:opacity .15s}
+.role-card:hover .role-edit-btn{opacity:1}
+.role-edit-btn:hover{color:var(--coral2);border-color:var(--coral)}
+.role-edit-panel{background:var(--bg3);border-top:1px solid var(--border);margin:10px -14px -14px;padding:12px 14px;border-radius:0 0 8px 8px;display:none}
+.role-edit-panel.show{display:block}
+.role-edit-panel label{display:block;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;margin-top:8px}
+.role-edit-panel label:first-child{margin-top:0}
+.role-edit-panel select,.role-edit-panel input{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:5px 8px;color:var(--text);font-family:var(--font);font-size:12px;outline:none}
+.role-edit-panel select:focus,.role-edit-panel input:focus{border-color:var(--coral)}
+.role-status{display:flex;align-items:center;gap:6px;margin-top:8px}
+.role-status label{margin:0;text-transform:none;font-size:12px;color:var(--text2);cursor:pointer}
+
 /* Chat */
 .chat-welcome{text-align:center;padding:60px 0;color:var(--text2)}
 .chat-msg{display:flex;gap:10px;max-width:100%}
@@ -259,7 +273,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
       </div>
       <div class="card">
         <div class="card-label">Architecture</div>
-        <div class="card-value" style="font-size:16px">27x cheaper</div>
+        <div class="card-value" style="font-size:16px">30x cheaper</div>
         <div class="card-sub">vs all-Opus</div>
       </div>
     </div>
@@ -321,8 +335,37 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 
   <!-- Roles Page -->
   <div class="page" id="page-roles">
-    <div class="page-title">Organization</div>
-    <div class="page-sub">👤 Chairman = Human (you). Your AI team below.</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div class="page-title">Organization</div>
+        <div class="page-sub" style="margin-bottom:0">👤 Chairman = Human (you). Edit roles, change models, add new agents.</div>
+      </div>
+      <button class="btn-sm" onclick="toggleAddRole()" style="font-size:12px">+ Add role</button>
+    </div>
+
+    <!-- Add role form -->
+    <div id="addRoleForm" class="routine-form" style="margin-bottom:16px">
+      <label>Role ID (lowercase, no spaces)</label>
+      <input type="text" id="nr-id" placeholder="e.g. designer, data_engineer">
+      <label>Display name</label>
+      <input type="text" id="nr-name" placeholder="e.g. Designer">
+      <label>Provider</label>
+      <select id="nr-provider" onchange="onProviderChange('nr')"></select>
+      <label>Model</label>
+      <select id="nr-model"></select>
+      <label>Description</label>
+      <input type="text" id="nr-desc" placeholder="What does this role do?">
+      <label>Reports to</label>
+      <select id="nr-reports">
+        <option value="ceo">CEO</option>
+        <option value="cto">CTO</option>
+        <option value="cmo">CMO</option>
+      </select>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn-save" onclick="addNewRole()">Create role</button>
+        <button class="btn-test" onclick="toggleAddRole()">Cancel</button>
+      </div>
+    </div>
 
     <div class="role-grid" id="rolesGrid"></div>
   </div>
@@ -437,6 +480,9 @@ function showPage(id) {
 }
 
 // Fetch roles
+let providerModels = {}; // { clawapi: [{id, label, input, output}], anthropic: [...], ... }
+const PROVIDER_NAMES = { clawapi: 'ClawAPI ★', anthropic: 'Anthropic', openai: 'OpenAI', gemini: 'Google Gemini', ollama: 'Ollama (local)' };
+
 async function loadRoles() {
   try {
     const res = await fetch(API + '/api/roles');
@@ -445,13 +491,73 @@ async function loadRoles() {
 
     document.getElementById('roleCount').textContent = active.length;
 
+    // Load provider→models map
+    if (!Object.keys(providerModels).length) {
+      const mRes = await fetch(API + '/api/models');
+      providerModels = await mRes.json();
+      // Populate add-role provider dropdown
+      initProviderDropdown('nr');
+    }
+
     const tierMap = {
       ceo: 'csuite', cto: 'csuite', cfo: 'csuite', cmo: 'csuite',
       researcher: 'mid', analyst: 'mid', engineer: 'mid',
       secretary: 'ops', worker: 'ops'
     };
 
+    // Find which provider a model belongs to
+    function findProvider(modelId) {
+      for (const [pid, models] of Object.entries(providerModels)) {
+        if (models.some(m => m.id === modelId)) return pid;
+      }
+      return 'clawapi';
+    }
+
     const roleHTML = active.map(r => {
+      const tier = tierMap[r.id] || (r.isBuiltin ? 'ops' : 'mid');
+      const tierLabel = tier === 'csuite' ? 'C-suite' : tier === 'mid' ? 'Mid-level' : 'Operations';
+      const currentProvider = r.provider || findProvider(r.model);
+      const providerLabel = PROVIDER_NAMES[currentProvider] || currentProvider;
+
+      const providerOptions = Object.keys(providerModels).map(pid =>
+        `<option value="${pid}" ${pid === currentProvider ? 'selected' : ''}>${PROVIDER_NAMES[pid] || pid}</option>`
+      ).join('');
+
+      const modelOptions = (providerModels[currentProvider] || []).map(m =>
+        `<option value="${m.id}" ${m.id === r.model ? 'selected' : ''}>${m.label} ($${m.input}/$${m.output})</option>`
+      ).join('');
+
+      return `<div class="role-card">
+        <span class="role-edit-btn" onclick="toggleRoleEdit('${r.id}')">✏️</span>
+        <div class="role-header">
+          <span class="role-name">${r.name}</span>
+          <span class="role-tier ${tier}">${tierLabel}</span>
+          ${!r.isBuiltin ? '<span class="role-tier" style="background:var(--coralBg);color:var(--coral2)">Custom</span>' : ''}
+        </div>
+        <div class="role-model">${r.model} <span style="color:var(--text3);font-size:11px">via ${providerLabel}</span></div>
+        <div class="role-cost">${r.description}</div>
+        <div class="role-reports">Reports to → ${r.reportsTo || 'Human (Chairman)'}</div>
+        <div class="role-edit-panel" id="edit-${r.id}">
+          <label>Provider</label>
+          <select id="edit-provider-${r.id}" onchange="onEditProviderChange('${r.id}')">${providerOptions}</select>
+          <label>Model</label>
+          <select id="edit-model-${r.id}">${modelOptions}</select>
+          <label>Description</label>
+          <input type="text" id="edit-desc-${r.id}" value="${(r.description || '').replace(/"/g, '&quot;')}">
+          <div class="role-status">
+            <input type="checkbox" id="edit-active-${r.id}" ${r.isActive ? 'checked' : ''}>
+            <label for="edit-active-${r.id}">Active</label>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:10px">
+            <button class="btn-save" style="font-size:11px;padding:5px 12px" onclick="saveRole('${r.id}')">Save</button>
+            ${!r.isBuiltin ? `<button class="btn-sm del" onclick="deleteRole('${r.id}')">Delete</button>` : ''}
+            <span id="role-msg-${r.id}" class="save-msg" style="font-size:11px"></span>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+    document.getElementById('overviewRoles').innerHTML = active.map(r => {
       const tier = tierMap[r.id] || 'ops';
       const tierLabel = tier === 'csuite' ? 'C-suite' : tier === 'mid' ? 'Mid-level' : 'Operations';
       return `<div class="role-card">
@@ -465,11 +571,121 @@ async function loadRoles() {
       </div>`;
     }).join('');
 
-    document.getElementById('overviewRoles').innerHTML = roleHTML;
     document.getElementById('rolesGrid').innerHTML = roleHTML;
   } catch(e) {
     console.error('Failed to load roles:', e);
   }
+}
+
+// Provider→Model linked dropdowns
+function initProviderDropdown(prefix) {
+  const sel = document.getElementById(prefix + '-provider');
+  if (!sel) return;
+  sel.innerHTML = Object.keys(providerModels).map(pid =>
+    `<option value="${pid}">${PROVIDER_NAMES[pid] || pid}</option>`
+  ).join('');
+  onProviderChange(prefix);
+}
+
+function onProviderChange(prefix) {
+  const provider = document.getElementById(prefix + '-provider')?.value || 'clawapi';
+  const modelSel = document.getElementById(prefix + '-model');
+  if (!modelSel) return;
+  const models = providerModels[provider] || [];
+  if (models.length === 0) {
+    modelSel.innerHTML = '<option value="">No models available</option>';
+  } else {
+    modelSel.innerHTML = models.map(m =>
+      `<option value="${m.id}">${m.label} ($${m.input}/$${m.output})</option>`
+    ).join('');
+  }
+}
+
+function onEditProviderChange(roleId) {
+  const provider = document.getElementById('edit-provider-' + roleId)?.value || 'clawapi';
+  const modelSel = document.getElementById('edit-model-' + roleId);
+  if (!modelSel) return;
+  const models = providerModels[provider] || [];
+  if (models.length === 0) {
+    modelSel.innerHTML = '<option value="">No models available</option>';
+  } else {
+    modelSel.innerHTML = models.map(m =>
+      `<option value="${m.id}">${m.label} ($${m.input}/$${m.output})</option>`
+    ).join('');
+  }
+}
+
+function toggleRoleEdit(id) {
+  const panel = document.getElementById('edit-' + id);
+  if (panel) panel.classList.toggle('show');
+}
+
+async function saveRole(id) {
+  const provider = document.getElementById('edit-provider-' + id)?.value;
+  const model = document.getElementById('edit-model-' + id)?.value;
+  const description = document.getElementById('edit-desc-' + id)?.value;
+  const isActive = document.getElementById('edit-active-' + id)?.checked;
+  const msg = document.getElementById('role-msg-' + id);
+
+  try {
+    const res = await fetch(API + '/api/roles/' + id, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, provider, description, isActive }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      msg.className = 'save-msg ok';
+      msg.textContent = '✓ Saved';
+      setTimeout(() => { msg.textContent = ''; loadRoles(); }, 1500);
+    } else {
+      msg.className = 'save-msg err';
+      msg.textContent = data.error;
+    }
+  } catch {
+    msg.className = 'save-msg err';
+    msg.textContent = 'Error';
+  }
+}
+
+async function deleteRole(id) {
+  if (!confirm('Delete this custom role?')) return;
+  try {
+    await fetch(API + '/api/roles/' + id, { method: 'DELETE' });
+    await loadRoles();
+  } catch {}
+}
+
+function toggleAddRole() {
+  document.getElementById('addRoleForm').classList.toggle('show');
+}
+
+async function addNewRole() {
+  const body = {
+    id: document.getElementById('nr-id').value.trim().toLowerCase().replace(/\s+/g, '_'),
+    name: document.getElementById('nr-name').value.trim(),
+    model: document.getElementById('nr-model').value,
+    provider: document.getElementById('nr-provider').value,
+    description: document.getElementById('nr-desc').value.trim(),
+    reportsTo: document.getElementById('nr-reports').value,
+  };
+  if (!body.id || !body.name) return alert('ID and name are required');
+
+  try {
+    const res = await fetch(API + '/api/roles', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      toggleAddRole();
+      ['nr-id','nr-name','nr-desc'].forEach(id => document.getElementById(id).value = '');
+      await loadRoles();
+    } else {
+      alert(data.error);
+    }
+  } catch(e) { alert('Failed: ' + e.message); }
 }
 
 // Fetch health

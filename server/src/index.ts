@@ -110,7 +110,142 @@ app.get('/api/roles', (_req, res) => {
     id: r.id, name: r.name, model: r.model, provider: r.provider,
     budgetTier: r.budgetTier, reportsTo: r.reportsTo,
     isActive: r.isActive, isBuiltin: r.isBuiltin, description: r.description,
+    systemPrompt: r.systemPrompt,
   })));
+});
+
+// Available models grouped by provider
+app.get('/api/models', (_req, res) => {
+  const providerModels: Record<string, Array<{ id: string; label: string; input: number; output: number }>> = {
+    clawapi: [
+      { id: 'claude-opus-4-6', label: 'Claude Opus 4.6', input: 5.00, output: 25.00 },
+      { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', input: 3.00, output: 15.00 },
+      { id: 'gpt-5.4', label: 'GPT-5.4', input: 2.50, output: 15.00 },
+      { id: 'gpt-5-mini', label: 'GPT-5 Mini', input: 0.25, output: 2.00 },
+      { id: 'gemini-3.1-pro', label: 'Gemini 3.1 Pro', input: 2.00, output: 12.00 },
+      { id: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite', input: 0.25, output: 1.50 },
+      { id: 'gpt-oss-120b', label: 'GPT-OSS 120B', input: 0.05, output: 0.45 },
+      { id: 'gpt-oss-20b', label: 'GPT-OSS 20B', input: 0.04, output: 0.18 },
+    ],
+    anthropic: [
+      { id: 'claude-opus-4-6', label: 'Claude Opus 4.6', input: 5.00, output: 25.00 },
+      { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', input: 3.00, output: 15.00 },
+    ],
+    openai: [
+      { id: 'gpt-5.4', label: 'GPT-5.4', input: 2.50, output: 15.00 },
+      { id: 'gpt-5-mini', label: 'GPT-5 Mini', input: 0.25, output: 2.00 },
+    ],
+    gemini: [
+      { id: 'gemini-3.1-pro', label: 'Gemini 3.1 Pro', input: 2.00, output: 12.00 },
+      { id: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite', input: 0.25, output: 1.50 },
+    ],
+    ollama: [], // Dynamic — populated from localhost:11434/api/tags
+  };
+
+  // Try to fetch Ollama models if running
+  (async () => {
+    try {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(), 2000);
+      const ollamaRes = await fetch('http://localhost:11434/api/tags', { signal: controller.signal });
+      const data = await ollamaRes.json();
+      if (data.models) {
+        providerModels.ollama = data.models.map((m: any) => ({
+          id: m.name, label: m.name, input: 0, output: 0,
+        }));
+      }
+    } catch {}
+    res.json(providerModels);
+  })();
+});
+
+// Update a role (model, provider, description, isActive)
+app.put('/api/roles/:id', (req, res) => {
+  const { id } = req.params;
+  const { model, provider, description, isActive, name, systemPrompt } = req.body;
+
+  try {
+    // Update runtime config
+    if (!clawConfig.roles[id]) clawConfig.roles[id] = {};
+    if (model !== undefined) clawConfig.roles[id].model = model;
+    if (provider !== undefined) clawConfig.roles[id].provider = provider;
+    if (description !== undefined) clawConfig.roles[id].description = description;
+    if (isActive !== undefined) clawConfig.roles[id].isActive = isActive;
+    if (name !== undefined) clawConfig.roles[id].name = name;
+    if (systemPrompt !== undefined) clawConfig.roles[id].systemPrompt = systemPrompt;
+
+    // Persist to user config
+    const homeDir = process.env.HOME ?? '~';
+    const configPath = `${homeDir}/.clawcompany/config.json`;
+    if (existsSync(configPath)) {
+      const userConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
+      if (!userConfig.roles) userConfig.roles = {};
+      if (!userConfig.roles[id]) userConfig.roles[id] = {};
+      Object.assign(userConfig.roles[id], req.body);
+      writeFileSync(configPath, JSON.stringify(userConfig, null, 2));
+    }
+
+    const updated = resolveRoles(clawConfig).find(r => r.id === id);
+    res.json({ ok: true, role: updated });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Add a custom role
+app.post('/api/roles', (req, res) => {
+  const { id, name, model, provider, description, systemPrompt, reportsTo } = req.body;
+  if (!id || !name || !model) return res.status(400).json({ ok: false, error: 'Required: id, name, model' });
+
+  // Check for duplicate
+  if (clawConfig.roles[id]) return res.status(409).json({ ok: false, error: 'Role ID already exists' });
+
+  try {
+    clawConfig.roles[id] = {
+      name, model, provider: provider || 'clawapi',
+      description: description || '', systemPrompt: systemPrompt || `You are ${name}.`,
+      reportsTo: reportsTo || 'ceo', isActive: true, isBuiltin: false,
+    };
+
+    // Persist
+    const homeDir = process.env.HOME ?? '~';
+    const configPath = `${homeDir}/.clawcompany/config.json`;
+    if (existsSync(configPath)) {
+      const userConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
+      if (!userConfig.roles) userConfig.roles = {};
+      userConfig.roles[id] = clawConfig.roles[id];
+      writeFileSync(configPath, JSON.stringify(userConfig, null, 2));
+    }
+
+    const created = resolveRoles(clawConfig).find(r => r.id === id);
+    res.json({ ok: true, role: created });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Delete a custom role (builtin roles cannot be deleted)
+app.delete('/api/roles/:id', async (req, res) => {
+  const { id } = req.params;
+  const { getBuiltinRole } = await import('@clawcompany/shared');
+  if (getBuiltinRole(id)) return res.status(403).json({ ok: false, error: 'Cannot delete built-in roles' });
+
+  try {
+    delete clawConfig.roles[id];
+
+    // Persist
+    const homeDir = process.env.HOME ?? '~';
+    const configPath = `${homeDir}/.clawcompany/config.json`;
+    if (existsSync(configPath)) {
+      const userConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
+      if (userConfig.roles) delete userConfig.roles[id];
+      writeFileSync(configPath, JSON.stringify(userConfig, null, 2));
+    }
+
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
 });
 
 app.get('/api/providers', (_req, res) => {
