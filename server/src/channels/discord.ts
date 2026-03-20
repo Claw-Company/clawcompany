@@ -34,6 +34,7 @@ export class DiscordAdapter implements ChannelAdapter {
   private sequence: number | null = null;
   private botUserId: string = '';
   private running = false;
+  private reconnectAttempts = 0;
   private onChatIdChange?: (chatId: string) => void;
 
   constructor(token: string, apiBase?: string, directRunner?: DirectRunner, opts?: { lastChatId?: string; onChatIdChange?: (id: string) => void }) {
@@ -92,13 +93,17 @@ export class DiscordAdapter implements ChannelAdapter {
 
     this.ws.onclose = (event: any) => {
       if (this.running) {
-        console.log(`  [Discord] Gateway closed (${event.code}), reconnecting in 5s...`);
-        setTimeout(() => this.connectGateway(), 5000);
+        this.reconnectAttempts++;
+        const delay = Math.min(5000 * Math.pow(1.5, this.reconnectAttempts - 1), 30000);
+        if (this.reconnectAttempts <= 3 || this.reconnectAttempts % 10 === 0) {
+          console.log(`  [Discord] Gateway closed (${event.code}), reconnecting in ${(delay/1000).toFixed(0)}s... (attempt ${this.reconnectAttempts})`);
+        }
+        setTimeout(() => this.connectGateway(), delay);
       }
     };
 
-    this.ws.onerror = (event: any) => {
-      console.error(`  [Discord] Gateway error`);
+    this.ws.onerror = () => {
+      // Suppress — onclose will handle reconnection
     };
   }
 
@@ -110,6 +115,7 @@ export class DiscordAdapter implements ChannelAdapter {
 
     switch (op) {
       case 10: // Hello — start heartbeat + identify
+        this.reconnectAttempts = 0; // Connected successfully
         this.startHeartbeat(d.heartbeat_interval);
         this.identify();
         break;

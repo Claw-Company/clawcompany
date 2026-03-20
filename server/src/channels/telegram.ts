@@ -69,6 +69,10 @@ export class TelegramAdapter implements ChannelAdapter {
   // ──── Internal ────
 
   private async poll(): Promise<void> {
+    let retryDelay = 3000;
+    let lastError = '';
+    let errorCount = 0;
+
     while (this.polling) {
       try {
         const updates = await this.api('getUpdates', {
@@ -76,6 +80,11 @@ export class TelegramAdapter implements ChannelAdapter {
           timeout: 30,
           allowed_updates: ['message'],
         }, 35_000); // 35s fetch timeout (> 30s long poll)
+
+        // Success — reset retry state
+        retryDelay = 3000;
+        lastError = '';
+        errorCount = 0;
 
         if (updates.ok && updates.result?.length > 0) {
           for (const update of updates.result) {
@@ -90,8 +99,20 @@ export class TelegramAdapter implements ChannelAdapter {
           // Fetch timeout — normal during long operations, just retry
           continue;
         }
-        console.error(`  [Telegram] Poll error: ${err.message}`);
-        await sleep(3000);
+
+        // Only log if error message changed, or every 10th consecutive same error
+        errorCount++;
+        if (err.message !== lastError) {
+          console.error(`  [Telegram] Poll error: ${err.message}`);
+          lastError = err.message;
+          errorCount = 1;
+        } else if (errorCount % 10 === 0) {
+          console.error(`  [Telegram] Poll error (x${errorCount}): ${err.message}`);
+        }
+
+        // Exponential backoff: 3s → 6s → 12s → 24s → max 30s
+        await sleep(retryDelay);
+        retryDelay = Math.min(retryDelay * 2, 30_000);
       }
     }
   }
