@@ -1454,7 +1454,9 @@ setInterval(() => {
 
 // ── Chat ──
 
-let chatHistory = [];
+// Per-role chat storage: { ceo: { html: '...', cost: 0 }, researcher: { ... } }
+let chatStore = {};
+let chatCurrentRole = '';
 let chatTotalCost = 0;
 
 function initChatRoles() {
@@ -1477,25 +1479,57 @@ function initChatRoles() {
     `<option value="${r.id}" data-model="${r.model}">${r.name} (${r.model})</option>`
   ).join('');
 
+  chatCurrentRole = 'ceo';
   onChatRoleChange();
 }
 
 function onChatRoleChange() {
   const sel = document.getElementById('chatRole');
+  const newRole = sel.value;
   const opt = sel.options[sel.selectedIndex];
-  const welcome = document.getElementById('chatWelcome');
-  if (welcome) {
-    document.getElementById('chatWelcomeRole').textContent = opt.text.split(' (')[0];
-    welcome.querySelector('[style*="color:var(--text3)"]').textContent = opt.dataset.model;
+  const msgs = document.getElementById('chatMessages');
+
+  // Save current role's chat (remove typing indicator before saving)
+  if (chatCurrentRole && msgs) {
+    const typing = document.getElementById('chatTypingIndicator');
+    if (typing) typing.remove();
+    chatStore[chatCurrentRole] = {
+      html: msgs.innerHTML,
+      cost: chatTotalCost,
+    };
+  }
+
+  // Switch to new role
+  chatCurrentRole = newRole;
+
+  // Re-enable input (may be disabled if previous role is still responding)
+  document.getElementById('chatInput').disabled = false;
+  document.getElementById('chatSendBtn').disabled = false;
+
+  // Restore or show welcome
+  if (chatStore[newRole] && chatStore[newRole].html) {
+    msgs.innerHTML = chatStore[newRole].html;
+    chatTotalCost = chatStore[newRole].cost || 0;
+    document.getElementById('chatCost').textContent = chatTotalCost > 0 ? `Session: $${chatTotalCost.toFixed(4)}` : '';
+    msgs.scrollTop = msgs.scrollHeight;
+  } else {
+    const roleName = opt.text.split(' (')[0];
+    const model = opt.dataset.model;
+    msgs.innerHTML = `<div id="chatWelcome" class="chat-welcome">
+      <div style="font-size:24px;margin-bottom:8px">🦞</div>
+      <div style="font-size:14px;font-weight:500" id="chatWelcomeRole">${roleName}</div>
+      <div style="font-size:12px;color:var(--text3)">${model}</div>
+      <div style="font-size:13px;color:var(--text2);margin-top:8px">Ask me anything. I'm ready, Chairman.</div>
+    </div>`;
+    chatTotalCost = 0;
+    document.getElementById('chatCost').textContent = '';
   }
 }
 
 function clearChat() {
-  chatHistory = [];
   chatTotalCost = 0;
+  delete chatStore[chatCurrentRole];
   const msgs = document.getElementById('chatMessages');
-  msgs.innerHTML = '';
-  // Re-add welcome
   const sel = document.getElementById('chatRole');
   const opt = sel.options[sel.selectedIndex];
   const roleName = opt.text.split(' (')[0];
@@ -1557,44 +1591,77 @@ async function sendChat() {
   const message = input.value.trim();
   if (!message) return;
 
-  const role = document.getElementById('chatRole').value;
+  const requestRole = document.getElementById('chatRole').value;
 
-  // Show user message
-  addChatMessage('user', message);
+  // Show user message (only if still on this role)
+  if (chatCurrentRole === requestRole) {
+    addChatMessage('user', message);
+    showTyping();
+  } else {
+    // Save user message to the role's store
+    appendToStore(requestRole, 'user', message);
+  }
+
   input.value = '';
   input.disabled = true;
   btn.disabled = true;
-
-  // Show typing indicator
-  showTyping();
 
   try {
     const res = await fetch(API + '/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role, message }),
+      body: JSON.stringify({ role: requestRole, message }),
     });
     const data = await res.json();
 
-    hideTyping();
+    const cost = data.error ? 0 : (data.usage?.cost ?? 0);
+    const meta = data.error ? '' : `${data.model} · $${cost.toFixed(4)}`;
+    const content = data.error ? '⚠️ ' + data.error : data.content;
 
-    if (data.error) {
-      addChatMessage('assistant', '⚠️ ' + data.error);
-    } else {
-      const cost = data.usage?.cost ?? 0;
+    if (chatCurrentRole === requestRole) {
+      // Still on the same role — update DOM
+      hideTyping();
+      addChatMessage('assistant', content, meta);
       chatTotalCost += cost;
-      const meta = `${data.model} · $${cost.toFixed(4)}`;
-      addChatMessage('assistant', data.content, meta);
       document.getElementById('chatCost').textContent = `Session: $${chatTotalCost.toFixed(4)}`;
+    } else {
+      // User switched away — save to that role's store
+      appendToStore(requestRole, 'assistant', content, meta);
+      // Update stored cost
+      if (chatStore[requestRole]) chatStore[requestRole].cost = (chatStore[requestRole].cost || 0) + cost;
     }
   } catch (err) {
-    hideTyping();
-    addChatMessage('assistant', '⚠️ Connection error: ' + err.message);
+    if (chatCurrentRole === requestRole) {
+      hideTyping();
+      addChatMessage('assistant', '⚠️ Connection error: ' + err.message);
+    } else {
+      appendToStore(requestRole, 'assistant', '⚠️ Connection error: ' + err.message);
+    }
   }
 
   input.disabled = false;
   btn.disabled = false;
   input.focus();
+}
+
+// Append a message to a role's stored HTML (when user has switched away)
+function appendToStore(roleId, msgRole, content, meta) {
+  if (!chatStore[roleId]) chatStore[roleId] = { html: '', cost: 0 };
+
+  // Remove welcome div if present
+  chatStore[roleId].html = chatStore[roleId].html.replace(/<div id="chatWelcome"[\s\S]*?<\/div>\s*<\/div>/, '');
+
+  const avatar = msgRole === 'user' ? '👤' : '🦞';
+  const rendered = msgRole === 'assistant' ? marked.parse(content) : escHtml(content);
+  const bubble = `
+    <div class="chat-msg ${msgRole}">
+      <div class="chat-avatar">${avatar}</div>
+      <div>
+        <div class="chat-bubble">${msgRole === 'assistant' ? '<div class="md-output">' + rendered + '</div>' : rendered}</div>
+        ${meta ? `<div class="chat-meta">${meta}</div>` : ''}
+      </div>
+    </div>`;
+  chatStore[roleId].html += bubble;
 }
 
 // Init
