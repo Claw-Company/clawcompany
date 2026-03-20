@@ -145,6 +145,27 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 .channel-name{font-size:14px;font-weight:500;margin-bottom:4px}
 .channel-status{font-size:12px;color:var(--text3)}
 
+/* Chat */
+.chat-welcome{text-align:center;padding:60px 0;color:var(--text2)}
+.chat-msg{display:flex;gap:10px;max-width:100%}
+.chat-msg.user{flex-direction:row-reverse}
+.chat-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;background:var(--bg4)}
+.chat-msg.user .chat-avatar{background:var(--coralBg);color:var(--coral2)}
+.chat-msg.assistant .chat-avatar{background:var(--tealBg);color:var(--teal)}
+.chat-bubble{max-width:75%;padding:10px 14px;border-radius:12px;font-size:14px;line-height:1.6}
+.chat-msg.user .chat-bubble{background:var(--bg4);border-bottom-right-radius:4px}
+.chat-msg.assistant .chat-bubble{background:var(--bg3);border-bottom-left-radius:4px}
+.chat-bubble .md-output{margin:0;padding:0;border:none;background:none}
+.chat-bubble .md-output h1,.chat-bubble .md-output h2,.chat-bubble .md-output h3{margin-top:8px}
+.chat-bubble .md-output p{margin:4px 0}
+.chat-meta{font-size:10px;color:var(--text3);margin-top:4px}
+.chat-msg.user .chat-meta{text-align:right}
+.chat-typing{display:flex;gap:4px;padding:10px 14px}
+.chat-typing span{width:6px;height:6px;border-radius:50%;background:var(--text3);animation:chatTyping .8s ease-in-out infinite}
+.chat-typing span:nth-child(2){animation-delay:.15s}
+.chat-typing span:nth-child(3){animation-delay:.3s}
+@keyframes chatTyping{0%,100%{opacity:.3;transform:translateY(0)}50%{opacity:1;transform:translateY(-4px)}}
+
 /* Routines */
 .routine-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px;display:flex;align-items:flex-start;gap:14px}
 .routine-toggle{margin-top:2px;cursor:pointer;accent-color:var(--coral)}
@@ -195,6 +216,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
   </div>
   <div class="nav-item" onclick="showPage('mission')">
     <span class="nav-icon">◎</span> <span>Mission</span>
+  </div>
+  <div class="nav-item" onclick="showPage('chat')">
+    <span class="nav-icon">💬</span> <span>Chat</span>
   </div>
   <div class="nav-item" onclick="showPage('roles')">
     <span class="nav-icon">◈</span> <span>Roles</span>
@@ -262,6 +286,37 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
     </div>
 
     <div class="mission-log" id="missionLog"></div>
+  </div>
+
+  <!-- Chat Page -->
+  <div class="page" id="page-chat">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div class="page-title">Chat</div>
+        <div class="page-sub" style="margin-bottom:0">Quick conversation with any role. No mission overhead.</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <select id="chatRole" onchange="onChatRoleChange()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 12px;color:var(--text);font-family:var(--font);font-size:13px;outline:none">
+        </select>
+        <button class="btn-sm" onclick="clearChat()" style="font-size:11px">Clear</button>
+      </div>
+    </div>
+
+    <div id="chatMessages" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;min-height:400px;max-height:60vh;overflow-y:auto;margin-bottom:12px;display:flex;flex-direction:column;gap:12px">
+      <div id="chatWelcome" class="chat-welcome">
+        <div style="font-size:24px;margin-bottom:8px">🦞</div>
+        <div style="font-size:14px;font-weight:500" id="chatWelcomeRole">CEO</div>
+        <div style="font-size:12px;color:var(--text3)">claude-opus-4-6</div>
+        <div style="font-size:13px;color:var(--text2);margin-top:8px">Ask me anything. I'm ready, Chairman.</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px">
+      <input type="text" id="chatInput" placeholder="Type a message..." style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-family:var(--font);font-size:14px;outline:none" onkeydown="if(event.key==='Enter'&&!event.shiftKey)sendChat()">
+      <button class="btn" id="chatSendBtn" onclick="sendChat()" style="padding:10px 20px">Send</button>
+    </div>
+
+    <div id="chatCost" style="font-size:11px;color:var(--text3);margin-top:6px;text-align:right"></div>
   </div>
 
   <!-- Roles Page -->
@@ -1181,7 +1236,153 @@ setInterval(() => {
   }
 }, 30000);
 
+// ── Chat ──
+
+let chatHistory = [];
+let chatTotalCost = 0;
+
+function initChatRoles() {
+  const sel = document.getElementById('chatRole');
+  if (!sel || sel.options.length > 0) return;
+
+  const roles = [
+    { id: 'ceo', name: 'CEO', model: 'claude-opus-4-6' },
+    { id: 'cto', name: 'CTO', model: 'gpt-5.4' },
+    { id: 'cfo', name: 'CFO', model: 'gpt-5-mini' },
+    { id: 'cmo', name: 'CMO', model: 'claude-sonnet-4-6' },
+    { id: 'researcher', name: 'Researcher', model: 'claude-sonnet-4-6' },
+    { id: 'analyst', name: 'Analyst', model: 'gpt-5-mini' },
+    { id: 'engineer', name: 'Engineer', model: 'gpt-5.4' },
+    { id: 'secretary', name: 'Secretary', model: 'gemini-flash-lite' },
+    { id: 'worker', name: 'Worker', model: 'gemini-flash-lite' },
+  ];
+
+  sel.innerHTML = roles.map(r =>
+    `<option value="${r.id}" data-model="${r.model}">${r.name} (${r.model})</option>`
+  ).join('');
+
+  onChatRoleChange();
+}
+
+function onChatRoleChange() {
+  const sel = document.getElementById('chatRole');
+  const opt = sel.options[sel.selectedIndex];
+  const welcome = document.getElementById('chatWelcome');
+  if (welcome) {
+    document.getElementById('chatWelcomeRole').textContent = opt.text.split(' (')[0];
+    welcome.querySelector('[style*="color:var(--text3)"]').textContent = opt.dataset.model;
+  }
+}
+
+function clearChat() {
+  chatHistory = [];
+  chatTotalCost = 0;
+  const msgs = document.getElementById('chatMessages');
+  msgs.innerHTML = '';
+  // Re-add welcome
+  const sel = document.getElementById('chatRole');
+  const opt = sel.options[sel.selectedIndex];
+  const roleName = opt.text.split(' (')[0];
+  const model = opt.dataset.model;
+  msgs.innerHTML = `<div id="chatWelcome" class="chat-welcome">
+    <div style="font-size:24px;margin-bottom:8px">🦞</div>
+    <div style="font-size:14px;font-weight:500" id="chatWelcomeRole">${roleName}</div>
+    <div style="font-size:12px;color:var(--text3)">${model}</div>
+    <div style="font-size:13px;color:var(--text2);margin-top:8px">Ask me anything. I'm ready, Chairman.</div>
+  </div>`;
+  document.getElementById('chatCost').textContent = '';
+}
+
+function addChatMessage(role, content, meta) {
+  // Remove welcome on first message
+  const welcome = document.getElementById('chatWelcome');
+  if (welcome) welcome.remove();
+
+  const msgs = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = `chat-msg ${role}`;
+
+  const avatar = role === 'user' ? '👤' : '🦞';
+  const rendered = role === 'assistant' ? marked.parse(content) : escHtml(content);
+
+  div.innerHTML = `
+    <div class="chat-avatar">${avatar}</div>
+    <div>
+      <div class="chat-bubble">${role === 'assistant' ? '<div class="md-output">' + rendered + '</div>' : rendered}</div>
+      ${meta ? `<div class="chat-meta">${meta}</div>` : ''}
+    </div>
+  `;
+
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function showTyping() {
+  const msgs = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'chat-msg assistant';
+  div.id = 'chatTypingIndicator';
+  div.innerHTML = `
+    <div class="chat-avatar">🦞</div>
+    <div class="chat-bubble chat-typing"><span></span><span></span><span></span></div>
+  `;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function hideTyping() {
+  const el = document.getElementById('chatTypingIndicator');
+  if (el) el.remove();
+}
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const btn = document.getElementById('chatSendBtn');
+  const message = input.value.trim();
+  if (!message) return;
+
+  const role = document.getElementById('chatRole').value;
+
+  // Show user message
+  addChatMessage('user', message);
+  input.value = '';
+  input.disabled = true;
+  btn.disabled = true;
+
+  // Show typing indicator
+  showTyping();
+
+  try {
+    const res = await fetch(API + '/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role, message }),
+    });
+    const data = await res.json();
+
+    hideTyping();
+
+    if (data.error) {
+      addChatMessage('assistant', '⚠️ ' + data.error);
+    } else {
+      const cost = data.usage?.cost ?? 0;
+      chatTotalCost += cost;
+      const meta = `${data.model} · $${cost.toFixed(4)}`;
+      addChatMessage('assistant', data.content, meta);
+      document.getElementById('chatCost').textContent = `Session: $${chatTotalCost.toFixed(4)}`;
+    }
+  } catch (err) {
+    hideTyping();
+    addChatMessage('assistant', '⚠️ Connection error: ' + err.message);
+  }
+
+  input.disabled = false;
+  btn.disabled = false;
+  input.focus();
+}
+
 // Init
+initChatRoles();
 loadHealth();
 loadRoles();
 loadCompany();
