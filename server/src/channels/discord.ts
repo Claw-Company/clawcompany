@@ -34,10 +34,13 @@ export class DiscordAdapter implements ChannelAdapter {
   private sequence: number | null = null;
   private botUserId: string = '';
   private running = false;
+  private onChatIdChange?: (chatId: string) => void;
 
-  constructor(token: string, apiBase?: string, directRunner?: DirectRunner) {
+  constructor(token: string, apiBase?: string, directRunner?: DirectRunner, opts?: { lastChatId?: string; onChatIdChange?: (id: string) => void }) {
     this.token = token;
     this.router = new ChannelRouter(apiBase, directRunner);
+    if (opts?.lastChatId) this.lastChatId = opts.lastChatId;
+    if (opts?.onChatIdChange) this.onChatIdChange = opts.onChatIdChange;
   }
 
   async start(): Promise<void> {
@@ -50,6 +53,7 @@ export class DiscordAdapter implements ChannelAdapter {
     this.botUserId = me.id;
     this.botName = `${me.username}#${me.discriminator}`;
     console.log(`  ✅ Discord bot ${this.botName} connected`);
+    if (this.lastChatId) console.log(`     └─ Last chat: ${this.lastChatId} (restored)`);
 
     // Connect to Gateway
     await this.connectGateway();
@@ -184,8 +188,11 @@ export class DiscordAdapter implements ChannelAdapter {
 
     console.log(`  [Discord] ${inbound.userName}: ${text.slice(0, 50)}`);
 
-    // Track last chatId for scheduler delivery
-    this.lastChatId = inbound.chatId;
+    // Track + persist last chatId for scheduler delivery
+    if (inbound.chatId !== this.lastChatId) {
+      this.lastChatId = inbound.chatId;
+      this.onChatIdChange?.(inbound.chatId);
+    }
 
     // Show typing indicator
     this.rest('POST', `/channels/${msg.channel_id}/typing`).catch(() => {});

@@ -674,9 +674,10 @@ const server = app.listen(PORT, async () => {
   // Load channel tokens from config (saved from Dashboard)
   const homeDir = process.env.HOME ?? '~';
   const configPath = `${homeDir}/.clawcompany/config.json`;
+  let userConfig: any = {};
   if (existsSync(configPath)) {
     try {
-      const userConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
+      userConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
       if (userConfig.channels?.telegram?.token && !process.env.TELEGRAM_BOT_TOKEN) {
         process.env.TELEGRAM_BOT_TOKEN = userConfig.channels.telegram.token;
       }
@@ -686,6 +687,17 @@ const server = app.listen(PORT, async () => {
     } catch {}
   }
 
+  // Helper to save chatId to config
+  const saveChatId = (channel: string, chatId: string) => {
+    try {
+      const cfg = existsSync(configPath) ? JSON.parse(readFileSync(configPath, 'utf-8')) : {};
+      if (!cfg.channels) cfg.channels = {};
+      if (!cfg.channels[channel]) cfg.channels[channel] = {};
+      cfg.channels[channel].lastChatId = chatId;
+      writeFileSync(configPath, JSON.stringify(cfg, null, 2));
+    } catch {}
+  };
+
   // Auto-start Telegram bot if token is configured
   if (process.env.TELEGRAM_BOT_TOKEN) {
     try {
@@ -694,6 +706,10 @@ const server = app.listen(PORT, async () => {
         process.env.TELEGRAM_BOT_TOKEN,
         `http://localhost:${PORT}`,
         directRunner,
+        {
+          lastChatId: userConfig.channels?.telegram?.lastChatId ?? '',
+          onChatIdChange: (id) => saveChatId('telegram', id),
+        },
       );
       await telegramAdapterRef.start();
     } catch (err: any) {
@@ -709,6 +725,10 @@ const server = app.listen(PORT, async () => {
         process.env.DISCORD_BOT_TOKEN,
         `http://localhost:${PORT}`,
         directRunner,
+        {
+          lastChatId: userConfig.channels?.discord?.lastChatId ?? '',
+          onChatIdChange: (id) => saveChatId('discord', id),
+        },
       );
       await discordAdapterRef.start();
     } catch (err: any) {

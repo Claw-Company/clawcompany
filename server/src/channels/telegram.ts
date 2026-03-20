@@ -24,10 +24,13 @@ export class TelegramAdapter implements ChannelAdapter {
   private router: ChannelRouter;
   private polling = false;
   private offset = 0;
+  private onChatIdChange?: (chatId: string) => void;
 
-  constructor(token: string, apiBase?: string, directRunner?: DirectRunner) {
+  constructor(token: string, apiBase?: string, directRunner?: DirectRunner, opts?: { lastChatId?: string; onChatIdChange?: (id: string) => void }) {
     this.token = token;
     this.router = new ChannelRouter(apiBase, directRunner);
+    if (opts?.lastChatId) this.lastChatId = opts.lastChatId;
+    if (opts?.onChatIdChange) this.onChatIdChange = opts.onChatIdChange;
   }
 
   async start(): Promise<void> {
@@ -39,6 +42,7 @@ export class TelegramAdapter implements ChannelAdapter {
     if (!me.ok) throw new Error('Invalid Telegram bot token');
     this.botName = me.result.username ?? '';
     console.log(`  ✅ Telegram bot @${this.botName} connected`);
+    if (this.lastChatId) console.log(`     └─ Last chat: ${this.lastChatId} (restored)`);
 
     // Start polling loop
     this.poll();
@@ -71,7 +75,7 @@ export class TelegramAdapter implements ChannelAdapter {
           offset: this.offset,
           timeout: 30,
           allowed_updates: ['message'],
-        });
+        }, 35_000); // 35s fetch timeout (> 30s long poll)
 
         if (updates.ok && updates.result?.length > 0) {
           for (const update of updates.result) {
@@ -82,8 +86,12 @@ export class TelegramAdapter implements ChannelAdapter {
           }
         }
       } catch (err: any) {
+        if (err.name === 'AbortError') {
+          // Fetch timeout — normal during long operations, just retry
+          continue;
+        }
         console.error(`  [Telegram] Poll error: ${err.message}`);
-        await sleep(5000);
+        await sleep(3000);
       }
     }
   }
@@ -101,8 +109,11 @@ export class TelegramAdapter implements ChannelAdapter {
 
     console.log(`  [Telegram] ${inbound.userName}: ${inbound.text.slice(0, 50)}`);
 
-    // Track last chatId for scheduler delivery
-    this.lastChatId = inbound.chatId;
+    // Track + persist last chatId for scheduler delivery
+    if (inbound.chatId !== this.lastChatId) {
+      this.lastChatId = inbound.chatId;
+      this.onChatIdChange?.(inbound.chatId);
+    }
 
     // Send "typing" indicator
     this.api('sendChatAction', { chat_id: inbound.chatId, action: 'typing' }).catch(() => {});
@@ -121,14 +132,22 @@ export class TelegramAdapter implements ChannelAdapter {
     }
   }
 
-  private async api(method: string, params?: Record<string, unknown>): Promise<any> {
+  private async api(method: string, params?: Record<string, unknown>, timeoutMs?: number): Promise<any> {
     const url = `https://api.telegram.org/bot${this.token}/${method}`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: params ? JSON.stringify(params) : undefined,
-    });
-    return res.json();
+    const controller = new AbortController();
+    const timer = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : undefined;
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: params ? JSON.stringify(params) : undefined,
+        signal: controller.signal,
+      });
+      return res.json();
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 }
 
