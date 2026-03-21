@@ -14,6 +14,7 @@ import { ModelRouter } from '@clawcompany/model-router';
 import { TaskOrchestrator } from '@clawcompany/task-orchestrator';
 import type { DirectRunner } from './channels/index.js';
 import { CronScheduler, ROUTINE_TEMPLATES, describeCron } from './scheduler.js';
+import { CodeManager } from './code-manager.js';
 
 config({ path: '../.env' });
 
@@ -466,6 +467,7 @@ app.delete('/api/settings/channels/:id', async (req, res) => {
 // ──── Routines API ────
 
 let scheduler: CronScheduler | undefined;
+const codeManager = new CodeManager();
 
 // List all routines
 app.get('/api/routines', (_req, res) => {
@@ -550,6 +552,115 @@ app.post('/api/chat', async (req, res) => {
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// ──── Code Manager API ────
+
+app.get('/api/code/presets', (_req, res) => {
+  res.json(CodeManager.getPresets());
+});
+
+app.get('/api/code/sessions', (_req, res) => {
+  res.json(codeManager.list());
+});
+
+app.get('/api/code/status', (_req, res) => {
+  res.json(codeManager.getStatus());
+});
+
+app.post('/api/code/sessions', (req, res) => {
+  const { name, path, tool, command, args, autoStart, notify, color } = req.body;
+  if (!name || !path || !tool) return res.status(400).json({ ok: false, error: 'Required: name, path, tool' });
+  try {
+    const session = codeManager.add({ name, path, tool, command, args, autoStart, notify, color });
+    res.json({ ok: true, session });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.put('/api/code/sessions/:id', (req, res) => {
+  const session = codeManager.update(req.params.id, req.body);
+  if (!session) return res.status(404).json({ ok: false, error: 'Not found' });
+  res.json({ ok: true, session });
+});
+
+app.delete('/api/code/sessions/:id', (req, res) => {
+  const ok = codeManager.remove(req.params.id);
+  res.json({ ok });
+});
+
+app.post('/api/code/sessions/:id/start', (req, res) => {
+  try {
+    codeManager.start(req.params.id);
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/code/sessions/:id/stop', (req, res) => {
+  codeManager.stop(req.params.id);
+  res.json({ ok: true });
+});
+
+app.post('/api/code/sessions/:id/restart', (req, res) => {
+  try {
+    codeManager.restart(req.params.id);
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/code/start-all', (_req, res) => {
+  const started = codeManager.startAll();
+  res.json({ ok: true, started });
+});
+
+app.post('/api/code/stop-all', (_req, res) => {
+  codeManager.stopAll();
+  res.json({ ok: true });
+});
+
+app.get('/api/code/sessions/:id/output', (_req, res) => {
+  const output = codeManager.getOutput(_req.params.id);
+  res.json(output);
+});
+
+app.post('/api/code/sessions/:id/clear', (req, res) => {
+  codeManager.clearOutput(req.params.id);
+  res.json({ ok: true });
+});
+
+// SSE stream for code output
+app.get('/api/code/sessions/:id/stream', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const id = req.params.id;
+
+  const onOutput = (data: { sessionId: string; line: string }) => {
+    if (data.sessionId === id) {
+      res.write(`data: ${data.line}\n\n`);
+    }
+  };
+
+  const onExit = (data: { sessionId: string; code: number; name: string; runtime?: string }) => {
+    if (data.sessionId === id) {
+      res.write(`data: ${JSON.stringify({ ts: new Date().toTimeString().slice(0, 8), text: `Process exited (code ${data.code}) — ${data.runtime ?? ''}`, stream: 'system', exit: true })}\n\n`);
+    }
+  };
+
+  codeManager.on('output', onOutput);
+  codeManager.on('exit', onExit);
+
+  req.on('close', () => {
+    codeManager.off('output', onOutput);
+    codeManager.off('exit', onExit);
+  });
 });
 
 app.post('/api/mission/decompose', async (req, res) => {
@@ -907,6 +1018,16 @@ const server = app.listen(PORT, async () => {
     scheduler = new CronScheduler(directRunner, sendResult);
     scheduler.start();
   }
+
+  // Hook Code Manager notifications to channels
+  codeManager.on('notify', async ({ message }: { message: string }) => {
+    if (telegramAdapterRef?.lastChatId) {
+      try { await telegramAdapterRef.sendText(telegramAdapterRef.lastChatId, message); } catch {}
+    }
+    if (discordAdapterRef?.lastChatId) {
+      try { await discordAdapterRef.sendText(discordAdapterRef.lastChatId, message); } catch {}
+    }
+  });
 
   console.log('  Build for OPC. Every human being is a chairman.');
   console.log('');

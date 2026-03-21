@@ -145,6 +145,34 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 .channel-name{font-size:14px;font-weight:500;margin-bottom:4px}
 .channel-status{font-size:12px;color:var(--text3)}
 
+/* Code Manager */
+.code-tabs{display:flex;border-bottom:1px solid var(--border);overflow-x:auto;gap:0}
+.code-tab{padding:8px 14px;font-size:12px;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;display:flex;align-items:center;gap:6px;white-space:nowrap;transition:all .15s}
+.code-tab.active{color:var(--coral2);border-bottom-color:var(--coral)}
+.code-tab:hover{color:var(--text)}
+.code-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.code-dot.on{background:#5dcaa5}
+.code-dot.off{background:var(--text3)}
+.code-dot.err{background:#e24b4a}
+.code-tab-x{font-size:10px;color:var(--text3);margin-left:4px;cursor:pointer;opacity:0;transition:opacity .15s}
+.code-tab:hover .code-tab-x{opacity:1}
+.code-tab-x:hover{color:#e24b4a}
+.code-tab-add{padding:8px 10px;font-size:14px;color:var(--text3);cursor:pointer}
+.code-tab-add:hover{color:var(--coral2)}
+.code-toolbar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg3);border-bottom:1px solid var(--border);font-size:11px}
+.code-toolbar .path{color:var(--text3);font-family:monospace}
+.code-toolbar .badge{font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(29,158,117,.15);color:#5dcaa5}
+.code-output{background:#0d0f14;padding:12px;font-family:'Menlo','Monaco','Courier New',monospace;font-size:11.5px;line-height:1.7;color:#9ca3af;min-height:320px;max-height:420px;overflow-y:auto;border-radius:0 0 var(--radius) var(--radius)}
+.code-line{margin:1px 0;word-break:break-all}
+.code-line .ts{color:#6b7280}
+.code-line .ok{color:#5dcaa5}
+.code-line .err{color:#e24b4a}
+.code-line .info{color:#85b7eb}
+.code-line .sys{color:#ef9f27}
+.code-status{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;font-size:11px;color:var(--text3);border-top:1px solid var(--border)}
+.code-empty{text-align:center;padding:60px 20px;color:var(--text3)}
+.code-empty p{margin:8px 0}
+
 /* Role edit */
 .role-card{position:relative}
 .role-edit-btn{position:absolute;top:10px;right:10px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 8px;font-size:11px;color:var(--text3);cursor:pointer;opacity:0;transition:opacity .15s}
@@ -239,6 +267,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
   </div>
   <div class="nav-item" onclick="showPage('routines')">
     <span class="nav-icon">◷</span> <span>Routines</span>
+  </div>
+  <div class="nav-item" onclick="showPage('code')">
+    <span class="nav-icon">💻</span> <span>Code</span>
   </div>
   <div class="nav-item" onclick="showPage('settings')">
     <span class="nav-icon">⚙</span> <span>Settings</span>
@@ -446,6 +477,65 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
     <div style="margin-top:24px">
       <div style="font-size:14px;font-weight:500;margin-bottom:8px">Execution log</div>
       <div id="routineLog" style="font-size:12px;color:var(--text3)">No routine results yet.</div>
+    </div>
+  </div>
+
+  <!-- Code Manager Page -->
+  <div class="page" id="page-code">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div class="page-title">Code</div>
+        <div class="page-sub" style="margin-bottom:0">Manage Claude Code, Codex, Cursor, and any CLI from one place.</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn-sm" onclick="codeStartAll()" style="font-size:11px;border-color:rgba(29,158,117,.4);color:#5dcaa5">Start all</button>
+        <button class="btn-sm" onclick="codeStopAll()" style="font-size:11px">Stop all</button>
+        <button class="btn-sm" onclick="toggleCodeAdd()" style="font-size:12px">+ Add project</button>
+      </div>
+    </div>
+
+    <!-- Add project form -->
+    <div id="codeAddForm" class="routine-form" style="margin-bottom:16px">
+      <label>Project name</label>
+      <input type="text" id="ca-name" placeholder="e.g. Frontend, Backend API">
+      <label>Path</label>
+      <input type="text" id="ca-path" placeholder="~/projects/my-app">
+      <label>Tool</label>
+      <select id="ca-tool" onchange="onCodeToolChange()">
+        <option value="claude">Claude Code</option>
+        <option value="codex">OpenAI Codex</option>
+        <option value="cursor">Cursor</option>
+        <option value="custom">Custom command</option>
+      </select>
+      <div id="ca-custom-cmd" style="display:none">
+        <label>Command</label>
+        <input type="text" id="ca-command" placeholder="e.g. npm run dev">
+      </div>
+      <label>Arguments (optional)</label>
+      <input type="text" id="ca-args" placeholder="e.g. refactor the auth module">
+      <div id="ca-hint" style="font-size:11px;color:var(--text3);margin-top:2px"></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:12px">
+        <input type="checkbox" id="ca-notify" checked style="margin:0;width:16px;height:16px;accent-color:var(--coral)">
+        <label for="ca-notify" style="font-size:12px;color:var(--text2);cursor:pointer;margin:0">Notify on complete (Telegram/Discord)</label>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn-save" onclick="codeAddProject()">Create</button>
+        <button class="btn-test" onclick="toggleCodeAdd()">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Tabs + output area -->
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+      <div class="code-tabs" id="codeTabs"></div>
+      <div class="code-toolbar" id="codeToolbar" style="display:none"></div>
+      <div class="code-output" id="codeOutput">
+        <div class="code-empty">
+          <p style="font-size:20px">💻</p>
+          <p style="font-size:14px;font-weight:500;color:var(--text)">No projects yet</p>
+          <p style="font-size:12px">Click "+ Add project" to manage your AI coding tools.</p>
+        </div>
+      </div>
+      <div class="code-status" id="codeStatusBar"></div>
     </div>
   </div>
 
@@ -1664,6 +1754,267 @@ function appendToStore(roleId, msgRole, content, meta) {
   chatStore[roleId].html += bubble;
 }
 
+// ── Code Manager ──
+
+let codeSessions = [];
+let codeActiveId = null;
+let codeSSE = null;
+
+async function loadCode() {
+  try {
+    const res = await fetch(API + '/api/code/sessions');
+    codeSessions = await res.json();
+    renderCodeTabs();
+    renderCodeStatus();
+
+    // Auto-select first tab if none active
+    if (!codeActiveId && codeSessions.length > 0) {
+      codeSelectTab(codeSessions[0].id);
+    } else if (codeActiveId) {
+      codeSelectTab(codeActiveId);
+    }
+  } catch(e) {
+    console.error('Failed to load code sessions:', e);
+  }
+}
+
+function renderCodeTabs() {
+  const el = document.getElementById('codeTabs');
+  if (!el) return;
+
+  if (codeSessions.length === 0) {
+    el.innerHTML = '';
+    document.getElementById('codeToolbar').style.display = 'none';
+    document.getElementById('codeOutput').innerHTML = `<div class="code-empty">
+      <p style="font-size:20px">💻</p>
+      <p style="font-size:14px;font-weight:500;color:var(--text)">No projects yet</p>
+      <p style="font-size:12px">Click "+ Add project" to manage your AI coding tools.</p>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = codeSessions.map(s => {
+    const dotClass = s.status === 'running' ? 'on' : s.status === 'error' ? 'err' : 'off';
+    const active = s.id === codeActiveId ? ' active' : '';
+    return `<div class="code-tab${active}" onclick="codeSelectTab('${s.id}')">
+      <span class="code-dot ${dotClass}"></span>${s.name}
+      <span class="code-tab-x" onclick="event.stopPropagation();codeDeleteProject('${s.id}')">✕</span>
+    </div>`;
+  }).join('') + '<div class="code-tab-add" onclick="toggleCodeAdd()">+</div>';
+}
+
+function renderCodeStatus() {
+  const el = document.getElementById('codeStatusBar');
+  if (!el) return;
+  const running = codeSessions.filter(s => s.status === 'running').length;
+  const stopped = codeSessions.filter(s => s.status === 'stopped').length;
+  const error = codeSessions.filter(s => s.status === 'error').length;
+  el.textContent = `${codeSessions.length} projects | ${running} running | ${stopped} stopped${error ? ` | ${error} error` : ''}`;
+}
+
+async function codeSelectTab(id) {
+  codeActiveId = id;
+  renderCodeTabs();
+
+  const session = codeSessions.find(s => s.id === id);
+  if (!session) return;
+
+  // Clear output immediately to prevent stale content
+  document.getElementById('codeOutput').innerHTML = '<div class="code-line" style="color:#6b7280">Waiting for output...</div>';
+
+  // Toolbar
+  const toolbar = document.getElementById('codeToolbar');
+  toolbar.style.display = 'flex';
+
+  const toolLabels = { claude: 'Claude Code', codex: 'Codex', cursor: 'Cursor', custom: 'Custom' };
+  const isRunning = session.status === 'running';
+
+  toolbar.innerHTML = `
+    <span class="path">${session.path}</span>
+    <span class="badge">${toolLabels[session.tool] || session.tool}</span>
+    <span style="flex:1"></span>
+    ${isRunning
+      ? `<button class="btn-sm" onclick="codeStop('${id}')" style="font-size:11px;border-color:rgba(226,75,74,.3);color:#e24b4a">Stop</button>
+         <button class="btn-sm" onclick="codeRestart('${id}')" style="font-size:11px">Restart</button>`
+      : `<button class="btn-sm" onclick="codeStart('${id}')" style="font-size:11px;border-color:rgba(29,158,117,.4);color:#5dcaa5">Start</button>`
+    }
+    <button class="btn-sm" onclick="codeClear('${id}')" style="font-size:11px">Clear</button>
+  `;
+
+  // Load output history
+  try {
+    const res = await fetch(API + '/api/code/sessions/' + id + '/output');
+    const lines = await res.json();
+    if (lines.length === 0) {
+      document.getElementById('codeOutput').innerHTML = '<div class="code-line" style="color:#6b7280">Waiting for output...</div>';
+    } else {
+      renderCodeOutput(lines);
+    }
+  } catch {
+    document.getElementById('codeOutput').innerHTML = '<div class="code-line" style="color:#6b7280">Waiting for output...</div>';
+  }
+
+  // Connect SSE
+  codeConnectSSE(id);
+}
+
+function renderCodeOutput(lines) {
+  const el = document.getElementById('codeOutput');
+  if (lines.length === 0) {
+    el.innerHTML = '<div class="code-line" style="color:#6b7280">Waiting for output...</div>';
+    return;
+  }
+  el.innerHTML = lines.map(raw => {
+    try {
+      const d = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      const cls = d.stream === 'stderr' ? 'err' : d.stream === 'system' ? 'sys' : d.text?.includes('✓') || d.text?.includes('passed') || d.text?.includes('Done') || d.text?.includes('Ready') ? 'ok' : d.text?.includes('error') || d.text?.includes('Error') || d.text?.includes('FAIL') ? 'err' : d.text?.includes('warn') || d.text?.includes('Warning') ? 'sys' : d.text?.startsWith('$') || d.text?.startsWith('>') ? 'info' : '';
+      return `<div class="code-line"><span class="ts">${d.ts}</span> <span class="${cls}">${escHtml(d.text)}</span></div>`;
+    } catch {
+      return `<div class="code-line">${escHtml(String(raw))}</div>`;
+    }
+  }).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+function codeConnectSSE(id) {
+  if (codeSSE) { codeSSE.close(); codeSSE = null; }
+
+  const session = codeSessions.find(s => s.id === id);
+  if (!session || session.status !== 'running') return;
+
+  codeSSE = new EventSource(API + '/api/code/sessions/' + id + '/stream');
+  codeSSE.onmessage = (e) => {
+    if (codeActiveId !== id) return;
+    try {
+      const d = JSON.parse(e.data);
+      const el = document.getElementById('codeOutput');
+      const cls = d.stream === 'stderr' ? 'err' : d.stream === 'system' ? 'sys' : d.text?.includes('✓') || d.text?.includes('passed') || d.text?.includes('Done') || d.text?.includes('Ready') ? 'ok' : d.text?.includes('error') || d.text?.includes('Error') ? 'err' : d.text?.startsWith('$') ? 'info' : '';
+      el.innerHTML += `<div class="code-line"><span class="ts">${d.ts}</span> <span class="${cls}">${escHtml(d.text)}</span></div>`;
+      el.scrollTop = el.scrollHeight;
+
+      // If process exited, refresh status
+      if (d.exit) {
+        setTimeout(loadCode, 500);
+      }
+    } catch {}
+  };
+  codeSSE.onerror = () => {};
+}
+
+async function codeStart(id) {
+  try {
+    await fetch(API + '/api/code/sessions/' + id + '/start', { method: 'POST' });
+    await loadCode();
+    codeSelectTab(id);
+  } catch {}
+}
+
+async function codeStop(id) {
+  try {
+    await fetch(API + '/api/code/sessions/' + id + '/stop', { method: 'POST' });
+    if (codeSSE) { codeSSE.close(); codeSSE = null; }
+    setTimeout(loadCode, 1000);
+  } catch {}
+}
+
+async function codeRestart(id) {
+  try {
+    await fetch(API + '/api/code/sessions/' + id + '/restart', { method: 'POST' });
+    setTimeout(() => { loadCode(); codeSelectTab(id); }, 1500);
+  } catch {}
+}
+
+async function codeStartAll() {
+  try {
+    await fetch(API + '/api/code/start-all', { method: 'POST' });
+    setTimeout(loadCode, 1000);
+  } catch {}
+}
+
+async function codeStopAll() {
+  try {
+    await fetch(API + '/api/code/stop-all', { method: 'POST' });
+    if (codeSSE) { codeSSE.close(); codeSSE = null; }
+    setTimeout(loadCode, 1000);
+  } catch {}
+}
+
+async function codeClear(id) {
+  try {
+    await fetch(API + '/api/code/sessions/' + id + '/clear', { method: 'POST' });
+    document.getElementById('codeOutput').innerHTML = '<div class="code-line" style="color:#6b7280">Output cleared.</div>';
+  } catch {}
+}
+
+function toggleCodeAdd() {
+  document.getElementById('codeAddForm').classList.toggle('show');
+}
+
+function onCodeToolChange() {
+  const tool = document.getElementById('ca-tool').value;
+  document.getElementById('ca-custom-cmd').style.display = tool === 'custom' ? 'block' : 'none';
+  const hints = {
+    claude: 'Claude Code runs in --print mode. Put your prompt in Args (e.g. "refactor the auth module")',
+    codex: 'Add your task in Args',
+    cursor: '',
+    custom: 'Any shell command: npm run dev, python app.py, etc.',
+  };
+  document.getElementById('ca-hint').textContent = hints[tool] || '';
+  const placeholder = tool === 'claude' ? 'e.g. refactor the auth module' : tool === 'custom' ? 'e.g. --watch --port 3000' : 'optional arguments';
+  document.getElementById('ca-args').placeholder = placeholder;
+}
+
+async function codeAddProject() {
+  const tool = document.getElementById('ca-tool').value;
+  const argsRaw = document.getElementById('ca-args').value.trim();
+  let args;
+  if (tool === 'claude' || tool === 'codex') {
+    // Prompt is a single argument, don't split
+    args = argsRaw ? [argsRaw] : [];
+  } else {
+    args = argsRaw ? argsRaw.split(/\s+/) : [];
+  }
+
+  const body = {
+    name: document.getElementById('ca-name').value.trim(),
+    path: document.getElementById('ca-path').value.trim(),
+    tool,
+    command: tool === 'custom' ? document.getElementById('ca-command').value.trim() : undefined,
+    args,
+    notify: document.getElementById('ca-notify').checked,
+  };
+  if (!body.name || !body.path) return alert('Name and path are required');
+  if (tool === 'custom' && !body.command) return alert('Custom command is required');
+  if ((tool === 'claude' || tool === 'codex') && args.length === 0) return alert('Prompt is required for ' + tool + ' — fill in the Args field');
+
+  try {
+    const res = await fetch(API + '/api/code/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      toggleCodeAdd();
+      ['ca-name', 'ca-path', 'ca-args', 'ca-command'].forEach(id => document.getElementById(id).value = '');
+      codeActiveId = data.session.id; // Set before loadCode so it selects the new tab
+      await loadCode();
+    } else {
+      alert(data.error);
+    }
+  } catch(e) { alert('Failed: ' + e.message); }
+}
+
+async function codeDeleteProject(id) {
+  const session = codeSessions.find(s => s.id === id);
+  if (!confirm(`Delete "${session?.name}"?`)) return;
+  try {
+    await fetch(API + '/api/code/sessions/' + id, { method: 'DELETE' });
+    if (codeActiveId === id) codeActiveId = null;
+    await loadCode();
+  } catch {}
+}
+
 // Init
 initChatRoles();
 loadHealth();
@@ -1671,6 +2022,7 @@ loadRoles();
 loadCompany();
 loadSettings();
 loadRoutines();
+loadCode();
 setInterval(loadHealth, 30000);
 </script>
 </body>
