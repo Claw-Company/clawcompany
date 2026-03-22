@@ -549,6 +549,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
     <div class="page-title">Settings</div>
     <div class="page-sub">Manage API keys and providers. Changes take effect immediately.</div>
 
+    <div style="margin-bottom:24px">
+      <div style="font-size:14px;font-weight:500;margin-bottom:12px">Company Template</div>
+      <div id="templateCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px"></div>
+    </div>
+
     <div id="settingsProviders"></div>
 
     <div style="margin-top:24px">
@@ -1024,6 +1029,50 @@ async function loadCompany() {
     document.getElementById('welcomeTitle').textContent = `${greeting}, Chairman.`;
     document.getElementById('welcomeSub').textContent = 'Your AI company is ready.';
   }
+}
+
+// Templates
+async function loadTemplates() {
+  try {
+    const [tplRes, activeRes] = await Promise.all([
+      fetch(API + '/api/templates'),
+      fetch(API + '/api/templates/active'),
+    ]);
+    const templates = await tplRes.json();
+    const { templateId: activeId } = await activeRes.json();
+    const container = document.getElementById('templateCards');
+    container.innerHTML = templates.map(t => {
+      const active = t.id === activeId;
+      return `<div class="role-card" style="cursor:pointer;border:2px solid ${active ? 'var(--coral)' : 'transparent'};transition:border-color .2s" onclick="switchTemplate('${t.id}','${t.name.replace(/'/g,"\\'")}')">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="font-size:20px">${t.icon}</span>
+          <span class="role-name">${t.name}</span>
+          ${active ? '<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--coralBg);color:var(--coral2)">Active</span>' : ''}
+        </div>
+        <div style="font-size:12px;color:var(--text2)">${t.description}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">${t.roleCount} roles</div>
+      </div>`;
+    }).join('');
+  } catch {}
+}
+
+async function switchTemplate(id, name) {
+  try {
+    const activeRes = await fetch(API + '/api/templates/active');
+    const { templateId } = await activeRes.json();
+    if (templateId === id) return;
+    if (!confirm('Switch to ' + name + '? This will replace all default roles. Custom roles are kept.')) return;
+    const res = await fetch(API + '/api/templates/active', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ templateId: id }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      loadTemplates();
+      loadRoles();
+    }
+  } catch {}
 }
 
 // Settings: load providers
@@ -1997,6 +2046,7 @@ loadHealth();
 loadRoles();
 loadCompany();
 loadSettings();
+loadTemplates();
 loadRoutines();
 loadCode();
 setInterval(loadHealth, 30000);
