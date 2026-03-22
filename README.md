@@ -245,6 +245,7 @@ One click = working company. No configuration needed.
 | **Filesystem** | Read, write, list, delete files |
 | **Shell** | Execute shell commands (30s timeout) |
 | **Code Interpreter** | Run JavaScript or Python code |
+| **Browser Use** | Navigate pages, click, type, screenshot, run JS |
 
 Agents use a **think → act → observe** loop: reason about the task, use tools, observe results, repeat until done. Verified: Researcher made 16 tool calls in one mission to gather real-time data.
 
