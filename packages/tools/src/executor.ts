@@ -27,6 +27,8 @@ export class ToolExecutor {
         return this.execWebSearch(args);
       case 'price_feed':
         return this.execPriceFeed(args);
+      case 'browser_use':
+        return this.execBrowserUse(args);
       default:
         return `Unknown tool: ${toolName}`;
     }
@@ -224,6 +226,67 @@ export class ToolExecutor {
       return output;
     } catch (err: any) {
       if (err.name === 'TimeoutError') return 'Error: Search timed out (10s)';
+      return `Error: ${err.message}`;
+    }
+  }
+
+  private async execBrowserUse(args: Record<string, unknown>): Promise<string> {
+    const { action, url, index, text, path, code, direction } = args as {
+      action: string;
+      url?: string;
+      index?: number;
+      text?: string;
+      path?: string;
+      code?: string;
+      direction?: string;
+    };
+
+    let cmd: string;
+    switch (action) {
+      case 'open':
+        if (!url) return 'Error: url is required for open action';
+        cmd = `browser-use open ${JSON.stringify(url)}`;
+        break;
+      case 'state':
+        cmd = 'browser-use state --json';
+        break;
+      case 'click':
+        if (index === undefined) return 'Error: index is required for click action';
+        cmd = `browser-use click ${index}`;
+        break;
+      case 'type':
+        if (!text) return 'Error: text is required for type action';
+        cmd = `browser-use type ${JSON.stringify(text)}`;
+        break;
+      case 'input':
+        if (index === undefined || !text) return 'Error: index and text are required for input action';
+        cmd = `browser-use input ${index} ${JSON.stringify(text)}`;
+        break;
+      case 'screenshot':
+        cmd = `browser-use screenshot ${JSON.stringify(path ?? '/tmp/screenshot.png')}`;
+        break;
+      case 'eval':
+        if (!code) return 'Error: code is required for eval action';
+        cmd = `browser-use eval ${JSON.stringify(code)}`;
+        break;
+      case 'scroll':
+        if (!direction) return 'Error: direction is required for scroll action';
+        cmd = `browser-use scroll ${direction}`;
+        break;
+      case 'close':
+        cmd = 'browser-use close';
+        break;
+      default:
+        return `Unknown browser action: ${action}. Valid: open, state, click, type, input, screenshot, eval, scroll, close`;
+    }
+
+    try {
+      const { stdout, stderr } = await execAsync(cmd, { timeout: 30_000 });
+      return stdout + (stderr ? `\nSTDERR: ${stderr}` : '');
+    } catch (err: any) {
+      if (err.code === 'ENOENT' || err.message?.includes('not found') || err.message?.includes('ENOENT')) {
+        return 'Error: browser-use not installed. Run: pip install browser-use && browser-use install';
+      }
       return `Error: ${err.message}`;
     }
   }

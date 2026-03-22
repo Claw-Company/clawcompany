@@ -106,6 +106,31 @@ export const BUILTIN_TOOLS: Record<string, ToolDefinition> = {
     },
   },
 
+  browser_use: {
+    type: 'function',
+    function: {
+      name: 'browser_use',
+      description: 'Control a web browser — navigate pages, click elements, fill forms, take screenshots, run JavaScript. Uses browser-use CLI.',
+      parameters: {
+        type: 'object',
+        properties: {
+          action: {
+            type: 'string',
+            enum: ['open', 'state', 'click', 'type', 'input', 'screenshot', 'eval', 'scroll', 'close'],
+            description: 'Browser action to perform',
+          },
+          url: { type: 'string', description: 'URL to open (for open action)' },
+          index: { type: 'number', description: 'Element index to interact with (for click/input actions)' },
+          text: { type: 'string', description: 'Text to type (for type/input actions)' },
+          path: { type: 'string', description: 'Screenshot save path (default: /tmp/screenshot.png)' },
+          code: { type: 'string', description: 'JavaScript code to evaluate (for eval action)' },
+          direction: { type: 'string', enum: ['up', 'down'], description: 'Scroll direction (for scroll action)' },
+        },
+        required: ['action'],
+      },
+    },
+  },
+
   price_feed: {
     type: 'function',
     function: {
