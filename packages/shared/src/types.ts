@@ -110,6 +110,14 @@ export interface Role {
 
 export type RoleInput = Partial<Role> & Pick<Role, 'name' | 'model'>;
 
+export interface CompanyTemplate {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  roles: Role[];
+}
+
 // ──────────────────────────────────────────
 // Company
 // ──────────────────────────────────────────
@@ -398,4 +406,5 @@ export interface ClawCompanyConfig {
   providers: ProviderConfig[];
   roles: Record<string, Partial<Role>>;
   fallbackChain: string[];
+  activeTemplate?: string;
 }

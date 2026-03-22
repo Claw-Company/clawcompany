@@ -8,6 +8,7 @@ import {
   getDefaultConfig,
   resolveRoles,
   MODEL_PRICING,
+  TEMPLATES,
 } from '@clawcompany/shared';
 import { ProviderRegistry } from '@clawcompany/providers';
 import { ModelRouter } from '@clawcompany/model-router';
@@ -104,6 +105,61 @@ app.get('/api/company', (_req, res) => {
     res.json({ name: 'My AI Company', template: 'default' });
   }
 });
+
+// ──── Templates ────
+
+app.get('/api/templates', (_req, res) => {
+  const list = Object.values(TEMPLATES).map(t => ({
+    id: t.id, name: t.name, icon: t.icon, description: t.description, roleCount: t.roles.length,
+  }));
+  res.json(list);
+});
+
+app.get('/api/templates/active', (_req, res) => {
+  res.json({ templateId: clawConfig.activeTemplate ?? 'default' });
+});
+
+app.put('/api/templates/active', (req, res) => {
+  const { templateId } = req.body;
+  if (!templateId || !TEMPLATES[templateId]) {
+    return res.status(400).json({ ok: false, error: `Unknown template: ${templateId}. Available: ${Object.keys(TEMPLATES).join(', ')}` });
+  }
+
+  const template = TEMPLATES[templateId];
+
+  // Build new roles map: template builtin roles + keep custom (non-builtin) roles
+  const newRoles: Record<string, Partial<import('@clawcompany/shared').Role>> = {};
+  for (const role of template.roles) {
+    newRoles[role.id] = { model: role.model, provider: role.provider };
+  }
+  // Preserve custom roles from current config
+  for (const [id, overrides] of Object.entries(clawConfig.roles)) {
+    if (overrides.name && overrides.model && !newRoles[id]) {
+      newRoles[id] = overrides;
+    }
+  }
+
+  clawConfig.activeTemplate = templateId;
+  clawConfig.roles = newRoles;
+
+  // Persist
+  const homeDir = process.env.HOME ?? '~';
+  const configPath = `${homeDir}/.clawcompany/config.json`;
+  try {
+    let userConfig: any = {};
+    if (existsSync(configPath)) {
+      userConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
+    }
+    userConfig.activeTemplate = templateId;
+    userConfig.roles = newRoles;
+    writeFileSync(configPath, JSON.stringify(userConfig, null, 2));
+  } catch {}
+
+  const roles = resolveRoles(clawConfig);
+  res.json({ ok: true, template: templateId, roles: roles.map(r => ({ id: r.id, name: r.name, model: r.model })) });
+});
+
+// ──── Roles ────
 
 app.get('/api/roles', (_req, res) => {
   const roles = resolveRoles(clawConfig);
@@ -1006,6 +1062,21 @@ const server = app.listen(PORT, async () => {
       }
       if (userConfig.channels?.discord?.token && !process.env.DISCORD_BOT_TOKEN) {
         process.env.DISCORD_BOT_TOKEN = userConfig.channels.discord.token;
+      }
+      // Restore active template and roles
+      if (userConfig.activeTemplate && TEMPLATES[userConfig.activeTemplate]) {
+        clawConfig.activeTemplate = userConfig.activeTemplate;
+        if (userConfig.roles) {
+          clawConfig.roles = userConfig.roles;
+        } else {
+          // Build roles map from template
+          const template = TEMPLATES[userConfig.activeTemplate];
+          const rolesMap: Record<string, any> = {};
+          for (const role of template.roles) {
+            rolesMap[role.id] = { model: role.model, provider: role.provider };
+          }
+          clawConfig.roles = rolesMap;
+        }
       }
     } catch {}
   }

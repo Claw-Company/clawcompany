@@ -4,7 +4,7 @@
 // AI roles execute autonomously under human direction
 // ============================================================
 
-import type { Role, ProviderConfig, ProviderCatalogEntry, ClawCompanyConfig } from './types.js';
+import type { Role, ProviderConfig, ProviderCatalogEntry, ClawCompanyConfig, CompanyTemplate } from './types.js';
 
 // ──────────────────────────────────────────
 // Provider Catalog — the default "shelf"
@@ -425,6 +425,214 @@ CRITICAL: When collecting data (prices, statistics, figures), you MUST use tools
 ];
 
 // ──────────────────────────────────────────
+// Company Templates
+// ──────────────────────────────────────────
+
+export const DEFAULT_TEMPLATE: CompanyTemplate = {
+  id: 'default',
+  name: 'Default',
+  icon: '🦞',
+  description: 'General purpose AI company — 9 roles, 4 models',
+  roles: BUILTIN_ROLES,
+};
+
+const YC_STARTUP_ROLES: Role[] = [
+  {
+    id: 'founder_coach',
+    name: 'Founder Coach',
+    description: 'YC-style partner — rethinks problems before executing.',
+    systemPrompt: `You are the Founder Coach — a YC-style partner who has seen 10,000 startups.
+When the Chairman gives you a mission or idea, DO NOT execute it immediately. Your job is to RETHINK THE PROBLEM FIRST.
+
+PHASE 1 — UNDERSTAND:
+1. What specific pain are we solving?
+2. Who experiences this pain?
+3. What do they do today?
+4. Why hasn't someone solved this?
+5. What would a 10-star version look like?
+6. What's the simplest version we could ship this week?
+
+PHASE 2 — CHALLENGE: Push back on the framing. Identify hidden assumptions. Suggest alternatives.
+
+PHASE 3 — DESIGN DOC: Problem statement, Target user, Core insight, MVP scope, Success metrics, Risks.
+
+DELEGATION: Architecture → Tech Lead, UI/UX → Designer, Implementation → Engineer, Testing → QA, Growth → Growth Hacker, Market analysis → Product Manager.
+
+COST AWARENESS: You are the most expensive role. Delegate execution immediately after alignment.`,
+    model: 'claude-opus-4-6',
+    provider: 'clawapi',
+    reportsTo: null,
+    canDelegateTo: ['product_manager', 'tech_lead', 'designer', 'engineer', 'qa', 'growth_hacker'],
+    canEscalateTo: [],
+    budgetTier: 'earn',
+    budgetMonthly: null,
+    maxTokensPerTask: null,
+    tools: ['web_fetch', 'web_search', 'price_feed', 'browser_use'],
+    skills: [],
+    isBuiltin: true,
+    isActive: true,
+    heartbeatInterval: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'product_manager',
+    name: 'Product Manager',
+    description: 'Owns the "what" and "why" — specs, user stories, prioritization.',
+    systemPrompt: `You are the Product Manager — you own the "what" and "why."
+Translate vision into actionable specs. Define user stories with acceptance criteria. Prioritize ruthlessly. Say NO to features that don't serve the core user. Every feature ships with a way to measure its impact.`,
+    model: 'claude-sonnet-4-6',
+    provider: 'clawapi',
+    reportsTo: 'founder_coach',
+    canDelegateTo: ['designer', 'engineer', 'growth_hacker'],
+    canEscalateTo: ['founder_coach'],
+    budgetTier: 'save',
+    budgetMonthly: null,
+    maxTokensPerTask: null,
+    tools: ['web_fetch', 'web_search'],
+    skills: [],
+    isBuiltin: true,
+    isActive: true,
+    heartbeatInterval: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'tech_lead',
+    name: 'Tech Lead',
+    description: 'Technical architecture, engineering quality, system design.',
+    systemPrompt: `You are the Tech Lead — you own technical architecture and engineering quality.
+Review every plan for technical feasibility. Design system architecture: data flow, APIs, edge cases. Identify technical debt. Enforce coding standards and security practices.
+
+Principles: Simple > clever. Make it work, make it right, make it fast.`,
+    model: 'gpt-5.4',
+    provider: 'clawapi',
+    reportsTo: 'founder_coach',
+    canDelegateTo: ['engineer', 'qa'],
+    canEscalateTo: ['founder_coach'],
+    budgetTier: 'save',
+    budgetMonthly: null,
+    maxTokensPerTask: null,
+    tools: ['shell', 'filesystem', 'http', 'code_interpreter', 'web_fetch'],
+    skills: ['coding'],
+    isBuiltin: true,
+    isActive: true,
+    heartbeatInterval: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'designer',
+    name: 'Designer',
+    description: 'User experience, interface design, user flows.',
+    systemPrompt: `You are the Designer — you own the user experience.
+Design intuitive interfaces. Create user flows before wireframes. Push for simplicity.
+
+Principles: "Don't make me think." One primary action per screen. The best UI is no UI.
+Rate designs 0-10 on: Clarity, Simplicity, Delight, Consistency, Accessibility.`,
+    model: 'claude-sonnet-4-6',
+    provider: 'clawapi',
+    reportsTo: 'founder_coach',
+    canDelegateTo: ['engineer'],
+    canEscalateTo: ['founder_coach'],
+    budgetTier: 'save',
+    budgetMonthly: null,
+    maxTokensPerTask: null,
+    tools: ['web_fetch', 'web_search', 'browser_use'],
+    skills: [],
+    isBuiltin: true,
+    isActive: true,
+    heartbeatInterval: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'engineer',
+    name: 'Engineer',
+    description: 'Code implementation, debugging, testing, feature development.',
+    systemPrompt: `You are the Engineer — you write the code that ships.
+Read the spec FIRST. Write tests alongside code. Small commits. Handle errors. No magic numbers. DRY but don't over-abstract. Working software > perfect software.`,
+    model: 'gpt-5.4',
+    provider: 'clawapi',
+    reportsTo: 'tech_lead',
+    canDelegateTo: ['qa'],
+    canEscalateTo: ['tech_lead'],
+    budgetTier: 'save',
+    budgetMonthly: null,
+    maxTokensPerTask: null,
+    tools: ['shell', 'filesystem', 'http', 'code_interpreter', 'browser_use'],
+    skills: ['coding'],
+    isBuiltin: true,
+    isActive: true,
+    heartbeatInterval: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'qa',
+    name: 'QA',
+    description: 'Testing — happy path, edge cases, error paths, security, performance.',
+    systemPrompt: `You are the QA Engineer — you break things so users don't have to.
+Test: happy path, edge cases, error paths, security, performance, regression.
+
+Bug report format: Title, Steps to reproduce, Expected, Actual, Severity.`,
+    model: 'gpt-5-mini',
+    provider: 'clawapi',
+    reportsTo: 'tech_lead',
+    canDelegateTo: [],
+    canEscalateTo: ['tech_lead'],
+    budgetTier: 'save',
+    budgetMonthly: null,
+    maxTokensPerTask: null,
+    tools: ['shell', 'filesystem', 'http', 'browser_use'],
+    skills: [],
+    isBuiltin: true,
+    isActive: true,
+    heartbeatInterval: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'growth_hacker',
+    name: 'Growth Hacker',
+    description: 'User acquisition, activation, retention — AARRR framework.',
+    systemPrompt: `You are the Growth Hacker — you find users and make them stay.
+AARRR framework: Acquisition, Activation, Retention, Revenue, Referral.
+
+Design experiments: Hypothesis, Control, Variant, Sample size, Success criteria.
+Measure everything. Retention > acquisition.`,
+    model: 'gemini-3.1-flash-lite',
+    provider: 'clawapi',
+    reportsTo: 'product_manager',
+    canDelegateTo: [],
+    canEscalateTo: ['product_manager'],
+    budgetTier: 'save',
+    budgetMonthly: null,
+    maxTokensPerTask: null,
+    tools: ['web_fetch', 'web_search', 'price_feed', 'browser_use'],
+    skills: [],
+    isBuiltin: true,
+    isActive: true,
+    heartbeatInterval: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+
+export const YC_STARTUP_TEMPLATE: CompanyTemplate = {
+  id: 'yc_startup',
+  name: 'YC Startup',
+  icon: '🚀',
+  description: 'Lean startup team — 7 roles, YC methodology, ship fast',
+  roles: YC_STARTUP_ROLES,
+};
+
+export const TEMPLATES: Record<string, CompanyTemplate> = {
+  default: DEFAULT_TEMPLATE,
+  yc_startup: YC_STARTUP_TEMPLATE,
+};
+
+// ──────────────────────────────────────────
 // Default Fallback Chain
 // ──────────────────────────────────────────
 
@@ -467,30 +675,36 @@ export function getDefaultConfig(): ClawCompanyConfig {
     providers: [DEFAULT_CLAWAPI_PROVIDER],
     roles: rolesMap,
     fallbackChain: DEFAULT_FALLBACK_CHAIN,
+    activeTemplate: 'default',
   };
 }
 
-export function getBuiltinRole(id: string): Role | undefined {
-  return BUILTIN_ROLES.find((r) => r.id === id);
+export function getBuiltinRole(id: string, templateId?: string): Role | undefined {
+  const template = TEMPLATES[templateId ?? 'default'] ?? DEFAULT_TEMPLATE;
+  return template.roles.find((r) => r.id === id);
 }
 
 export function resolveRoles(config: ClawCompanyConfig): Role[] {
+  const templateId = config.activeTemplate ?? 'default';
+  const template = TEMPLATES[templateId] ?? DEFAULT_TEMPLATE;
   const resolved: Role[] = [];
+
   for (const [id, overrides] of Object.entries(config.roles)) {
-    const builtin = getBuiltinRole(id);
+    const builtin = template.roles.find(r => r.id === id);
     if (builtin) {
       resolved.push({ ...builtin, ...overrides, id, isBuiltin: true, updatedAt: new Date().toISOString() });
     } else {
       if (!overrides.name || !overrides.model) {
-        throw new Error(`Custom role "${id}" must have at least "name" and "model"`);
+        // Skip roles from other templates that aren't in the active one
+        continue;
       }
       resolved.push({
         id, name: overrides.name, description: overrides.description ?? '',
         systemPrompt: overrides.systemPrompt ?? `You are ${overrides.name}.`,
         model: overrides.model, provider: overrides.provider ?? config.providers[0]?.id ?? 'clawapi',
-        reportsTo: overrides.reportsTo ?? 'ceo',
+        reportsTo: overrides.reportsTo ?? null,
         canDelegateTo: overrides.canDelegateTo ?? [],
-        canEscalateTo: overrides.canEscalateTo ?? [overrides.reportsTo ?? 'ceo'],
+        canEscalateTo: overrides.canEscalateTo ?? [],
         budgetTier: overrides.budgetTier ?? 'save',
         budgetMonthly: overrides.budgetMonthly ?? null,
         maxTokensPerTask: overrides.maxTokensPerTask ?? null,
