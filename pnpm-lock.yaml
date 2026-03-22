@@ -137,12 +137,13 @@ importers:
       express:
         specifier: ^4.21.0
         version: 4.22.1
-      node-pty:
-        specifier: ^1.1.0
-        version: 1.1.0
       ws:
         specifier: ^8.20.0
         version: 8.20.0
+    optionalDependencies:
+      node-pty:
+        specifier: ^1.1.0
+        version: 1.1.0
 
 packages:
 
@@ -2396,11 +2397,13 @@ snapshots:
 
   negotiator@0.6.3: {}
 
-  node-addon-api@7.1.1: {}
+  node-addon-api@7.1.1:
+    optional: true
 
   node-pty@1.1.0:
     dependencies:
       node-addon-api: 7.1.1
+    optional: true
 
   object-assign@4.1.1: {}
 
