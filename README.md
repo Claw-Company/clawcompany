@@ -188,15 +188,28 @@ clawcompany role set cto --model deepseek-coder --provider deepseek
 
 ---
 
-## Company templates
+## 💻 Code Manager — ∞ terminals. One Dashboard.
 
-| Template | Roles | Best for |
-|----------|-------|----------|
-| **Default** | Full team (9 roles) | General purpose |
-| **Trading Desk** | + Trader + Data Collector | Crypto / DeFi |
-| **Content Agency** | + Writer + Editor + SEO | Content production |
-| **Dev Shop** | + QA + DevOps | Software development |
-| **Solo Founder** | CEO + Worker only | Maximum efficiency |
+Run Claude Code, Codex, Cursor, and any CLI tool from browser tabs. Full PTY terminal with ANSI colors and interactive input.
+
+- 7 projects. 5 running. 2 stopped. One glance.
+- Start all → green dots. Stop all → done.
+- Process completes → phone buzzes (Telegram/Discord).
+- Real terminal. Not a text viewer.
+
+![Code Manager](assets/code-manager.png)
+
+---
+
+## 🚀 Company Templates — Switch your org chart in one click
+
+Pre-built role configurations for different business types. Switch instantly, keep your custom roles.
+
+- 🦞 **Default** — 9 roles, 4 AI models, general purpose
+- 🚀 **YC Startup** — 7 roles, YC methodology, ship fast
+- More coming: Media Studio, Trading Desk, E-Commerce
+
+![Templates](assets/templates.png)
 
 ---
 
