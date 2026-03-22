@@ -200,9 +200,13 @@ export class CodeManager extends EventEmitter {
     session.pid = pty.pid;
 
     pty.onData((data: string) => {
-      buffer.push(data);
+      // Filter out Device Attributes responses that leak into input
+      const filtered = data.replace(/\x1b\[\?[0-9;]*c/g, '').replace(/O\?[0-9;]*c/g, '');
+      if (!filtered) return;
+
+      buffer.push(filtered);
       while (buffer.length > 2000) buffer.shift();
-      this.emit('output', { sessionId: id, data });
+      this.emit('output', { sessionId: id, data: filtered });
     });
 
     pty.onExit(({ exitCode }: { exitCode: number }) => {
