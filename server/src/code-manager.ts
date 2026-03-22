@@ -70,6 +70,7 @@ export class CodeManager extends EventEmitter {
   private processes = new Map<string, any>();
   private outputBuffers = new Map<string, string[]>();
   private configPath: string;
+  private _batchMode = false;
 
   readonly hasPty: boolean;
 
@@ -178,6 +179,10 @@ export class CodeManager extends EventEmitter {
     this.save();
 
     console.log(`  [Code] Started "${session.name}" ${this.hasPty ? '(PTY)' : '(spawn)'} in ${expandedPath}`);
+
+    if (session.notify && !this._batchMode) {
+      this.emit('notify', { sessionId: id, message: `🟢 [Code] Started "${session.name}" — ${session.path}` });
+    }
   }
 
   private startPty(id: string, session: CodeSession, fullCmd: string, cwd: string, buffer: string[]): void {
@@ -212,7 +217,11 @@ export class CodeManager extends EventEmitter {
 
       if (session.notify) {
         const emoji = exitCode === 0 ? '✅' : '❌';
-        const msg = `${emoji} [Code] "${session.name}" ${exitCode === 0 ? 'completed' : `exited (code ${exitCode})`}\n📁 ${session.path}\n⏱ Runtime: ${runtime}`;
+        let msg = `${emoji} [Code] "${session.name}" ${exitCode === 0 ? 'completed' : `exited (code ${exitCode})`} — Runtime: ${runtime}`;
+        if (exitCode !== 0) {
+          const lastLine = this.getLastOutputLine(id);
+          if (lastLine) msg += `\nLast: ${lastLine}`;
+        }
         this.emit('notify', { sessionId: id, message: msg });
       }
     });
@@ -259,7 +268,11 @@ export class CodeManager extends EventEmitter {
 
       if (session.notify) {
         const emoji = code === 0 ? '✅' : '❌';
-        const msg = `${emoji} [Code] "${session.name}" ${code === 0 ? 'completed' : `exited (code ${code})`}\n📁 ${session.path}\n⏱ Runtime: ${runtime}`;
+        let msg = `${emoji} [Code] "${session.name}" ${code === 0 ? 'completed' : `exited (code ${code})`} — Runtime: ${runtime}`;
+        if (code !== 0) {
+          const lastLine = this.getLastOutputLine(id);
+          if (lastLine) msg += `\nLast: ${lastLine}`;
+        }
         this.emit('notify', { sessionId: id, message: msg });
       }
     });
@@ -316,17 +329,27 @@ export class CodeManager extends EventEmitter {
 
   startAll(): string[] {
     const started: string[] = [];
+    this._batchMode = true;
     for (const session of this.sessions) {
       if (!this.processes.has(session.id)) {
         try { this.start(session.id); started.push(session.id); }
         catch (err: any) { console.error(`  [Code] Failed to start "${session.name}": ${err.message}`); }
       }
     }
+    this._batchMode = false;
+    if (started.length > 0) {
+      const names = started.map(id => this.get(id)?.name).filter(Boolean).join(', ');
+      this.emit('notify', { message: `🟢 [Code] Started ${started.length} projects: ${names}` });
+    }
     return started;
   }
 
   stopAll(): void {
+    const count = this.processes.size;
     for (const id of this.processes.keys()) this.stop(id);
+    if (count > 0) {
+      this.emit('notify', { message: `🔴 [Code] Stopped all ${count} projects` });
+    }
   }
 
   // ──── Output ────
@@ -340,6 +363,20 @@ export class CodeManager extends EventEmitter {
   }
 
   static getPresets() { return Object.entries(TOOL_PRESETS).map(([id, p]) => ({ id, ...p })); }
+
+  private getLastOutputLine(id: string): string | null {
+    const buf = this.outputBuffers.get(id);
+    if (!buf || buf.length === 0) return null;
+    // Walk backwards to find last non-empty line
+    for (let i = buf.length - 1; i >= 0; i--) {
+      // PTY mode: raw ANSI string; spawn mode: JSON entry
+      let text = buf[i];
+      try { text = JSON.parse(text).text ?? text; } catch {}
+      const clean = text.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').trim();
+      if (clean) return clean.length > 200 ? clean.slice(0, 200) + '…' : clean;
+    }
+    return null;
+  }
 
   private calcRuntime(session: CodeSession): string {
     const start = session.lastStarted ? new Date(session.lastStarted).getTime() : Date.now();
