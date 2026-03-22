@@ -162,7 +162,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 .code-toolbar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg3);border-bottom:1px solid var(--border);font-size:11px}
 .code-toolbar .path{color:var(--text3);font-family:monospace}
 .code-toolbar .badge{font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(29,158,117,.15);color:#5dcaa5}
-.code-output{background:#0d0f14;padding:12px;font-family:'Menlo','Monaco','Courier New',monospace;font-size:11.5px;line-height:1.7;color:#9ca3af;min-height:320px;max-height:420px;overflow-y:auto;border-radius:0 0 var(--radius) var(--radius)}
+.code-output{background:#0d0f14;min-height:360px;max-height:460px;overflow:hidden;border-radius:0 0 var(--radius) var(--radius);position:relative}
+.code-output .xterm{padding:8px}
+.code-output .xterm-viewport{overflow-y:auto!important}
 .code-line{margin:1px 0;word-break:break-all}
 .code-line .ts{color:#6b7280}
 .code-line .ok{color:#5dcaa5}
@@ -245,6 +247,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/15.0.7/marked.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css">
+<script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
 </head>
 <body>
 
@@ -1754,11 +1759,11 @@ function appendToStore(roleId, msgRole, content, meta) {
   chatStore[roleId].html += bubble;
 }
 
-// ── Code Manager ──
+// ── Code Manager v2 ──
 
 let codeSessions = [];
 let codeActiveId = null;
-let codeSSE = null;
+let codeTerminals = {}; // { sessionId: { term, fitAddon, ws, isPty, termEl } }
 
 async function loadCode() {
   try {
@@ -1766,242 +1771,208 @@ async function loadCode() {
     codeSessions = await res.json();
     renderCodeTabs();
     renderCodeStatus();
-
-    // Auto-select first tab if none active
     if (!codeActiveId && codeSessions.length > 0) {
       codeSelectTab(codeSessions[0].id);
     } else if (codeActiveId) {
       codeSelectTab(codeActiveId);
     }
-  } catch(e) {
-    console.error('Failed to load code sessions:', e);
-  }
+  } catch(e) { console.error('Failed to load code sessions:', e); }
 }
 
 function renderCodeTabs() {
   const el = document.getElementById('codeTabs');
   if (!el) return;
-
   if (codeSessions.length === 0) {
     el.innerHTML = '';
     document.getElementById('codeToolbar').style.display = 'none';
-    document.getElementById('codeOutput').innerHTML = `<div class="code-empty">
-      <p style="font-size:20px">💻</p>
-      <p style="font-size:14px;font-weight:500;color:var(--text)">No projects yet</p>
-      <p style="font-size:12px">Click "+ Add project" to manage your AI coding tools.</p>
-    </div>`;
+    const out = document.getElementById('codeOutput');
+    out.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#6b7280"><p style="font-size:20px">💻</p><p style="font-size:14px;font-weight:500;color:#e4e4e7">No projects yet</p><p style="font-size:12px">Click "+ Add project" to manage your AI coding tools.</p></div>';
     return;
   }
-
   el.innerHTML = codeSessions.map(s => {
     const dotClass = s.status === 'running' ? 'on' : s.status === 'error' ? 'err' : 'off';
     const active = s.id === codeActiveId ? ' active' : '';
-    return `<div class="code-tab${active}" onclick="codeSelectTab('${s.id}')">
-      <span class="code-dot ${dotClass}"></span>${s.name}
-      <span class="code-tab-x" onclick="event.stopPropagation();codeDeleteProject('${s.id}')">✕</span>
-    </div>`;
+    return `<div class="code-tab${active}" onclick="codeSelectTab('${s.id}')"><span class="code-dot ${dotClass}"></span>${s.name}<span class="code-tab-x" onclick="event.stopPropagation();codeDeleteProject('${s.id}')">✕</span></div>`;
   }).join('') + '<div class="code-tab-add" onclick="toggleCodeAdd()">+</div>';
 }
 
 function renderCodeStatus() {
   const el = document.getElementById('codeStatusBar');
   if (!el) return;
-  const running = codeSessions.filter(s => s.status === 'running').length;
-  const stopped = codeSessions.filter(s => s.status === 'stopped').length;
-  const error = codeSessions.filter(s => s.status === 'error').length;
-  el.textContent = `${codeSessions.length} projects | ${running} running | ${stopped} stopped${error ? ` | ${error} error` : ''}`;
+  const r = codeSessions.filter(s => s.status === 'running').length;
+  const st = codeSessions.filter(s => s.status === 'stopped').length;
+  const er = codeSessions.filter(s => s.status === 'error').length;
+  el.textContent = `${codeSessions.length} projects | ${r} running | ${st} stopped${er ? ` | ${er} error` : ''}`;
 }
 
-async function codeSelectTab(id) {
+function codeSelectTab(id) {
   codeActiveId = id;
   renderCodeTabs();
-
   const session = codeSessions.find(s => s.id === id);
   if (!session) return;
 
-  // Clear output immediately to prevent stale content
-  document.getElementById('codeOutput').innerHTML = '<div class="code-line" style="color:#6b7280">Waiting for output...</div>';
-
-  // Toolbar
   const toolbar = document.getElementById('codeToolbar');
   toolbar.style.display = 'flex';
-
   const toolLabels = { claude: 'Claude Code', codex: 'Codex', cursor: 'Cursor', custom: 'Custom' };
   const isRunning = session.status === 'running';
+  toolbar.innerHTML = `<span class="path">${session.path}</span><span class="badge">${toolLabels[session.tool] || session.tool}</span><span style="flex:1"></span>${isRunning ? `<button class="btn-sm" onclick="codeStop('${id}')" style="font-size:11px;border-color:rgba(226,75,74,.3);color:#e24b4a">Stop</button><button class="btn-sm" onclick="codeRestart('${id}')" style="font-size:11px">Restart</button>` : `<button class="btn-sm" onclick="codeStart('${id}')" style="font-size:11px;border-color:rgba(29,158,117,.4);color:#5dcaa5">Start</button>`}<button class="btn-sm" onclick="codeClear('${id}')" style="font-size:11px">Clear</button>`;
 
-  toolbar.innerHTML = `
-    <span class="path">${session.path}</span>
-    <span class="badge">${toolLabels[session.tool] || session.tool}</span>
-    <span style="flex:1"></span>
-    ${isRunning
-      ? `<button class="btn-sm" onclick="codeStop('${id}')" style="font-size:11px;border-color:rgba(226,75,74,.3);color:#e24b4a">Stop</button>
-         <button class="btn-sm" onclick="codeRestart('${id}')" style="font-size:11px">Restart</button>`
-      : `<button class="btn-sm" onclick="codeStart('${id}')" style="font-size:11px;border-color:rgba(29,158,117,.4);color:#5dcaa5">Start</button>`
-    }
-    <button class="btn-sm" onclick="codeClear('${id}')" style="font-size:11px">Clear</button>
-  `;
-
-  // Load output history
-  try {
-    const res = await fetch(API + '/api/code/sessions/' + id + '/output');
-    const lines = await res.json();
-    if (lines.length === 0) {
-      document.getElementById('codeOutput').innerHTML = '<div class="code-line" style="color:#6b7280">Waiting for output...</div>';
-    } else {
-      renderCodeOutput(lines);
-    }
-  } catch {
-    document.getElementById('codeOutput').innerHTML = '<div class="code-line" style="color:#6b7280">Waiting for output...</div>';
+  const container = document.getElementById('codeOutput');
+  // Hide all terminals
+  Object.values(codeTerminals).forEach(t => { if (t.termEl) t.termEl.style.display = 'none'; });
+  // Show or create terminal
+  if (codeTerminals[id]) {
+    codeTerminals[id].termEl.style.display = '';
+    try { if (codeTerminals[id].fitAddon) codeTerminals[id].fitAddon.fit(); } catch {}
+  } else {
+    codeCreateTerminal(id, container);
   }
-
-  // Connect SSE
-  codeConnectSSE(id);
+  // Connect WS if running
+  if (isRunning && (!codeTerminals[id]?.ws || codeTerminals[id].ws.readyState > 1)) {
+    codeConnectWS(id);
+  }
 }
 
-function renderCodeOutput(lines) {
-  const el = document.getElementById('codeOutput');
-  if (lines.length === 0) {
-    el.innerHTML = '<div class="code-line" style="color:#6b7280">Waiting for output...</div>';
-    return;
-  }
-  el.innerHTML = lines.map(raw => {
-    try {
-      const d = typeof raw === 'string' ? JSON.parse(raw) : raw;
-      const cls = d.stream === 'stderr' ? 'err' : d.stream === 'system' ? 'sys' : d.text?.includes('✓') || d.text?.includes('passed') || d.text?.includes('Done') || d.text?.includes('Ready') ? 'ok' : d.text?.includes('error') || d.text?.includes('Error') || d.text?.includes('FAIL') ? 'err' : d.text?.includes('warn') || d.text?.includes('Warning') ? 'sys' : d.text?.startsWith('$') || d.text?.startsWith('>') ? 'info' : '';
-      return `<div class="code-line"><span class="ts">${d.ts}</span> <span class="${cls}">${escHtml(d.text)}</span></div>`;
-    } catch {
-      return `<div class="code-line">${escHtml(String(raw))}</div>`;
+function codeCreateTerminal(id, container) {
+  const termEl = document.createElement('div');
+  termEl.style.height = '100%';
+  termEl.style.minHeight = '360px';
+  container.appendChild(termEl);
+
+  const term = new Terminal({
+    cursorBlink: true, cursorStyle: 'bar', fontSize: 13,
+    fontFamily: "'Menlo','Monaco','Courier New',monospace",
+    lineHeight: 1.4,
+    theme: {
+      background: '#0d0f14', foreground: '#d4d4d8', cursor: '#d85a30', cursorAccent: '#0d0f14',
+      selectionBackground: 'rgba(216,90,48,0.3)',
+      black: '#1a1e26', red: '#e24b4a', green: '#5dcaa5', yellow: '#ef9f27',
+      blue: '#85b7eb', magenta: '#d4537e', cyan: '#5dcaa5', white: '#d4d4d8',
+      brightBlack: '#6b7280', brightRed: '#f09595', brightGreen: '#9fe1cb', brightYellow: '#fac775',
+      brightBlue: '#b5d4f4', brightMagenta: '#ed93b1', brightCyan: '#9fe1cb', brightWhite: '#e4e4e7',
+    },
+    scrollback: 5000, allowProposedApi: true,
+  });
+  const FitAddonClass = (typeof FitAddon !== 'undefined') ? (FitAddon.FitAddon || FitAddon) : null;
+  const fitAddon = FitAddonClass ? new FitAddonClass() : null;
+  if (fitAddon) term.loadAddon(fitAddon);
+  term.open(termEl);
+  try { if (fitAddon) fitAddon.fit(); } catch {}
+  term.writeln('\x1b[90m  Waiting for output... Press Start to begin.\x1b[0m');
+
+  codeTerminals[id] = { term, fitAddon, termEl, ws: null, isPty: false };
+
+  new ResizeObserver(() => { try { if (fitAddon) fitAddon.fit(); } catch {} }).observe(container);
+
+  term.onData((data) => {
+    const t = codeTerminals[id];
+    if (t?.ws && t.isPty && t.ws.readyState === 1) {
+      t.ws.send(JSON.stringify({ type: 'input', data }));
     }
-  }).join('');
-  el.scrollTop = el.scrollHeight;
+  });
+  term.onResize(({ cols, rows }) => {
+    const t = codeTerminals[id];
+    if (t?.ws && t.isPty && t.ws.readyState === 1) {
+      t.ws.send(JSON.stringify({ type: 'resize', cols, rows }));
+    }
+  });
 }
 
-function codeConnectSSE(id) {
-  if (codeSSE) { codeSSE.close(); codeSSE = null; }
+function codeConnectWS(id) {
+  const t = codeTerminals[id];
+  if (!t) return;
+  if (t.ws) { try { t.ws.close(); } catch {} }
 
-  const session = codeSessions.find(s => s.id === id);
-  if (!session || session.status !== 'running') return;
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(`${proto}//${location.host}/ws/code/${id}`);
+  t.ws = ws;
 
-  codeSSE = new EventSource(API + '/api/code/sessions/' + id + '/stream');
-  codeSSE.onmessage = (e) => {
-    if (codeActiveId !== id) return;
+  ws.onmessage = (e) => {
     try {
-      const d = JSON.parse(e.data);
-      const el = document.getElementById('codeOutput');
-      const cls = d.stream === 'stderr' ? 'err' : d.stream === 'system' ? 'sys' : d.text?.includes('✓') || d.text?.includes('passed') || d.text?.includes('Done') || d.text?.includes('Ready') ? 'ok' : d.text?.includes('error') || d.text?.includes('Error') ? 'err' : d.text?.startsWith('$') ? 'info' : '';
-      el.innerHTML += `<div class="code-line"><span class="ts">${d.ts}</span> <span class="${cls}">${escHtml(d.text)}</span></div>`;
-      el.scrollTop = el.scrollHeight;
-
-      // If process exited, refresh status
-      if (d.exit) {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'mode') { t.isPty = msg.pty; if (msg.pty) t.term.reset(); return; }
+      if (msg.type === 'replay') { t.term.reset(); t.term.write(msg.data); return; }
+      if (msg.type === 'output') { t.term.write(msg.data); return; }
+      if (msg.type === 'legacy') {
+        try { const d = JSON.parse(msg.data); t.term.writeln(`\x1b[90m${d.ts}\x1b[0m \x1b[${d.stream==='stderr'?'31':'0'}m${d.text}\x1b[0m`); }
+        catch { t.term.writeln(msg.data); }
+        return;
+      }
+      if (msg.type === 'exit') {
+        t.term.writeln('');
+        t.term.writeln(`\x1b[${msg.code===0?'32':'31'}m  Process exited (code ${msg.code}) — ${msg.runtime||''}\x1b[0m`);
         setTimeout(loadCode, 500);
+        return;
       }
     } catch {}
   };
-  codeSSE.onerror = () => {};
+  ws.onerror = () => {};
+  ws.onclose = () => {};
 }
 
 async function codeStart(id) {
   try {
     await fetch(API + '/api/code/sessions/' + id + '/start', { method: 'POST' });
+    if (codeTerminals[id]) codeTerminals[id].term.reset();
     await loadCode();
     codeSelectTab(id);
   } catch {}
 }
-
 async function codeStop(id) {
-  try {
-    await fetch(API + '/api/code/sessions/' + id + '/stop', { method: 'POST' });
-    if (codeSSE) { codeSSE.close(); codeSSE = null; }
-    setTimeout(loadCode, 1000);
-  } catch {}
+  try { await fetch(API + '/api/code/sessions/' + id + '/stop', { method: 'POST' }); setTimeout(loadCode, 1000); } catch {}
 }
-
 async function codeRestart(id) {
   try {
     await fetch(API + '/api/code/sessions/' + id + '/restart', { method: 'POST' });
+    if (codeTerminals[id]) codeTerminals[id].term.reset();
     setTimeout(() => { loadCode(); codeSelectTab(id); }, 1500);
   } catch {}
 }
-
 async function codeStartAll() {
-  try {
-    await fetch(API + '/api/code/start-all', { method: 'POST' });
-    setTimeout(loadCode, 1000);
-  } catch {}
+  try { await fetch(API + '/api/code/start-all', { method: 'POST' }); setTimeout(loadCode, 1000); } catch {}
 }
-
 async function codeStopAll() {
-  try {
-    await fetch(API + '/api/code/stop-all', { method: 'POST' });
-    if (codeSSE) { codeSSE.close(); codeSSE = null; }
-    setTimeout(loadCode, 1000);
-  } catch {}
+  try { await fetch(API + '/api/code/stop-all', { method: 'POST' }); setTimeout(loadCode, 1000); } catch {}
 }
-
 async function codeClear(id) {
   try {
     await fetch(API + '/api/code/sessions/' + id + '/clear', { method: 'POST' });
-    document.getElementById('codeOutput').innerHTML = '<div class="code-line" style="color:#6b7280">Output cleared.</div>';
+    if (codeTerminals[id]) { codeTerminals[id].term.reset(); codeTerminals[id].term.writeln('\x1b[90m  Output cleared.\x1b[0m'); }
   } catch {}
 }
 
-function toggleCodeAdd() {
-  document.getElementById('codeAddForm').classList.toggle('show');
-}
+function toggleCodeAdd() { document.getElementById('codeAddForm').classList.toggle('show'); }
 
 function onCodeToolChange() {
   const tool = document.getElementById('ca-tool').value;
   document.getElementById('ca-custom-cmd').style.display = tool === 'custom' ? 'block' : 'none';
-  const hints = {
-    claude: 'Claude Code runs in --print mode. Put your prompt in Args (e.g. "refactor the auth module")',
-    codex: 'Add your task in Args',
-    cursor: '',
-    custom: 'Any shell command: npm run dev, python app.py, etc.',
-  };
+  const hints = { claude: 'Interactive terminal — full Claude Code TUI in browser (requires node-pty + ws)', codex: 'Add task in Args', cursor: '', custom: 'Any shell command: npm run dev, python app.py, etc.' };
   document.getElementById('ca-hint').textContent = hints[tool] || '';
-  const placeholder = tool === 'claude' ? 'e.g. refactor the auth module' : tool === 'custom' ? 'e.g. --watch --port 3000' : 'optional arguments';
-  document.getElementById('ca-args').placeholder = placeholder;
+  document.getElementById('ca-args').placeholder = tool === 'claude' ? 'optional: --model opus' : tool === 'custom' ? 'e.g. --watch --port 3000' : 'optional arguments';
 }
 
 async function codeAddProject() {
   const tool = document.getElementById('ca-tool').value;
   const argsRaw = document.getElementById('ca-args').value.trim();
-  let args;
-  if (tool === 'claude' || tool === 'codex') {
-    // Prompt is a single argument, don't split
-    args = argsRaw ? [argsRaw] : [];
-  } else {
-    args = argsRaw ? argsRaw.split(/\s+/) : [];
-  }
-
+  const args = (tool === 'claude' || tool === 'codex') ? (argsRaw ? [argsRaw] : []) : (argsRaw ? argsRaw.split(/\s+/) : []);
   const body = {
     name: document.getElementById('ca-name').value.trim(),
     path: document.getElementById('ca-path').value.trim(),
     tool,
     command: tool === 'custom' ? document.getElementById('ca-command').value.trim() : undefined,
-    args,
-    notify: document.getElementById('ca-notify').checked,
+    args, notify: document.getElementById('ca-notify').checked,
   };
   if (!body.name || !body.path) return alert('Name and path are required');
   if (tool === 'custom' && !body.command) return alert('Custom command is required');
-  if ((tool === 'claude' || tool === 'codex') && args.length === 0) return alert('Prompt is required for ' + tool + ' — fill in the Args field');
-
   try {
-    const res = await fetch(API + '/api/code/sessions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    const res = await fetch(API + '/api/code/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     const data = await res.json();
     if (data.ok) {
       toggleCodeAdd();
-      ['ca-name', 'ca-path', 'ca-args', 'ca-command'].forEach(id => document.getElementById(id).value = '');
-      codeActiveId = data.session.id; // Set before loadCode so it selects the new tab
+      ['ca-name','ca-path','ca-args','ca-command'].forEach(id => document.getElementById(id).value = '');
+      codeActiveId = data.session.id;
       await loadCode();
-    } else {
-      alert(data.error);
-    }
+    } else { alert(data.error); }
   } catch(e) { alert('Failed: ' + e.message); }
 }
 
@@ -2009,12 +1980,17 @@ async function codeDeleteProject(id) {
   const session = codeSessions.find(s => s.id === id);
   if (!confirm(`Delete "${session?.name}"?`)) return;
   try {
+    if (codeTerminals[id]) {
+      if (codeTerminals[id].ws) codeTerminals[id].ws.close();
+      codeTerminals[id].term.dispose();
+      if (codeTerminals[id].termEl) codeTerminals[id].termEl.remove();
+      delete codeTerminals[id];
+    }
     await fetch(API + '/api/code/sessions/' + id, { method: 'DELETE' });
     if (codeActiveId === id) codeActiveId = null;
     await loadCode();
   } catch {}
 }
-
 // Init
 initChatRoles();
 loadHealth();

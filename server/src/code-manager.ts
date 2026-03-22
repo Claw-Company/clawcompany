@@ -1,14 +1,26 @@
 // ============================================================
-// Code Manager — Multi-tab terminal management for AI tools
+// Code Manager v2 — Full terminal emulation with node-pty
 //
-// Manages multiple child processes (Claude Code, Codex, Cursor, etc.)
-// with SSE output streaming, persistence, and channel notifications.
+// Each tab = real PTY with ANSI colors, cursor movement,
+// and interactive input via WebSocket.
+// Falls back to child_process.spawn if node-pty not available.
 // ============================================================
 
-import { spawn, ChildProcess } from 'child_process';
+import { spawn as cpSpawn } from 'child_process';
 import { EventEmitter } from 'events';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
+
+// Try to load node-pty (optional native dependency)
+let ptySpawn: any = null;
+try {
+  const pty = await import('node-pty');
+  ptySpawn = pty.spawn;
+  console.log('  💻 Code Manager: node-pty loaded (full terminal mode)');
+} catch {
+  console.log('  💻 Code Manager: node-pty not found (text-only mode)');
+  console.log('     └─ Install for full terminal: cd server && pnpm add node-pty');
+}
 
 // ──── Types ────
 
@@ -43,7 +55,7 @@ export interface CodeSessionInput {
 // ──── Tool Presets ────
 
 const TOOL_PRESETS: Record<string, { command: string; defaultArgs: string[]; label: string; hint: string }> = {
-  claude:  { command: 'claude',  defaultArgs: ['--print'],  label: 'Claude Code',  hint: 'Add your prompt in Args, e.g.: refactor the auth module' },
+  claude:  { command: 'claude',  defaultArgs: [],  label: 'Claude Code',  hint: 'Interactive terminal mode (requires node-pty)' },
   codex:   { command: 'codex',   defaultArgs: [],            label: 'OpenAI Codex', hint: 'Add task in Args' },
   cursor:  { command: 'cursor',  defaultArgs: ['--cli'],     label: 'Cursor',       hint: '' },
   custom:  { command: '',        defaultArgs: [],            label: 'Custom',       hint: 'Any shell command: npm run dev, python app.py, etc.' },
@@ -55,12 +67,15 @@ const COLORS = ['#d85a30', '#1d9e75', '#378add', '#d4537e', '#ba7517', '#7f77dd'
 
 export class CodeManager extends EventEmitter {
   private sessions: CodeSession[] = [];
-  private processes = new Map<string, ChildProcess>();
+  private processes = new Map<string, any>();
   private outputBuffers = new Map<string, string[]>();
   private configPath: string;
 
+  readonly hasPty: boolean;
+
   constructor() {
     super();
+    this.hasPty = ptySpawn !== null;
     const homeDir = process.env.HOME ?? '~';
     const configDir = join(homeDir, '.clawcompany');
     if (!existsSync(configDir)) mkdirSync(configDir, { recursive: true });
@@ -141,116 +156,158 @@ export class CodeManager extends EventEmitter {
     if (!session.command) throw new Error('No command configured');
 
     const expandedPath = session.path.replace(/^~/, process.env.HOME ?? '');
-
     if (!existsSync(expandedPath)) {
       throw new Error(`Path does not exist: ${expandedPath}`);
     }
 
-    // Build full command string with properly quoted args
     const quotedArgs = session.args.map(a => a.includes(' ') ? `"${a.replace(/"/g, '\\"')}"` : a);
     const fullCmd = [session.command, ...quotedArgs].join(' ');
 
-    const child = spawn(fullCmd, [], {
-      cwd: expandedPath,
+    if (!this.outputBuffers.has(id)) this.outputBuffers.set(id, []);
+    const buffer = this.outputBuffers.get(id)!;
+
+    if (this.hasPty) {
+      this.startPty(id, session, fullCmd, expandedPath, buffer);
+    } else {
+      this.startSpawn(id, session, fullCmd, expandedPath, buffer);
+    }
+
+    session.status = 'running';
+    session.lastStarted = new Date().toISOString();
+    session.exitCode = undefined;
+    this.save();
+
+    console.log(`  [Code] Started "${session.name}" ${this.hasPty ? '(PTY)' : '(spawn)'} in ${expandedPath}`);
+  }
+
+  private startPty(id: string, session: CodeSession, fullCmd: string, cwd: string, buffer: string[]): void {
+    const shell = process.env.SHELL || '/bin/zsh';
+    console.log(`  [Code] PTY spawn: shell=${shell}, args=['-l', '-c', '${fullCmd}'], cwd=${cwd}`);
+    const pty = ptySpawn(shell, ['-l', '-c', fullCmd], {
+      name: 'xterm-256color',
+      cols: 120,
+      rows: 30,
+      cwd,
+      env: { ...process.env, TERM: 'xterm-256color' },
+    });
+
+    this.processes.set(id, pty);
+    session.pid = pty.pid;
+
+    pty.onData((data: string) => {
+      buffer.push(data);
+      while (buffer.length > 2000) buffer.shift();
+      this.emit('output', { sessionId: id, data });
+    });
+
+    pty.onExit(({ exitCode }: { exitCode: number }) => {
+      this.processes.delete(id);
+      session.status = exitCode === 0 ? 'stopped' : 'error';
+      session.exitCode = exitCode;
+      session.pid = undefined;
+      this.save();
+
+      const runtime = this.calcRuntime(session);
+      this.emit('exit', { sessionId: id, code: exitCode, name: session.name, runtime });
+
+      if (session.notify) {
+        const emoji = exitCode === 0 ? '✅' : '❌';
+        const msg = `${emoji} [Code] "${session.name}" ${exitCode === 0 ? 'completed' : `exited (code ${exitCode})`}\n📁 ${session.path}\n⏱ Runtime: ${runtime}`;
+        this.emit('notify', { sessionId: id, message: msg });
+      }
+    });
+  }
+
+  private startSpawn(id: string, session: CodeSession, fullCmd: string, cwd: string, buffer: string[]): void {
+    const child = cpSpawn(fullCmd, [], {
+      cwd,
       env: { ...process.env, FORCE_COLOR: '0' },
       shell: true,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 
     this.processes.set(id, child);
-    session.status = 'running';
     session.pid = child.pid;
-    session.lastStarted = new Date().toISOString();
-    session.exitCode = undefined;
 
-    // Init output buffer
-    if (!this.outputBuffers.has(id)) this.outputBuffers.set(id, []);
-    const buffer = this.outputBuffers.get(id)!;
-
-    const addLine = (line: string, stream: 'stdout' | 'stderr') => {
-      const ts = new Date().toTimeString().slice(0, 8);
-      const entry = JSON.stringify({ ts, text: line, stream });
-      buffer.push(entry);
-      if (buffer.length > 500) buffer.shift();
-      this.emit('output', { sessionId: id, line: entry });
-    };
-
-    const onData = (stream: 'stdout' | 'stderr') => (data: Buffer) => {
+    const onData = (data: Buffer) => {
       const text = data.toString();
-      // Strip ANSI codes for v1
       const clean = text.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
-      const lines = clean.split('\n');
-      for (const line of lines) {
-        if (line.trim()) addLine(line, stream);
+      for (const line of clean.split('\n')) {
+        if (line.trim()) {
+          const ts = new Date().toTimeString().slice(0, 8);
+          const entry = JSON.stringify({ ts, text: line, stream: 'stdout' });
+          buffer.push(entry);
+          if (buffer.length > 500) buffer.shift();
+          this.emit('output', { sessionId: id, data: entry, legacy: true });
+        }
       }
     };
 
-    child.stdout?.on('data', onData('stdout'));
-    child.stderr?.on('data', onData('stderr'));
+    child.stdout?.on('data', onData);
+    child.stderr?.on('data', onData);
+    child.on('error', () => { session.status = 'error'; this.processes.delete(id); this.save(); });
 
-    child.on('error', (err) => {
-      addLine(`Process error: ${err.message}`, 'stderr');
-      session.status = 'error';
+    child.on('exit', (code: number | null) => {
       this.processes.delete(id);
-      this.save();
-      this.emit('exit', { sessionId: id, code: -1, name: session.name, error: err.message });
-    });
-
-    child.on('exit', (code) => {
-      this.processes.delete(id);
-      session.status = code === 0 ? 'stopped' : 'error';
+      session.status = (code ?? 1) === 0 ? 'stopped' : 'error';
       session.exitCode = code ?? -1;
       session.pid = undefined;
       this.save();
 
-      const startTime = session.lastStarted ? new Date(session.lastStarted).getTime() : Date.now();
-      const runtime = Math.round((Date.now() - startTime) / 1000);
-      const runtimeStr = runtime > 60 ? `${Math.floor(runtime / 60)}m ${runtime % 60}s` : `${runtime}s`;
+      const runtime = this.calcRuntime(session);
+      this.emit('exit', { sessionId: id, code, name: session.name, runtime });
 
-      this.emit('exit', { sessionId: id, code, name: session.name, runtime: runtimeStr });
-
-      // Notify via channels
       if (session.notify) {
         const emoji = code === 0 ? '✅' : '❌';
-        const msg = `${emoji} [Code] "${session.name}" ${code === 0 ? 'completed' : `exited (code ${code})`}\n📁 ${session.path}\n⏱ Runtime: ${runtimeStr}`;
+        const msg = `${emoji} [Code] "${session.name}" ${code === 0 ? 'completed' : `exited (code ${code})`}\n📁 ${session.path}\n⏱ Runtime: ${runtime}`;
         this.emit('notify', { sessionId: id, message: msg });
       }
     });
+  }
 
-    this.save();
-    console.log(`  [Code] Started "${session.name}" (${session.command} ${session.args.join(' ')}) in ${expandedPath}`);
+  // ──── Input & Resize (PTY only) ────
+
+  write(id: string, data: string): void {
+    const proc = this.processes.get(id);
+    if (proc && this.hasPty && proc.write) proc.write(data);
+  }
+
+  resize(id: string, cols: number, rows: number): void {
+    const proc = this.processes.get(id);
+    if (proc && this.hasPty && proc.resize) {
+      try { proc.resize(cols, rows); } catch {}
+    }
   }
 
   stop(id: string): void {
-    const child = this.processes.get(id);
-    if (!child) return;
-
+    const proc = this.processes.get(id);
+    if (!proc) return;
     console.log(`  [Code] Stopping "${this.get(id)?.name}"...`);
-    child.kill('SIGTERM');
 
-    // Force kill after 5s
-    const timer = setTimeout(() => {
-      if (this.processes.has(id)) {
-        child.kill('SIGKILL');
-        this.processes.delete(id);
-        const session = this.sessions.find(s => s.id === id);
-        if (session) {
-          session.status = 'stopped';
-          session.pid = undefined;
-          this.save();
+    if (this.hasPty && proc.kill) {
+      proc.kill();
+    } else if (proc.kill) {
+      proc.kill('SIGTERM');
+      setTimeout(() => {
+        if (this.processes.has(id)) {
+          proc.kill('SIGKILL');
+          this.processes.delete(id);
+          const session = this.sessions.find(s => s.id === id);
+          if (session) { session.status = 'stopped'; session.pid = undefined; this.save(); }
         }
-      }
-    }, 5000);
-
-    child.once('exit', () => clearTimeout(timer));
+      }, 5000);
+    }
   }
 
   restart(id: string): void {
     if (this.processes.has(id)) {
-      const child = this.processes.get(id)!;
-      child.once('exit', () => {
-        setTimeout(() => this.start(id), 500);
-      });
+      const handler = (data: any) => {
+        if (data.sessionId === id) {
+          this.off('exit', handler);
+          setTimeout(() => this.start(id), 500);
+        }
+      };
+      this.on('exit', handler);
       this.stop(id);
     } else {
       this.start(id);
@@ -261,60 +318,38 @@ export class CodeManager extends EventEmitter {
     const started: string[] = [];
     for (const session of this.sessions) {
       if (!this.processes.has(session.id)) {
-        try {
-          this.start(session.id);
-          started.push(session.id);
-        } catch (err: any) {
-          console.error(`  [Code] Failed to start "${session.name}": ${err.message}`);
-        }
+        try { this.start(session.id); started.push(session.id); }
+        catch (err: any) { console.error(`  [Code] Failed to start "${session.name}": ${err.message}`); }
       }
     }
     return started;
   }
 
   stopAll(): void {
-    for (const id of this.processes.keys()) {
-      this.stop(id);
-    }
+    for (const id of this.processes.keys()) this.stop(id);
   }
 
   // ──── Output ────
 
-  getOutput(id: string): string[] {
-    return this.outputBuffers.get(id) ?? [];
-  }
-
-  clearOutput(id: string): void {
-    this.outputBuffers.set(id, []);
-  }
-
-  // ──── Status ────
+  getOutput(id: string): string[] { return this.outputBuffers.get(id) ?? []; }
+  clearOutput(id: string): void { this.outputBuffers.set(id, []); }
 
   getStatus(): { total: number; running: number; stopped: number; error: number } {
-    const sessions = this.list();
-    return {
-      total: sessions.length,
-      running: sessions.filter(s => s.status === 'running').length,
-      stopped: sessions.filter(s => s.status === 'stopped').length,
-      error: sessions.filter(s => s.status === 'error').length,
-    };
+    const s = this.list();
+    return { total: s.length, running: s.filter(x => x.status === 'running').length, stopped: s.filter(x => x.status === 'stopped').length, error: s.filter(x => x.status === 'error').length };
   }
 
-  // ──── Presets ────
+  static getPresets() { return Object.entries(TOOL_PRESETS).map(([id, p]) => ({ id, ...p })); }
 
-  static getPresets() {
-    return Object.entries(TOOL_PRESETS).map(([id, p]) => ({ id, ...p }));
+  private calcRuntime(session: CodeSession): string {
+    const start = session.lastStarted ? new Date(session.lastStarted).getTime() : Date.now();
+    const secs = Math.round((Date.now() - start) / 1000);
+    return secs > 60 ? `${Math.floor(secs / 60)}m ${secs % 60}s` : `${secs}s`;
   }
-
-  // ──── Persistence ────
 
   private save(): void {
     try {
-      const data = this.sessions.map(s => ({
-        id: s.id, name: s.name, path: s.path, tool: s.tool,
-        command: s.command, args: s.args, autoStart: s.autoStart,
-        notify: s.notify, color: s.color, createdAt: s.createdAt,
-      }));
+      const data = this.sessions.map(s => ({ id: s.id, name: s.name, path: s.path, tool: s.tool, command: s.command, args: s.args, autoStart: s.autoStart, notify: s.notify, color: s.color, createdAt: s.createdAt }));
       writeFileSync(this.configPath, JSON.stringify(data, null, 2));
     } catch {}
   }
@@ -323,18 +358,9 @@ export class CodeManager extends EventEmitter {
     try {
       if (existsSync(this.configPath)) {
         const data = JSON.parse(readFileSync(this.configPath, 'utf-8'));
-        this.sessions = data.map((d: any) => ({
-          ...d,
-          status: 'stopped' as const,
-          pid: undefined,
-          exitCode: undefined,
-        }));
-        for (const s of this.sessions) {
-          this.outputBuffers.set(s.id, []);
-        }
-        if (this.sessions.length > 0) {
-          console.log(`  💻 Code Manager: ${this.sessions.length} sessions loaded`);
-        }
+        this.sessions = data.map((d: any) => ({ ...d, status: 'stopped' as const, pid: undefined, exitCode: undefined }));
+        for (const s of this.sessions) this.outputBuffers.set(s.id, []);
+        if (this.sessions.length > 0) console.log(`  💻 Code Manager: ${this.sessions.length} sessions loaded`);
       }
     } catch {}
   }

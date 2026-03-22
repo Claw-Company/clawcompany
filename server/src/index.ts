@@ -874,6 +874,83 @@ const server = app.listen(PORT, async () => {
   server.headersTimeout = 0;
   server.timeout = 0;
 
+  // ──── WebSocket server for Code Manager terminal I/O ────
+  try {
+    const { WebSocketServer } = await import('ws');
+    const wss = new WebSocketServer({ noServer: true });
+
+    server.on('upgrade', (req: any, socket: any, head: any) => {
+      // Only handle /ws/code/* paths
+      const url = new URL(req.url, `http://localhost:${PORT}`);
+      if (!url.pathname.startsWith('/ws/code/')) {
+        socket.destroy();
+        return;
+      }
+
+      wss.handleUpgrade(req, socket, head, (ws: any) => {
+        const sessionId = url.pathname.replace('/ws/code/', '');
+        const session = codeManager.get(sessionId);
+        if (!session) {
+          ws.close(4004, 'Session not found');
+          return;
+        }
+
+        // Send existing buffer (replay history)
+        const buf = codeManager.getOutput(sessionId);
+        if (buf.length > 0) {
+          ws.send(JSON.stringify({ type: 'replay', data: buf.join('') }));
+        }
+
+        // Forward PTY output → WebSocket
+        const onOutput = (ev: { sessionId: string; data: string; legacy?: boolean }) => {
+          if (ev.sessionId !== sessionId) return;
+          try {
+            if (ev.legacy) {
+              ws.send(JSON.stringify({ type: 'legacy', data: ev.data }));
+            } else {
+              ws.send(JSON.stringify({ type: 'output', data: ev.data }));
+            }
+          } catch {}
+        };
+
+        const onExit = (ev: { sessionId: string; code: number; name: string; runtime?: string }) => {
+          if (ev.sessionId !== sessionId) return;
+          try {
+            ws.send(JSON.stringify({ type: 'exit', code: ev.code, runtime: ev.runtime }));
+          } catch {}
+        };
+
+        codeManager.on('output', onOutput);
+        codeManager.on('exit', onExit);
+
+        // WebSocket → PTY input
+        ws.on('message', (msg: any) => {
+          try {
+            const parsed = JSON.parse(msg.toString());
+            if (parsed.type === 'input') {
+              codeManager.write(sessionId, parsed.data);
+            } else if (parsed.type === 'resize') {
+              codeManager.resize(sessionId, parsed.cols, parsed.rows);
+            }
+          } catch {}
+        });
+
+        ws.on('close', () => {
+          codeManager.off('output', onOutput);
+          codeManager.off('exit', onExit);
+        });
+
+        // Send mode info
+        ws.send(JSON.stringify({ type: 'mode', pty: codeManager.hasPty }));
+      });
+    });
+
+    console.log(`  → Terminal WS: ws://localhost:${PORT}/ws/code/:id`);
+  } catch {
+    console.log('  ⚠ ws not installed — Code Manager uses SSE fallback');
+    console.log('     └─ Install: cd server && pnpm add ws');
+  }
+
   console.log('');
   console.log('  🦞 ClawCompany server running');
   console.log(`  → Dashboard: http://localhost:${PORT}`);

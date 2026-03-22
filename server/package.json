@@ -5,15 +5,17 @@
   "type": "module",
   "main": "src/index.ts",
   "dependencies": {
-    "@clawcompany/shared": "workspace:*",
-    "@clawcompany/db": "workspace:*",
-    "@clawcompany/providers": "workspace:*",
-    "@clawcompany/model-router": "workspace:*",
     "@clawcompany/agent-runtime": "workspace:*",
+    "@clawcompany/db": "workspace:*",
+    "@clawcompany/model-router": "workspace:*",
+    "@clawcompany/providers": "workspace:*",
+    "@clawcompany/shared": "workspace:*",
     "@clawcompany/task-orchestrator": "workspace:*",
-    "express": "^4.21.0",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.0"
+    "dotenv": "^16.4.0",
+    "express": "^4.21.0",
+    "node-pty": "^1.1.0",
+    "ws": "^8.20.0"
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
