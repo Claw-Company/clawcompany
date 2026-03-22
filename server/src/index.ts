@@ -167,7 +167,7 @@ app.get('/api/roles', (_req, res) => {
     id: r.id, name: r.name, model: r.model, provider: r.provider,
     budgetTier: r.budgetTier, reportsTo: r.reportsTo,
     isActive: r.isActive, isBuiltin: r.isBuiltin, description: r.description,
-    systemPrompt: r.systemPrompt,
+    systemPrompt: r.systemPrompt, tools: r.tools,
   })));
 });
 
