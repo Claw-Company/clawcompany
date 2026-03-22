@@ -534,7 +534,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
       <div class="code-tabs" id="codeTabs"></div>
       <div class="code-toolbar" id="codeToolbar" style="display:none"></div>
       <div class="code-output" id="codeOutput">
-        <div class="code-empty">
+        <div class="code-empty" id="codeEmptyState">
           <p style="font-size:20px">💻</p>
           <p style="font-size:14px;font-weight:500;color:var(--text)">No projects yet</p>
           <p style="font-size:12px">Click "+ Add project" to manage your AI coding tools.</p>
@@ -1831,13 +1831,14 @@ async function loadCode() {
 function renderCodeTabs() {
   const el = document.getElementById('codeTabs');
   if (!el) return;
+  const emptyState = document.getElementById('codeEmptyState');
   if (codeSessions.length === 0) {
     el.innerHTML = '';
     document.getElementById('codeToolbar').style.display = 'none';
-    const out = document.getElementById('codeOutput');
-    out.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#6b7280"><p style="font-size:20px">💻</p><p style="font-size:14px;font-weight:500;color:#e4e4e7">No projects yet</p><p style="font-size:12px">Click "+ Add project" to manage your AI coding tools.</p></div>';
+    if (emptyState) emptyState.style.display = 'block';
     return;
   }
+  if (emptyState) emptyState.style.display = 'none';
   el.innerHTML = codeSessions.map(s => {
     const dotClass = s.status === 'running' ? 'on' : s.status === 'error' ? 'err' : 'off';
     const active = s.id === codeActiveId ? ' active' : '';
