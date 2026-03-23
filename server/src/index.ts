@@ -918,6 +918,7 @@ app.post('/api/mission/run-stream', async (req, res) => {
       status: r.status, cost: r.cost, time: r.time,
       output: r.output,
     }));
+    missionRecord.result = results[results.length - 1]?.output || '';
     saveMissions();
 
   } catch (err: any) {

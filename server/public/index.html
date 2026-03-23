@@ -1048,7 +1048,7 @@ async function loadMissionHistory() {
           <div style="font-size:13px;margin-top:4px;color:var(--text)">${m.input.slice(0, 100)}${m.input.length > 100 ? '...' : ''}</div>
           ${rolesText ? `<div style="font-size:11px;margin-top:4px;color:var(--text3)">${rolesText}</div>` : ''}
           <div id="toggle-hist-${m.id}" style="font-size:11px;color:var(--coral2);margin-top:6px">▶ View details</div>
-          <div id="detail-${m.id}" style="display:none;margin-top:8px;font-size:12px;color:var(--text2);white-space:pre-wrap;max-height:300px;overflow-y:auto"></div>
+          <div id="detail-${m.id}" style="display:none;margin-top:8px;font-size:12px;color:var(--text2);max-height:400px;overflow-y:auto"></div>
         </div>`;
       }).join('');
   } catch {}
@@ -1078,8 +1078,26 @@ async function expandMission(id) {
       const res = await fetch(API + '/api/missions/' + id);
       const m = await res.json();
       let html = '';
+
+      // Final report first
+      if (m.result) {
+        const resultPreview = m.result.slice(0, 800);
+        const hasMore = m.result.length > 800;
+        html += `<div style="margin-bottom:16px">
+          <div style="font-size:12px;font-weight:500;color:var(--text);margin-bottom:8px">📋 Final Report</div>
+          <div id="result-${id}" style="font-size:12px;color:var(--text2);white-space:pre-wrap">${resultPreview}${hasMore ? '\n...' : ''}</div>
+          ${hasMore ? `<div id="resulttoggle-${id}" style="font-size:11px;color:var(--coral2);margin-top:4px;cursor:pointer" onclick="event.stopPropagation();toggleResultOutput('${id}')">▶ Show full report</div>` : ''}
+        </div>`;
+        if (hasMore) _wsOutputCache['result-' + id] = m.result;
+      }
+
+      // Collapsible work streams
       if (m.workStreams && m.workStreams.length) {
-        html = m.workStreams.map((ws, i) => {
+        html += `<div style="font-size:11px;color:var(--text3);margin-bottom:8px;cursor:pointer" onclick="event.stopPropagation();toggleWorkStreams('${id}')">
+          <span id="wstoggle-all-${id}">▶ Show ${m.workStreams.length} work streams</span>
+        </div>`;
+        html += `<div id="workstreams-${id}" style="display:none">`;
+        html += m.workStreams.map((ws, i) => {
           const statusIcon = ws.status === 'completed' ? '✅' : '❌';
           const output = ws.output || '';
           const preview = output.slice(0, 500);
@@ -1095,10 +1113,11 @@ async function expandMission(id) {
             ${hasMore ? `<div id="wstoggle-${uid}" style="font-size:11px;color:var(--coral2);margin-top:4px;cursor:pointer" onclick="event.stopPropagation();toggleWsOutput('${uid}')">▶ Show full output</div>` : ''}
           </div>`;
         }).join('');
-      } else if (m.result) {
-        html = m.result;
+        html += `</div>`;
       }
-      detail.innerHTML = html || '<span style="color:var(--text3)">No output</span>';
+
+      if (!html && !m.result) html = '<span style="color:var(--text3)">No output</span>';
+      detail.innerHTML = html;
       detail.dataset.loaded = 'true';
     } catch { detail.innerHTML = '<span style="color:var(--red)">Failed to load</span>'; }
   }
@@ -1117,6 +1136,33 @@ function toggleWsOutput(uid) {
   } else {
     el.textContent = fullOutput.slice(0, 500) + '\n...';
     btn.textContent = '▶ Show full output';
+  }
+}
+
+function toggleWorkStreams(id) {
+  const el = document.getElementById('workstreams-' + id);
+  const btn = document.getElementById('wstoggle-all-' + id);
+  if (!el || !btn) return;
+  if (el.style.display === 'none') {
+    el.style.display = 'block';
+    btn.textContent = '▲ Hide work streams';
+  } else {
+    el.style.display = 'none';
+    btn.textContent = '▶ Show ' + el.children.length + ' work streams';
+  }
+}
+
+function toggleResultOutput(id) {
+  const el = document.getElementById('result-' + id);
+  const btn = document.getElementById('resulttoggle-' + id);
+  const fullOutput = _wsOutputCache['result-' + id];
+  if (!el || !btn || !fullOutput) return;
+  if (btn.textContent.startsWith('▶')) {
+    el.textContent = fullOutput;
+    btn.textContent = '▲ Collapse report';
+  } else {
+    el.textContent = fullOutput.slice(0, 800) + '\n...';
+    btn.textContent = '▶ Show full report';
   }
 }
 
