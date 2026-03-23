@@ -37,10 +37,11 @@ export class ModelRouter {
     if (!role.isActive) throw new Error(`Role "${roleId}" is disabled`);
 
     // ★ Auto-inject system prompt if not already present
+    const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     const hasSystem = messages.some((m) => m.role === 'system');
     const fullMessages: Message[] = hasSystem
-      ? messages
-      : [{ role: 'system', content: role.systemPrompt }, ...messages];
+      ? messages.map((m) => m.role === 'system' ? { ...m, content: m.content + `\n\nToday's date: ${dateStr}.` } : m)
+      : [{ role: 'system', content: role.systemPrompt + `\n\nToday's date: ${dateStr}.` }, ...messages];
 
     const provider = this.registry.get(role.provider);
 
