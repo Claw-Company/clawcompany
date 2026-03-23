@@ -1048,7 +1048,7 @@ async function loadMissionHistory() {
           <div style="font-size:13px;margin-top:4px;color:var(--text)">${m.input.slice(0, 100)}${m.input.length > 100 ? '...' : ''}</div>
           ${rolesText ? `<div style="font-size:11px;margin-top:4px;color:var(--text3)">${rolesText}</div>` : ''}
           <div id="toggle-hist-${m.id}" style="font-size:11px;color:var(--coral2);margin-top:6px">▶ View details</div>
-          <div id="detail-${m.id}" style="display:none;margin-top:8px;font-size:12px;color:var(--text2);max-height:400px;overflow-y:auto"></div>
+          <div id="detail-${m.id}" style="display:none;margin-top:8px;max-height:600px;overflow-y:auto"></div>
         </div>`;
       }).join('');
   } catch {}
@@ -1085,7 +1085,7 @@ async function expandMission(id) {
         const hasMore = m.result.length > 800;
         html += `<div style="margin-bottom:16px">
           <div style="font-size:12px;font-weight:500;color:var(--text);margin-bottom:8px">📋 Final Report</div>
-          <div id="result-${id}" style="font-size:12px;color:var(--text2);white-space:pre-wrap">${resultPreview}${hasMore ? '\n...' : ''}</div>
+          <div id="result-${id}" class="md-output" style="max-height:none;cursor:default;border:none;padding:0;background:none">${typeof marked !== 'undefined' ? marked.parse(resultPreview) : resultPreview}${hasMore ? '<div style="color:var(--text3);margin-top:8px">...</div>' : ''}</div>
           ${hasMore ? `<div id="resulttoggle-${id}" style="font-size:11px;color:var(--coral2);margin-top:4px;cursor:pointer" onclick="event.stopPropagation();toggleResultOutput('${id}')">▶ Show full report</div>` : ''}
         </div>`;
         if (hasMore) _wsOutputCache['result-' + id] = m.result;
@@ -1109,7 +1109,7 @@ async function expandMission(id) {
               <span>${statusIcon} <strong>${ws.title}</strong></span>
               <span style="font-size:11px;color:var(--text3)">${ws.role} · ${ws.model} · ${ws.cost} · ${ws.time}</span>
             </div>
-            <div id="wsout-${uid}" style="margin-top:6px;font-size:12px;color:var(--text2);white-space:pre-wrap">${preview}${hasMore ? '\n...' : ''}</div>
+            <div id="wsout-${uid}" class="md-output" style="margin-top:6px;max-height:none;cursor:default;border:none;padding:0;background:none">${typeof marked !== 'undefined' ? marked.parse(preview) : preview}${hasMore ? '<div style="color:var(--text3)">...</div>' : ''}</div>
             ${hasMore ? `<div id="wstoggle-${uid}" style="font-size:11px;color:var(--coral2);margin-top:4px;cursor:pointer" onclick="event.stopPropagation();toggleWsOutput('${uid}')">▶ Show full output</div>` : ''}
           </div>`;
         }).join('');
@@ -1131,10 +1131,10 @@ function toggleWsOutput(uid) {
   const fullOutput = _wsOutputCache[uid];
   if (!el || !btn || !fullOutput) return;
   if (btn.textContent.startsWith('▶')) {
-    el.textContent = fullOutput;
+    el.innerHTML = typeof marked !== 'undefined' ? marked.parse(fullOutput) : fullOutput;
     btn.textContent = '▲ Collapse output';
   } else {
-    el.textContent = fullOutput.slice(0, 500) + '\n...';
+    el.innerHTML = (typeof marked !== 'undefined' ? marked.parse(fullOutput.slice(0, 500)) : fullOutput.slice(0, 500)) + '<div style="color:var(--text3)">...</div>';
     btn.textContent = '▶ Show full output';
   }
 }
@@ -1158,10 +1158,10 @@ function toggleResultOutput(id) {
   const fullOutput = _wsOutputCache['result-' + id];
   if (!el || !btn || !fullOutput) return;
   if (btn.textContent.startsWith('▶')) {
-    el.textContent = fullOutput;
+    el.innerHTML = typeof marked !== 'undefined' ? marked.parse(fullOutput) : fullOutput;
     btn.textContent = '▲ Collapse report';
   } else {
-    el.textContent = fullOutput.slice(0, 800) + '\n...';
+    el.innerHTML = (typeof marked !== 'undefined' ? marked.parse(fullOutput.slice(0, 800)) : fullOutput.slice(0, 800)) + '<div style="color:var(--text3);margin-top:8px">...</div>';
     btn.textContent = '▶ Show full report';
   }
 }
