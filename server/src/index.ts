@@ -39,6 +39,22 @@ let router: ModelRouter;
 let orchestrator: TaskOrchestrator;
 let bootError: string | null = null;
 
+// ── Mission history persistence ──
+const missionsPath = `${process.env.HOME}/.clawcompany/missions.json`;
+let missionHistoryData: any[] = [];
+try {
+  if (existsSync(missionsPath)) {
+    missionHistoryData = JSON.parse(readFileSync(missionsPath, 'utf-8'));
+  }
+} catch {}
+
+function saveMissions() {
+  try {
+    if (missionHistoryData.length > 100) missionHistoryData = missionHistoryData.slice(0, 100);
+    writeFileSync(missionsPath, JSON.stringify(missionHistoryData, null, 2));
+  } catch {}
+}
+
 async function bootstrap() {
   if (!process.env.CLAWAPI_KEY) {
     bootError = 'CLAWAPI_KEY not set. Fix: echo "CLAWAPI_KEY=sk-claw-..." > .env';
@@ -754,6 +770,23 @@ app.post('/api/mission/run-stream', async (req, res) => {
     res.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
   };
 
+  // Create mission history record
+  const missionRecord: any = {
+    id: `mission_${Date.now()}`,
+    input: mission,
+    template: clawConfig.activeTemplate || 'default',
+    startedAt: new Date().toISOString(),
+    status: 'running',
+    roles: [] as string[],
+    result: null,
+    totalCost: null,
+    totalTime: null,
+    workStreams: null,
+    completedAt: null,
+  };
+  missionHistoryData.unshift(missionRecord);
+  saveMissions();
+
   try {
     console.log(`\n  🎯 Mission from Chairman: "${mission}"\n`);
 
@@ -874,11 +907,58 @@ app.post('/api/mission/run-stream', async (req, res) => {
 
     console.log(`  📊 Total: ${totalElapsed}s, $${totalCost.toFixed(4)}\n`);
 
+    // Update mission history record
+    missionRecord.status = 'completed';
+    missionRecord.completedAt = new Date().toISOString();
+    missionRecord.totalCost = `$${totalCost.toFixed(4)}`;
+    missionRecord.totalTime = `${totalElapsed}s`;
+    missionRecord.roles = [...new Set(results.map((r: any) => r.role))];
+    missionRecord.workStreams = results.map((r: any) => ({
+      id: r.id, title: r.title, role: r.role, model: r.model,
+      status: r.status, cost: r.cost, time: r.time,
+      output: r.output,
+    }));
+    saveMissions();
+
   } catch (err: any) {
     send('error', { message: err.message });
+    missionRecord.status = 'failed';
+    missionRecord.completedAt = new Date().toISOString();
+    missionRecord.result = err.message;
+    saveMissions();
   }
 
   res.end();
+});
+
+// ── Mission history API ──
+app.get('/api/missions', (_req, res) => {
+  res.json(missionHistoryData.map(m => ({
+    id: m.id, input: m.input, template: m.template,
+    startedAt: m.startedAt, completedAt: m.completedAt,
+    status: m.status, roles: m.roles,
+    totalCost: m.totalCost, totalTime: m.totalTime,
+  })));
+});
+
+app.get('/api/missions/:id', (req, res) => {
+  const m = missionHistoryData.find(m => m.id === req.params.id);
+  if (!m) return res.status(404).json({ error: 'Not found' });
+  res.json(m);
+});
+
+app.delete('/api/missions', (_req, res) => {
+  missionHistoryData = [];
+  saveMissions();
+  res.json({ ok: true });
+});
+
+app.delete('/api/missions/:id', (req, res) => {
+  const idx = missionHistoryData.findIndex(m => m.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Not found' });
+  missionHistoryData.splice(idx, 1);
+  saveMissions();
+  res.json({ ok: true });
 });
 
 app.post('/api/mission/run', async (req, res) => {

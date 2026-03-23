@@ -336,6 +336,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
     </div>
 
     <div class="mission-log" id="missionLog"></div>
+
+    <div id="missionHistory" style="margin-top:24px"></div>
   </div>
 
   <!-- Chat Page -->
@@ -971,6 +973,7 @@ async function runMission() {
             totalSpent += cost;
             document.getElementById('missionCount').textContent = missionCountToday;
             document.getElementById('missionCost').textContent = '$' + totalSpent.toFixed(4) + ' spent';
+            loadMissionHistory();
           }
 
           if (event.type === 'error') {
@@ -1013,6 +1016,82 @@ function toggleOutput(wsId, output) {
 
   const toggle = document.getElementById('toggle-' + wsId);
   if (toggle) toggle.textContent = '▲ Collapse';
+}
+
+// Mission history
+async function loadMissionHistory() {
+  try {
+    const res = await fetch(API + '/api/missions');
+    const missions = await res.json();
+    const container = document.getElementById('missionHistory');
+    if (!missions.length) {
+      container.innerHTML = '<div style="font-size:13px;color:var(--text3);text-align:center;padding:16px">No mission history yet</div>';
+      return;
+    }
+    container.innerHTML = '<div style="font-size:13px;color:var(--text3);margin-bottom:8px">Mission history</div>' +
+      missions.map(m => {
+        const timeAgo = getTimeAgo(m.startedAt);
+        const statusColor = m.status === 'completed' ? 'rgba(34,197,94,0.1);color:#22c55e' : m.status === 'running' ? 'rgba(234,179,8,0.1);color:#eab308' : 'rgba(239,68,68,0.1);color:#ef4444';
+        const rolesText = (m.roles || []).join(', ');
+        return `<div class="role-card" style="cursor:pointer;margin-bottom:8px" onclick="expandMission('${m.id}')">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <span style="font-size:12px;color:var(--text3)">${timeAgo}</span>
+              <span style="margin-left:8px;font-size:10px;padding:2px 6px;border-radius:8px;background:${statusColor}">${m.status}</span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              ${m.totalCost ? `<span style="font-size:11px;color:var(--text3)">${m.totalCost}</span>` : ''}
+              ${m.totalTime ? `<span style="font-size:11px;color:var(--text3)">${m.totalTime}</span>` : ''}
+              <span style="font-size:11px;color:var(--text3)">${m.template}</span>
+            </div>
+          </div>
+          <div style="font-size:13px;margin-top:4px;color:var(--text)">${m.input.slice(0, 100)}${m.input.length > 100 ? '...' : ''}</div>
+          ${rolesText ? `<div style="font-size:11px;margin-top:4px;color:var(--text3)">${rolesText}</div>` : ''}
+          <div id="detail-${m.id}" style="display:none;margin-top:8px;font-size:12px;color:var(--text2);white-space:pre-wrap;max-height:300px;overflow-y:auto"></div>
+        </div>`;
+      }).join('');
+  } catch {}
+}
+
+function getTimeAgo(dateStr) {
+  const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+  if (seconds < 60) return 'just now';
+  if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
+  if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
+  return Math.floor(seconds / 86400) + 'd ago';
+}
+
+async function expandMission(id) {
+  const detail = document.getElementById('detail-' + id);
+  if (!detail) return;
+  if (detail.style.display === 'block') {
+    detail.style.display = 'none';
+    return;
+  }
+  if (!detail.dataset.loaded) {
+    try {
+      const res = await fetch(API + '/api/missions/' + id);
+      const m = await res.json();
+      let html = '';
+      if (m.workStreams && m.workStreams.length) {
+        html = m.workStreams.map(ws => {
+          const statusIcon = ws.status === 'completed' ? '✅' : '❌';
+          return `<div style="margin-bottom:12px;padding:8px;background:rgba(255,255,255,0.03);border-radius:6px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span>${statusIcon} <strong>${ws.title}</strong></span>
+              <span style="font-size:11px;color:var(--text3)">${ws.role} · ${ws.model} · ${ws.cost} · ${ws.time}</span>
+            </div>
+            <div style="margin-top:6px;font-size:12px;color:var(--text2);white-space:pre-wrap">${(ws.output || '').slice(0, 500)}${(ws.output || '').length > 500 ? '\n...' : ''}</div>
+          </div>`;
+        }).join('');
+      } else if (m.result) {
+        html = m.result;
+      }
+      detail.innerHTML = html || '<span style="color:var(--text3)">No output</span>';
+      detail.dataset.loaded = 'true';
+    } catch { detail.innerHTML = '<span style="color:var(--red)">Failed to load</span>'; }
+  }
+  detail.style.display = 'block';
 }
 
 // Load company info + greeting
@@ -2052,6 +2131,7 @@ loadSettings();
 loadTemplates();
 loadRoutines();
 loadCode();
+loadMissionHistory();
 setInterval(loadHealth, 30000);
 </script>
 </body>
