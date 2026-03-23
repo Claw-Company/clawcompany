@@ -827,7 +827,7 @@ export const TRADING_TEMPLATE: CompanyTemplate = {
   id: 'trading',
   name: 'Trading Desk',
   icon: '📈',
-  description: 'AI trading firm — 7 roles, Bull vs Bear debate, risk-managed',
+  description: 'AI trading firm — 7 roles, Bull vs Bear debate, risk-managed. Inspired by TauricResearch TradingAgents.',
   roles: TRADING_ROLES,
 };
 
@@ -984,9 +984,9 @@ Compile all logs into a running research journal. Highlight the cumulative impro
 
 export const RESEARCH_LAB_TEMPLATE: CompanyTemplate = {
   id: 'research_lab',
-  name: 'Research Lab',
+  name: 'AutoResearch Lab',
   icon: '🔬',
-  description: 'AI research team — 5 roles, Karpathy Loop, hypothesis-driven experimentation',
+  description: 'Karpathy Loop — 5 roles, hypothesis-driven AI experimentation',
   roles: RESEARCH_LAB_ROLES,
 };
 
