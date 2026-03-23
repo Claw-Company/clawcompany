@@ -1,0 +1,18 @@
+3 templates. One click. Your AI company reshapes itself.
+
+🦞 Default — 9 roles, general purpose
+🚀 YC Startup — 7 roles, ship fast
+📈 Trading Desk — 7 roles, Bull vs Bear debate
+
+The Fund Manager deploys analysts.
+Bull and Bear argue both sides.
+Risk Manager kills bad trades.
+
+Inspired by @TauricResearch's TradingAgents (35K stars).
+Now as a one-click template.
+
+Open source. Runs on your machine.
+
+🦞 clawcompany.org
+
+#AI #OpenSource #BuildInPublic #LocalFirst #YourMachineYourCompany

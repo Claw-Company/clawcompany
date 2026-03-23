@@ -1,0 +1,14 @@
+Hi! I saw your coverage of Paperclip.
+
+We built ClawCompany — a batteries-included alternative:
+→ 3 company templates (Default, YC Startup, Trading Desk)
+→ 9+ built-in AI roles (no BYOA)
+→ One command install: npx clawcompany
+→ 210+ GitHub stars in 11 days
+
+Key difference: batteries included. No PostgreSQL, no BYOA, no Docker.
+
+GitHub: github.com/Claw-Company/clawcompany
+Website: clawcompany.org
+
+Would you be interested in covering it?
