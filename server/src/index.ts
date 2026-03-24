@@ -13,6 +13,8 @@ import {
 import { ProviderRegistry } from '@clawcompany/providers';
 import { ModelRouter } from '@clawcompany/model-router';
 import { TaskOrchestrator } from '@clawcompany/task-orchestrator';
+import { ToolExecutor, getToolsForRole } from '@clawcompany/tools';
+import type { Message } from '@clawcompany/shared';
 import type { DirectRunner } from './channels/index.js';
 import { CronScheduler, ROUTINE_TEMPLATES, describeCron } from './scheduler.js';
 import { CodeManager } from './code-manager.js';
@@ -37,6 +39,7 @@ clawConfig.providers[0].apiKey = process.env.CLAWAPI_KEY ?? '';
 const registry = new ProviderRegistry();
 let router: ModelRouter;
 let orchestrator: TaskOrchestrator;
+const toolExecutor = new ToolExecutor();
 let bootError: string | null = null;
 
 // ── Mission history persistence ──
@@ -615,12 +618,47 @@ app.post('/api/routines/:id/run', async (req, res) => {
 
 app.post('/api/chat', async (req, res) => {
   if (!router) return res.status(503).json({ error: bootError ?? 'Not initialized' });
-  const { role, message } = req.body;
-  if (!role || !message) return res.status(400).json({ error: 'Required: { role, message }' });
+  const { role: roleId, message } = req.body;
+  if (!roleId || !message) return res.status(400).json({ error: 'Required: { role, message }' });
 
   try {
-    const response = await router.chatAsRole(role, [{ role: 'user', content: message }]);
-    res.json({ role, model: response.model, provider: response.provider, content: response.content, usage: response.usage });
+    const roleObj = router.getRole(roleId);
+    const tools = roleObj ? getToolsForRole(roleObj.tools) : [];
+    const messages: Message[] = [{ role: 'user', content: message }];
+
+    let totalIn = 0, totalOut = 0, totalCost = 0;
+    const MAX_TOOL_TURNS = 10;
+
+    for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
+      const response = await router.chatAsRole(roleId, messages, tools.length > 0 ? tools : undefined);
+      totalIn += response.usage.inputTokens;
+      totalOut += response.usage.outputTokens;
+      totalCost += response.usage.cost;
+
+      // No tool calls → return final answer
+      if (!response.toolCalls?.length || response.finishReason === 'stop') {
+        return res.json({
+          role: roleId, model: response.model, provider: response.provider,
+          content: response.content,
+          usage: { inputTokens: totalIn, outputTokens: totalOut, cost: totalCost },
+        });
+      }
+
+      // Process tool calls
+      messages.push({ role: 'assistant', content: response.content ?? '', toolCalls: response.toolCalls });
+      for (const tc of response.toolCalls) {
+        const args = JSON.parse(tc.function.arguments);
+        const result = await toolExecutor.execute(tc.function.name, args);
+        messages.push({ role: 'tool', content: result, toolCallId: tc.id });
+      }
+    }
+
+    // Max turns reached — return whatever we have
+    res.json({
+      role: roleId, model: roleObj?.model ?? 'unknown', provider: roleObj?.provider ?? 'unknown',
+      content: '[Chat reached maximum tool turns]',
+      usage: { inputTokens: totalIn, outputTokens: totalOut, cost: totalCost },
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
