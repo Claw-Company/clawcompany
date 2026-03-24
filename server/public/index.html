@@ -600,11 +600,15 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
         <div style="position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:24px;font-size:12px;color:var(--text);background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);border-radius:12px;padding:8px 20px;z-index:11">
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:14px">🎯</span>
-            <span id="studioMissions">0 missions today</span>
+            <span id="studioMissions">0 missions</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:14px">💬</span>
+            <span id="studioChats">0 chats</span>
           </div>
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:14px">💰</span>
-            <span id="studioCost">$0.0000 spent</span>
+            <span id="studioCost">$0.0000 total</span>
           </div>
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:14px">🤖</span>
@@ -2370,10 +2374,20 @@ async function syncLobsterState() {
       return sum + cost;
     }, 0);
 
+    let chatCount = 0, chatCost = 0;
+    try {
+      const chatRes = await fetch(API + '/api/chats/stats');
+      const chatStats = await chatRes.json();
+      chatCount = chatStats.count;
+      chatCost = chatStats.cost;
+    } catch {}
+
     const missionsEl = document.getElementById('studioMissions');
     const costEl = document.getElementById('studioCost');
-    if (missionsEl) missionsEl.textContent = todayMissions.length + ' missions today';
-    if (costEl) costEl.textContent = '$' + totalCostStudio.toFixed(4) + ' spent';
+    const chatsEl = document.getElementById('studioChats');
+    if (missionsEl) missionsEl.textContent = todayMissions.length + ' missions';
+    if (chatsEl) chatsEl.textContent = chatCount + ' chats';
+    if (costEl) costEl.textContent = '$' + (totalCostStudio + chatCost).toFixed(4) + ' total';
 
     const running = missions.find(m => m.status === 'running');
     if (running) {

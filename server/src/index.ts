@@ -58,6 +58,22 @@ function saveMissions() {
   } catch {}
 }
 
+// ── Chat history persistence ──
+const chatHistoryPath = `${process.env.HOME}/.clawcompany/chats.json`;
+let chatHistoryData: any[] = [];
+try {
+  if (existsSync(chatHistoryPath)) {
+    chatHistoryData = JSON.parse(readFileSync(chatHistoryPath, 'utf-8'));
+  }
+} catch {}
+
+function saveChats() {
+  try {
+    if (chatHistoryData.length > 200) chatHistoryData = chatHistoryData.slice(0, 200);
+    writeFileSync(chatHistoryPath, JSON.stringify(chatHistoryData, null, 2));
+  } catch {}
+}
+
 async function bootstrap() {
   if (!process.env.CLAWAPI_KEY) {
     bootError = 'CLAWAPI_KEY not set. Fix: echo "CLAWAPI_KEY=sk-claw-..." > .env';
@@ -637,6 +653,16 @@ app.post('/api/chat', async (req, res) => {
 
       // No tool calls → return final answer
       if (!response.toolCalls?.length || response.finishReason === 'stop') {
+        chatHistoryData.unshift({
+          id: `chat_${Date.now()}`,
+          role: roleId,
+          model: response.model,
+          input: message.slice(0, 100),
+          cost: totalCost,
+          tokens: totalIn + totalOut,
+          at: new Date().toISOString(),
+        });
+        saveChats();
         return res.json({
           role: roleId, model: response.model, provider: response.provider,
           content: response.content,
@@ -662,6 +688,16 @@ app.post('/api/chat', async (req, res) => {
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
+});
+
+app.get('/api/chats/stats', (_req, res) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const todayChats = chatHistoryData.filter(c => c.at && c.at.startsWith(today));
+  const totalCost = todayChats.reduce((sum: number, c: any) => sum + (c.cost || 0), 0);
+  res.json({
+    count: todayChats.length,
+    cost: totalCost,
+  });
 });
 
 // ──── Code Manager API ────
