@@ -577,27 +577,16 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 
       <!-- Left: Studio Scene -->
       <!-- 左侧：工作室场景 -->
-      <div id="studioScene" style="flex:1;background:linear-gradient(180deg,#0a0a1a 0%,#12122e 50%,#1a1a3e 100%);position:relative;overflow:hidden;border-right:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-direction:column">
+      <div id="studioScene" style="flex:1;background:#000 url('/studio-bg.png') center center / contain no-repeat;position:relative;overflow:hidden;border-right:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-direction:column">
 
         <!-- 标题 -->
-        <div style="position:absolute;top:20px;left:24px;font-size:12px;letter-spacing:2px;color:var(--text3);font-weight:500">LOBSTER STUDIO</div>
-
-        <!-- 浮动装饰元素 -->
-        <div style="position:absolute;top:15%;left:12%;font-size:24px;opacity:0.15;animation:studioFloat 6s ease-in-out infinite">📊</div>
-        <div style="position:absolute;top:25%;right:15%;font-size:20px;opacity:0.12;animation:studioFloat 8s ease-in-out 1s infinite">📋</div>
-        <div style="position:absolute;bottom:30%;left:8%;font-size:22px;opacity:0.1;animation:studioFloat 7s ease-in-out 2s infinite">💻</div>
-        <div style="position:absolute;top:35%;left:25%;font-size:18px;opacity:0.08;animation:studioFloat 9s ease-in-out 0.5s infinite">⚡</div>
-        <div style="position:absolute;bottom:25%;right:10%;font-size:20px;opacity:0.12;animation:studioFloat 7.5s ease-in-out 1.5s infinite">☕</div>
-        <div style="position:absolute;top:20%;right:30%;font-size:16px;opacity:0.1;animation:studioFloat 6.5s ease-in-out 3s infinite">🔍</div>
-
-        <!-- 光晕效果 -->
-        <div style="position:absolute;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(216,90,48,0.08) 0%,transparent 70%);pointer-events:none"></div>
+        <div style="position:absolute;top:20px;left:24px;font-size:12px;letter-spacing:2px;color:var(--text3);font-weight:500;text-shadow:0 0 10px rgba(0,0,0,0.8)">LOBSTER STUDIO</div>
 
         <!-- 龙虾角色 -->
-        <div id="lobsterChar" style="font-size:96px;transition:all 0.5s ease;filter:drop-shadow(0 0 20px rgba(216,90,48,0.3));cursor:default;user-select:none;animation:lobsterIdle 3s ease-in-out infinite">🦞</div>
+        <div id="lobsterChar" style="font-size:72px;transition:all 0.5s ease;filter:drop-shadow(0 0 30px rgba(0,0,0,0.8)) drop-shadow(0 0 15px rgba(216,90,48,0.4));cursor:default;user-select:none;animation:lobsterIdle 3s ease-in-out infinite">🦞</div>
 
         <!-- 对话气泡 -->
-        <div id="lobsterBubble" style="margin-top:16px;background:rgba(255,255,255,0.06);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:10px 20px;font-size:14px;color:var(--text);transition:all 0.3s ease;max-width:300px;text-align:center">
+        <div id="lobsterBubble" style="margin-top:16px;background:rgba(0,0,0,0.6);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.15);border-radius:16px;padding:10px 20px;font-size:14px;color:var(--text);transition:all 0.3s ease;max-width:300px;text-align:center">
           Ready for orders, Chairman!
         </div>
 
@@ -608,7 +597,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
         </div>
 
         <!-- 底部统计 -->
-        <div style="position:absolute;bottom:20px;left:0;right:0;display:flex;justify-content:center;gap:24px;font-size:12px;color:var(--text3)">
+        <div style="position:absolute;bottom:20px;left:0;right:0;display:flex;justify-content:center;gap:24px;font-size:12px;color:var(--text3);background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);border-radius:12px;padding:8px 20px">
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:14px">🎯</span>
             <span id="studioMissions">0 missions today</span>
