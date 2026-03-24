@@ -280,6 +280,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
   <div class="nav-item" onclick="showPage('code')">
     <span class="nav-icon">💻</span> <span>Code</span>
   </div>
+  <div class="nav-item" onclick="showPage('studio')">
+    <span class="nav-icon">🦞</span> <span>Studio</span>
+  </div>
   <div class="nav-item" onclick="showPage('settings')">
     <span class="nav-icon">⚙</span> <span>Settings</span>
   </div>
@@ -569,6 +572,113 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
     </div>
   </div>
 
+  <div class="page" id="page-studio" style="height:100%;padding:0">
+    <div style="display:flex;height:100%">
+
+      <!-- Left: Studio Scene -->
+      <div id="studioScene" style="flex:1;background:#0f0f23;position:relative;overflow:hidden;border-right:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-direction:column">
+
+        <div style="position:absolute;top:16px;left:16px;font-size:11px;color:var(--text3)">LOBSTER STUDIO</div>
+
+        <!-- Pixel Room -->
+        <div id="studioRoom" style="position:relative;width:600px;height:360px;image-rendering:pixelated">
+
+          <!-- Floor -->
+          <div style="position:absolute;bottom:0;left:0;right:0;height:60px;background:linear-gradient(0deg,#1a1a3e,#12122e);border-top:2px solid #2a2a4e"></div>
+
+          <!-- Desk -->
+          <div style="position:absolute;bottom:60px;left:180px;width:200px;height:8px;background:#5c4033;border-radius:2px"></div>
+          <div style="position:absolute;bottom:10px;left:190px;width:8px;height:50px;background:#4a3328"></div>
+          <div style="position:absolute;bottom:10px;left:370px;width:8px;height:50px;background:#4a3328"></div>
+
+          <!-- Monitor -->
+          <div style="position:absolute;bottom:68px;left:230px;width:100px;height:70px;background:#111;border:3px solid #333;border-radius:4px">
+            <div id="monitorScreen" style="width:100%;height:100%;padding:4px;font-family:monospace;font-size:6px;color:#22c55e;overflow:hidden;line-height:1.3">
+              &gt; mission running...<br>
+              &gt; CEO decomposing<br>
+              &gt; 5 work streams<br>
+              &gt; $0.12 spent<br>
+              &gt; ████████░░ 80%
+            </div>
+          </div>
+          <div style="position:absolute;bottom:62px;left:265px;width:30px;height:6px;background:#333;border-radius:1px"></div>
+
+          <!-- Whiteboard -->
+          <div style="position:absolute;top:20px;right:60px;width:120px;height:80px;background:#f0f0e8;border:3px solid #888;border-radius:2px">
+            <div style="padding:4px;font-size:5px;color:#333;font-family:monospace">
+              TODO:<br>□ Ship v0.16<br>□ Beat Paperclip<br>☑ Build Studio<br>☑ 4 templates
+            </div>
+          </div>
+
+          <!-- Sofa -->
+          <div style="position:absolute;bottom:60px;left:20px;width:100px;height:40px;background:#4a2545;border-radius:8px 8px 4px 4px;border:2px solid #5a3555"></div>
+          <div style="position:absolute;bottom:60px;left:16px;width:12px;height:55px;background:#5a3555;border-radius:4px"></div>
+          <div style="position:absolute;bottom:60px;left:112px;width:12px;height:55px;background:#5a3555;border-radius:4px"></div>
+
+          <!-- Coffee -->
+          <div style="position:absolute;bottom:100px;left:130px;font-size:16px">☕</div>
+
+          <!-- Bookshelf -->
+          <div style="position:absolute;top:20px;left:20px;width:80px;height:90px;background:#3d2b1f;border:2px solid #4a3328;border-radius:2px">
+            <div style="height:28px;border-bottom:2px solid #4a3328;display:flex;align-items:end;padding:2px;gap:2px">
+              <div style="width:8px;height:18px;background:#c0392b"></div>
+              <div style="width:8px;height:22px;background:#2980b9"></div>
+              <div style="width:8px;height:16px;background:#27ae60"></div>
+              <div style="width:8px;height:20px;background:#f39c12"></div>
+              <div style="width:8px;height:14px;background:#8e44ad"></div>
+            </div>
+            <div style="height:28px;border-bottom:2px solid #4a3328;display:flex;align-items:end;padding:2px;gap:2px">
+              <div style="width:8px;height:20px;background:#e74c3c"></div>
+              <div style="width:8px;height:16px;background:#3498db"></div>
+              <div style="width:8px;height:22px;background:#2ecc71"></div>
+            </div>
+          </div>
+
+          <!-- Plant -->
+          <div style="position:absolute;bottom:60px;right:20px;font-size:24px">🪴</div>
+
+          <!-- Lobster Character -->
+          <div id="lobsterChar" style="position:absolute;bottom:68px;left:240px;font-size:48px;transition:all 0.5s ease;filter:drop-shadow(0 0 8px rgba(216,90,48,0.3))">🦞</div>
+
+          <!-- Speech Bubble -->
+          <div id="lobsterBubble" style="position:absolute;bottom:130px;left:220px;background:rgba(255,255,255,0.1);backdrop-filter:blur(4px);border:1px solid var(--border);border-radius:12px;padding:6px 12px;font-size:11px;color:var(--text);transition:all 0.3s ease;opacity:1">
+            Ready for orders, Chairman!
+          </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div id="studioStatus" style="position:absolute;bottom:16px;left:16px;right:16px;display:flex;gap:12px;font-size:11px;color:var(--text3)">
+          <span id="studioState">💤 Idle</span>
+          <span>|</span>
+          <span id="studioMissions">0 missions today</span>
+          <span>|</span>
+          <span id="studioCost">$0.0000 spent</span>
+        </div>
+      </div>
+
+      <!-- Right: Chat Panel -->
+      <div style="width:380px;display:flex;flex-direction:column;background:var(--bg)">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+          <span style="font-size:16px">🦞</span>
+          <span style="font-size:13px;font-weight:500">Chat with your team</span>
+          <select id="studioRoleSelect" style="margin-left:auto;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px" onchange="studioSwitchRole()">
+          </select>
+        </div>
+        <div id="studioChatMessages" style="flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px">
+          <div style="font-size:12px;color:var(--text3);text-align:center;padding:40px 20px">
+            Welcome to Lobster Studio!<br>Select a role and start chatting.
+          </div>
+        </div>
+        <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px">
+          <input id="studioInput" type="text" placeholder="Talk to your team..."
+            style="flex:1;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;outline:none"
+            onkeydown="if(event.key==='Enter')studioSend()">
+          <button onclick="studioSend()" style="background:var(--coral);color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -581,8 +691,20 @@ let missionCountToday = 0;
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-' + id).classList.add('active');
+  const page = document.getElementById('page-' + id);
+  page.classList.add('active');
   event.currentTarget.classList.add('active');
+  const main = document.querySelector('.main');
+  if (id === 'studio') {
+    main.style.padding = '0';
+    main.style.maxWidth = 'none';
+    main.style.height = '100vh';
+    page.style.display = 'block';
+  } else {
+    main.style.padding = '';
+    main.style.maxWidth = '';
+    main.style.height = '';
+  }
 }
 
 // Fetch roles
@@ -2198,6 +2320,121 @@ async function codeDeleteProject(id) {
     await loadCode();
   } catch {}
 }
+// Lobster Studio
+const lobsterStates = {
+  idle: { pos: 'left:60px;bottom:68px', bubble: '☕ Taking a break...', status: '💤 Idle', emoji: '🦞' },
+  working: { pos: 'left:240px;bottom:68px', bubble: '💻 Mission in progress...', status: '🖥️ Working', emoji: '🦞' },
+  planning: { pos: 'right:80px;bottom:100px', bubble: '📋 Decomposing tasks...', status: '📋 Planning', emoji: '🦞' },
+  chatting: { pos: 'left:300px;bottom:68px', bubble: '👋 Listening, Chairman!', status: '💬 Chatting', emoji: '🦞' },
+  sleeping: { pos: 'left:50px;bottom:68px', bubble: '💤 Zzz...', status: '😴 Sleeping', emoji: '🦞' },
+  celebrating: { pos: 'left:280px;bottom:100px', bubble: '🎉 Mission complete!', status: '🎉 Done!', emoji: '🦞' },
+};
+
+let currentLobsterState = 'idle';
+
+function setLobsterState(state) {
+  const s = lobsterStates[state] || lobsterStates.idle;
+  currentLobsterState = state;
+  const char = document.getElementById('lobsterChar');
+  const bubble = document.getElementById('lobsterBubble');
+  const status = document.getElementById('studioState');
+  if (char) {
+    char.style.cssText = 'position:absolute;' + s.pos + ';font-size:48px;transition:all 0.5s ease;filter:drop-shadow(0 0 8px rgba(216,90,48,0.3))';
+    if (state === 'celebrating') char.style.animation = 'lobsterBounce 0.5s ease infinite';
+    else if (state === 'sleeping') char.style.opacity = '0.6';
+    else { char.style.animation = 'none'; char.style.opacity = '1'; }
+  }
+  if (bubble) bubble.textContent = s.bubble;
+  if (status) status.textContent = s.status;
+}
+
+async function syncLobsterState() {
+  try {
+    const [healthRes, missionsRes] = await Promise.all([
+      fetch(API + '/api/health'),
+      fetch(API + '/api/missions'),
+    ]);
+    const health = await healthRes.json();
+    const missions = await missionsRes.json();
+
+    const today = new Date().toISOString().slice(0, 10);
+    const todayMissions = missions.filter(m => m.startedAt && m.startedAt.startsWith(today));
+    const totalCostStudio = todayMissions.reduce((sum, m) => {
+      const cost = parseFloat((m.totalCost || '$0').replace('$', ''));
+      return sum + cost;
+    }, 0);
+
+    const missionsEl = document.getElementById('studioMissions');
+    const costEl = document.getElementById('studioCost');
+    if (missionsEl) missionsEl.textContent = todayMissions.length + ' missions today';
+    if (costEl) costEl.textContent = '$' + totalCostStudio.toFixed(4) + ' spent';
+
+    const running = missions.find(m => m.status === 'running');
+    if (running) {
+      setLobsterState('working');
+    } else if (currentLobsterState === 'working') {
+      setLobsterState('celebrating');
+      setTimeout(() => setLobsterState('idle'), 3000);
+    }
+  } catch {}
+}
+
+let studioCurrentRole = '';
+
+async function loadStudioRoles() {
+  try {
+    const res = await fetch(API + '/api/roles');
+    const roles = await res.json();
+    const select = document.getElementById('studioRoleSelect');
+    if (select) {
+      select.innerHTML = roles.map(r => '<option value="' + r.id + '">' + r.name + '</option>').join('');
+      studioCurrentRole = roles[0]?.id || '';
+    }
+  } catch {}
+}
+
+function studioSwitchRole() {
+  const select = document.getElementById('studioRoleSelect');
+  studioCurrentRole = select.value;
+  setLobsterState('chatting');
+  setTimeout(() => { if (currentLobsterState === 'chatting') setLobsterState('idle'); }, 2000);
+}
+
+async function studioSend() {
+  const input = document.getElementById('studioInput');
+  const msg = input.value.trim();
+  if (!msg || !studioCurrentRole) return;
+  input.value = '';
+
+  const container = document.getElementById('studioChatMessages');
+  container.innerHTML += '<div style="align-self:flex-end;background:var(--coral);color:white;padding:8px 12px;border-radius:12px 12px 4px 12px;font-size:13px;max-width:280px">' + msg.replace(/</g,'&lt;') + '</div>';
+  container.scrollTop = container.scrollHeight;
+
+  setLobsterState('chatting');
+
+  try {
+    const res = await fetch(API + '/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: studioCurrentRole, message: msg }),
+    });
+    const data = await res.json();
+    const reply = data.response || data.message || 'No response';
+    const rendered = typeof marked !== 'undefined' ? marked.parse(reply) : reply;
+    container.innerHTML += '<div style="align-self:flex-start;background:var(--bg2);border:1px solid var(--border);padding:8px 12px;border-radius:12px 12px 12px 4px;font-size:13px;max-width:280px" class="md-output">' + rendered + '</div>';
+    container.scrollTop = container.scrollHeight;
+  } catch (err) {
+    container.innerHTML += '<div style="align-self:flex-start;color:var(--red);font-size:12px;padding:8px">Error: ' + err.message + '</div>';
+  }
+
+  setLobsterState('idle');
+}
+
+// Lobster bounce animation
+const lobsterStyle = document.createElement('style');
+lobsterStyle.textContent = '@keyframes lobsterBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }';
+document.head.appendChild(lobsterStyle);
+
 // Init
 initChatRoles();
 loadHealth();
@@ -2208,7 +2445,9 @@ loadTemplates();
 loadRoutines();
 loadCode();
 loadMissionHistory();
+loadStudioRoles();
 setInterval(loadHealth, 30000);
+setInterval(syncLobsterState, 5000);
 </script>
 </body>
 </html>
