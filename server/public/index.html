@@ -577,27 +577,27 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 
       <!-- Left: Studio Scene -->
       <!-- 左侧：工作室场景 -->
-      <div id="studioScene" style="flex:1;background:#000 url('/studio-bg.png') center center / contain no-repeat;position:relative;overflow:hidden;border-right:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-direction:column">
+      <div id="studioScene" style="flex:1;background:#000 url('/studio-bg.png') center center / contain no-repeat;position:relative;overflow:hidden;border-right:1px solid var(--border)">
 
         <!-- 标题 -->
         <div style="position:absolute;top:20px;left:24px;font-size:12px;letter-spacing:2px;color:var(--text3);font-weight:500;text-shadow:0 0 10px rgba(0,0,0,0.8)">LOBSTER STUDIO</div>
 
         <!-- 龙虾角色 -->
-        <div id="lobsterChar" style="font-size:72px;transition:all 0.5s ease;filter:drop-shadow(0 0 30px rgba(0,0,0,0.8)) drop-shadow(0 0 15px rgba(216,90,48,0.4));cursor:default;user-select:none;animation:lobsterIdle 3s ease-in-out infinite">🦞</div>
+        <div id="lobsterChar" style="position:absolute;bottom:43%;left:48%;font-size:72px;transition:all 0.8s cubic-bezier(0.4,0,0.2,1);filter:drop-shadow(0 0 30px rgba(0,0,0,0.8)) drop-shadow(0 0 15px rgba(216,90,48,0.4));cursor:default;user-select:none;animation:lobsterIdle 3s ease-in-out infinite;z-index:10">🦞</div>
 
         <!-- 对话气泡 -->
-        <div id="lobsterBubble" style="margin-top:16px;background:rgba(0,0,0,0.6);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.15);border-radius:16px;padding:10px 20px;font-size:14px;color:var(--text);transition:all 0.3s ease;max-width:300px;text-align:center">
+        <div id="lobsterBubble" style="position:absolute;bottom:56%;left:42%;background:rgba(0,0,0,0.6);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.15);border-radius:16px;padding:10px 20px;font-size:14px;color:var(--text);transition:all 0.8s cubic-bezier(0.4,0,0.2,1);max-width:200px;text-align:center;z-index:11;white-space:nowrap">
           Ready for orders, Chairman!
         </div>
 
         <!-- 状态指示器 -->
-        <div style="margin-top:24px;display:flex;align-items:center;gap:8px">
+        <div style="position:absolute;bottom:38%;left:48%;display:flex;align-items:center;gap:8px;transition:all 0.8s cubic-bezier(0.4,0,0.2,1);z-index:11" id="studioStateWrap">
           <div id="studioStateDot" style="width:8px;height:8px;border-radius:50%;background:#22c55e;animation:studioPulse 2s ease-in-out infinite"></div>
-          <span id="studioState" style="font-size:13px;color:var(--text2)">Idle</span>
+          <span id="studioState" style="font-size:13px;color:var(--text2);text-shadow:0 0 8px rgba(0,0,0,0.8)">Idle</span>
         </div>
 
         <!-- 底部统计 -->
-        <div style="position:absolute;bottom:20px;left:0;right:0;display:flex;justify-content:center;gap:24px;font-size:12px;color:var(--text3);background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);border-radius:12px;padding:8px 20px">
+        <div style="position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:24px;font-size:12px;color:var(--text);background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);border-radius:12px;padding:8px 20px;z-index:11">
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:14px">🎯</span>
             <span id="studioMissions">0 missions today</span>
@@ -2298,12 +2298,29 @@ function setLobsterState(state) {
   const bubble = document.getElementById('lobsterBubble');
   const stateEl = document.getElementById('studioState');
   const dot = document.getElementById('studioStateDot');
+  const stateWrap = document.getElementById('studioStateWrap');
   if (bubble) bubble.textContent = s.bubble;
   if (stateEl) stateEl.textContent = s.status;
+
+  // 位置映射（基于背景图的比例）
+  const positions = {
+    idle: { bottom: '32%', left: '65%', bubbleBottom: '45%', bubbleLeft: '58%' },
+    working: { bottom: '43%', left: '48%', bubbleBottom: '56%', bubbleLeft: '42%' },
+    planning: { bottom: '43%', left: '48%', bubbleBottom: '56%', bubbleLeft: '42%' },
+    chatting: { bottom: '28%', left: '50%', bubbleBottom: '41%', bubbleLeft: '44%' },
+    sleeping: { bottom: '32%', left: '65%', bubbleBottom: '45%', bubbleLeft: '58%' },
+    celebrating: { bottom: '28%', left: '50%', bubbleBottom: '41%', bubbleLeft: '44%' },
+  };
+
+  const pos = positions[state] || positions.idle;
+
   if (char) {
+    char.style.bottom = pos.bottom;
+    char.style.left = pos.left;
     char.style.animation = 'none';
     char.style.opacity = '1';
     char.style.transform = 'scale(1)';
+
     if (state === 'working') {
       char.style.animation = 'lobsterIdle 1.5s ease-in-out infinite';
       if (dot) dot.style.background = '#22c55e';
@@ -2312,10 +2329,10 @@ function setLobsterState(state) {
       if (dot) dot.style.background = '#eab308';
     } else if (state === 'sleeping') {
       char.style.opacity = '0.4';
-      char.style.transform = 'scale(0.9)';
+      char.style.transform = 'scale(0.9) rotate(-15deg)';
       if (dot) dot.style.background = '#6b7280';
     } else if (state === 'chatting') {
-      char.style.transform = 'scale(1.05)';
+      char.style.transform = 'scale(1.1)';
       if (dot) dot.style.background = '#3b82f6';
     } else if (state === 'planning') {
       char.style.animation = 'lobsterIdle 2s ease-in-out infinite';
@@ -2324,6 +2341,15 @@ function setLobsterState(state) {
       char.style.animation = 'lobsterIdle 3s ease-in-out infinite';
       if (dot) dot.style.background = '#22c55e';
     }
+  }
+
+  if (bubble) {
+    bubble.style.bottom = pos.bubbleBottom;
+    bubble.style.left = pos.bubbleLeft;
+  }
+  if (stateWrap) {
+    stateWrap.style.bottom = (parseInt(pos.bottom) - 5) + '%';
+    stateWrap.style.left = pos.left;
   }
 }
 
