@@ -2354,6 +2354,7 @@ function setLobsterState(state) {
 }
 
 async function syncLobsterState() {
+  if (studioIsChatting) return;
   try {
     const [healthRes, missionsRes] = await Promise.all([
       fetch(API + '/api/health'),
@@ -2394,6 +2395,7 @@ async function syncLobsterState() {
 }
 
 let studioCurrentRole = '';
+let studioIsChatting = false;
 
 async function loadStudioRoles() {
   try {
@@ -2424,6 +2426,7 @@ async function studioSend() {
   container.innerHTML += '<div style="align-self:flex-end;background:var(--coral);color:white;padding:8px 12px;border-radius:12px 12px 4px 12px;font-size:13px;max-width:280px">' + msg.replace(/</g,'&lt;') + '</div>';
   container.scrollTop = container.scrollHeight;
 
+  studioIsChatting = true;
   setLobsterState('chatting');
   setTimeout(() => { if (currentLobsterState === 'chatting') setLobsterState('working'); }, 500);
 
@@ -2438,10 +2441,12 @@ async function studioSend() {
     const rendered = typeof marked !== 'undefined' ? marked.parse(reply) : reply;
     container.innerHTML += '<div style="align-self:flex-start;background:var(--bg2);border:1px solid var(--border);padding:8px 12px;border-radius:12px 12px 12px 4px;font-size:13px;max-width:280px" class="md-output">' + rendered + '</div>';
     container.scrollTop = container.scrollHeight;
+    studioIsChatting = false;
     setLobsterState('celebrating');
     setTimeout(() => { if (currentLobsterState === 'celebrating') setLobsterState('idle'); }, 3000);
   } catch (err) {
     container.innerHTML += '<div style="align-self:flex-start;color:var(--red);font-size:12px;padding:8px">Error: ' + err.message + '</div>';
+    studioIsChatting = false;
     setLobsterState('idle');
   }
 }
