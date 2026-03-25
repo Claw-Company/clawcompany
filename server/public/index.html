@@ -565,6 +565,17 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 
     <div id="settingsProviders"></div>
 
+    <div style="margin-top:32px">
+      <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:12px">🧠 Company Memory</h3>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:8px">Your AI team remembers facts from past missions and conversations. Edit or add memories below.</p>
+      <textarea id="memoryEditor" style="width:100%;height:200px;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:13px;font-family:monospace;resize:vertical;outline:none;box-sizing:border-box" placeholder="No memories yet. Run missions and your AI team will remember key facts."></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button onclick="saveMemoryEdit()" style="background:var(--coral);color:white;border:none;border-radius:6px;padding:6px 16px;font-size:12px;cursor:pointer">Save Memory</button>
+        <button onclick="clearMemory()" style="background:var(--bg2);color:var(--text3);border:1px solid var(--border);border-radius:6px;padding:6px 16px;font-size:12px;cursor:pointer">Clear All</button>
+        <span id="memorySaveStatus" style="font-size:11px;color:var(--text3);align-self:center"></span>
+      </div>
+    </div>
+
     <div style="margin-top:24px">
       <div class="page-title" style="font-size:16px;margin-bottom:8px">Channels</div>
       <div class="page-sub">Connect chat apps. Agents will deliver routine results here.</div>
@@ -609,6 +620,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:14px">💰</span>
             <span id="studioCost">$0.0000 total</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:14px">🧠</span>
+            <span id="studioMemories">0 memories</span>
           </div>
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:14px">🤖</span>
@@ -2405,6 +2420,16 @@ async function syncLobsterState() {
         roleCountEl.textContent = roles.length + ' roles';
       } catch {}
     }
+
+    const memEl = document.getElementById('studioMemories');
+    if (memEl) {
+      try {
+        const memRes = await fetch(API + '/api/memory');
+        const memData = await memRes.json();
+        const memCount = (memData.content || '').split('---').filter(s => s.trim()).length;
+        memEl.textContent = memCount + ' memories';
+      } catch {}
+    }
   } catch {}
 }
 
@@ -2475,6 +2500,42 @@ lobsterStyle.textContent = `
 `;
 document.head.appendChild(lobsterStyle);
 
+// ──── Memory ────
+
+async function loadMemoryEditor() {
+  try {
+    const res = await fetch(API + '/api/memory');
+    const data = await res.json();
+    const editor = document.getElementById('memoryEditor');
+    if (editor) editor.value = data.content || '';
+  } catch {}
+}
+
+async function saveMemoryEdit() {
+  const editor = document.getElementById('memoryEditor');
+  const status = document.getElementById('memorySaveStatus');
+  try {
+    await fetch(API + '/api/memory', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: editor.value }),
+    });
+    if (status) { status.textContent = '✓ Saved'; setTimeout(() => status.textContent = '', 2000); }
+  } catch (err) {
+    if (status) status.textContent = 'Error saving';
+  }
+}
+
+async function clearMemory() {
+  if (!confirm('Clear all company memory?')) return;
+  await fetch(API + '/api/memory', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: '' }),
+  });
+  document.getElementById('memoryEditor').value = '';
+}
+
 // Init
 initChatRoles();
 loadHealth();
@@ -2486,6 +2547,7 @@ loadRoutines();
 loadCode();
 loadMissionHistory();
 loadStudioRoles();
+loadMemoryEditor();
 setInterval(loadHealth, 30000);
 setInterval(syncLobsterState, 5000);
 </script>

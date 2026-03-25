@@ -3,7 +3,7 @@ import cors from 'cors';
 import { config } from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import {
   getDefaultConfig,
   resolveRoles,
@@ -56,6 +56,30 @@ function saveMissions() {
     if (missionHistoryData.length > 100) missionHistoryData = missionHistoryData.slice(0, 100);
     writeFileSync(missionsPath, JSON.stringify(missionHistoryData, null, 2));
   } catch {}
+}
+
+// ── Company Memory persistence ──
+const memoryPath = `${process.env.HOME}/.clawcompany/memory.md`;
+
+function loadMemory(): string {
+  try {
+    if (existsSync(memoryPath)) return readFileSync(memoryPath, 'utf-8');
+  } catch {}
+  return '';
+}
+
+function saveMemory(content: string) {
+  try {
+    const dir = `${process.env.HOME}/.clawcompany`;
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    writeFileSync(memoryPath, content);
+  } catch {}
+}
+
+function appendMemory(entry: string) {
+  const existing = loadMemory();
+  const newContent = existing + '\n\n---\n\n' + `[${new Date().toISOString().slice(0, 10)}] ${entry}`;
+  saveMemory(newContent);
 }
 
 // ── Chat history persistence ──
@@ -632,6 +656,28 @@ app.post('/api/routines/:id/run', async (req, res) => {
   }
 });
 
+// ──── Memory API ────
+
+app.get('/api/memory', (_req, res) => {
+  res.json({ content: loadMemory() });
+});
+
+app.put('/api/memory', (req, res) => {
+  const { content } = req.body;
+  if (typeof content !== 'string') return res.status(400).json({ error: 'content required' });
+  saveMemory(content);
+  res.json({ ok: true });
+});
+
+app.post('/api/memory', (req, res) => {
+  const { entry } = req.body;
+  if (!entry) return res.status(400).json({ error: 'entry required' });
+  appendMemory(entry);
+  res.json({ ok: true });
+});
+
+// ──── Chat ────
+
 app.post('/api/chat', async (req, res) => {
   if (!router) return res.status(503).json({ error: bootError ?? 'Not initialized' });
   const { role: roleId, message } = req.body;
@@ -640,7 +686,16 @@ app.post('/api/chat', async (req, res) => {
   try {
     const roleObj = router.getRole(roleId);
     const tools = roleObj ? getToolsForRole(roleObj.tools) : [];
-    const messages: Message[] = [{ role: 'user', content: message }];
+    const messages: Message[] = [];
+
+    // Inject company memory as system context
+    const memory = loadMemory();
+    if (memory.trim()) {
+      const trimmedMemory = memory.slice(-2000);
+      messages.push({ role: 'system', content: `COMPANY MEMORY (facts from past missions and conversations):\n${trimmedMemory}` });
+    }
+
+    messages.push({ role: 'user', content: message });
 
     let totalIn = 0, totalOut = 0, totalCost = 0;
     const MAX_TOOL_TURNS = 10;
@@ -933,9 +988,16 @@ app.post('/api/mission/run-stream', async (req, res) => {
           }
         }
 
-        const response = await router.chatAsRole(ws.assignTo, [
-          { role: 'user', content: `## Task: ${ws.title}\n\n${ws.description}\n\nComplexity: ${ws.estimatedComplexity}${context}\n\nComplete this task. Provide your output clearly and concisely.` },
-        ]);
+        // Build messages with memory context
+        const wsMessages: Message[] = [];
+        const missionMemory = loadMemory();
+        if (missionMemory.trim()) {
+          const trimmedMem = missionMemory.slice(-2000);
+          wsMessages.push({ role: 'system', content: `COMPANY MEMORY (facts from past missions and conversations):\n${trimmedMem}` });
+        }
+        wsMessages.push({ role: 'user', content: `## Task: ${ws.title}\n\n${ws.description}\n\nComplexity: ${ws.estimatedComplexity}${context}\n\nComplete this task. Provide your output clearly and concisely.` });
+
+        const response = await router.chatAsRole(ws.assignTo, wsMessages);
 
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
         const cost = response.usage.cost;
@@ -994,6 +1056,13 @@ app.post('/api/mission/run-stream', async (req, res) => {
     }));
     missionRecord.result = results[results.length - 1]?.output || '';
     saveMissions();
+
+    // Auto-extract mission summary to company memory
+    const lastOutput = results[results.length - 1]?.output || '';
+    if (lastOutput.length > 50) {
+      const missionSummary = `Mission: "${mission.slice(0, 100)}"\nKey roles: ${[...new Set(results.map((r: any) => r.role))].join(', ')}\nCost: $${totalCost.toFixed(4)}, Time: ${totalElapsed}s\nTemplate: ${clawConfig.activeTemplate || 'default'}`;
+      appendMemory(missionSummary);
+    }
 
   } catch (err: any) {
     send('error', { message: err.message });
