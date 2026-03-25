@@ -78,6 +78,10 @@ export async function initCommand() {
         name: '🔬 AutoResearch Lab — 5 roles, Karpathy Loop',
         value: 'research_lab',
       },
+      {
+        name: '💻 Software Dev Company — 6 roles, full SOP',
+        value: 'software_dev',
+      },
     ],
   });
 
