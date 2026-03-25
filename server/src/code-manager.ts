@@ -200,8 +200,13 @@ export class CodeManager extends EventEmitter {
     session.pid = pty.pid;
 
     pty.onData((data: string) => {
-      // Filter out Device Attributes responses that leak into input
-      const filtered = data.replace(/\x1b\[\?[0-9;]*c/g, '').replace(/O\?[0-9;]*c/g, '');
+      // Filter out terminal query responses that leak into output
+      const filtered = data
+        .replace(/\x1b\[\?[0-9;]*c/g, '')   // DA1 response: ESC[?1;2c
+        .replace(/\x1b\[>[0-9;]*c/g, '')    // DA2 response: ESC[>...c
+        .replace(/\x1b\[[0-9;]*c/g, '')     // DA generic
+        .replace(/\x1bP[^\x1b]*\x1b\\/g, '') // DCS responses
+        .replace(/O\?[0-9;]*c/g, '');        // Malformed DA
       if (!filtered) return;
 
       buffer.push(filtered);
