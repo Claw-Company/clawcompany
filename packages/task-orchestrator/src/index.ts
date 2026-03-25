@@ -24,20 +24,26 @@ export class TaskOrchestrator {
     this.memoryContext = ctx;
   }
 
+  /** Get the leader role ID (reportsTo === null) */
+  private getLeaderId(): string {
+    const leader = this.router.getRoles().find((r) => r.reportsTo === null);
+    return leader?.id ?? 'ceo';
+  }
+
   /**
-   * Phase 2: CEO decomposes mission into work streams.
-   * Human (Chairman) gives the mission → CEO breaks it down.
+   * Phase 2: Leader decomposes mission into work streams.
+   * Human (Chairman) gives the mission → leader breaks it down.
    */
   async decompose(mission: Mission): Promise<WorkStream[]> {
-    const ceo = this.router.getRole('ceo');
-    if (!ceo) throw new Error('CEO role not configured');
+    const leader = this.router.getRoles().find((r) => r.reportsTo === null);
+    if (!leader) throw new Error('No leader role configured');
 
-    const roles = this.router.getRoles().filter((r) => r.isActive && r.id !== 'ceo' && r.budgetTier !== 'survive');
+    const roles = this.router.getRoles().filter((r) => r.isActive && r.id !== leader.id && r.budgetTier !== 'survive');
     const roleList = roles
       .map((r) => `- ${r.id}: ${r.name} (${r.model}) — ${r.description}`)
       .join('\n');
 
-    const response = await this.router.chatAsRole('ceo', [
+    const response = await this.router.chatAsRole(leader.id, [
       {
         role: 'user',
         content: `Mission from the Chairman (human):
@@ -192,8 +198,8 @@ Respond ONLY with JSON:
       title: ws.title,
       description: `${ws.description}\n\nComplexity: ${ws.estimatedComplexity}${context}${this.memoryContext ? `\n${this.memoryContext}` : ''}\n\nToday's date is ${new Date().toISOString().split('T')[0]}.`,
       assignedTo: ws.assignTo,
-      createdBy: 'ceo',
-      reportTo: 'ceo',
+      createdBy: this.getLeaderId(),
+      reportTo: this.getLeaderId(),
       status: 'in_progress' as any,
       priority: 1,
       tokensIn: 0,

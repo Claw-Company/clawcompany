@@ -457,7 +457,7 @@ app.post('/api/roles', (req, res) => {
     clawConfig.roles[id] = {
       name, model, provider: provider || 'clawapi',
       description: description || '', systemPrompt: systemPrompt || `You are ${name}.`,
-      reportsTo: reportsTo || 'ceo', isActive: true, isBuiltin: false,
+      reportsTo: reportsTo || resolveRoles(clawConfig).find(r => r.reportsTo === null)?.id || 'ceo', isActive: true, isBuiltin: false,
     };
 
     // Persist
@@ -1050,7 +1050,8 @@ app.post('/api/mission/decompose', async (req, res) => {
       status: 'decomposing', priority: 'normal', approvalRequired: false,
       totalCost: 0, createdAt: new Date().toISOString(),
     });
-    res.json({ mission, decomposedBy: 'CEO (claude-opus-4-6)', workStreams });
+    const leader = resolveRoles(clawConfig).find(r => r.reportsTo === null);
+    res.json({ mission, decomposedBy: `${leader?.name ?? 'Leader'} (${leader?.model ?? 'unknown'})`, workStreams });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -1095,7 +1096,9 @@ app.post('/api/mission/run-stream', async (req, res) => {
     console.log(`\n  🎯 Mission from Chairman: "${mission}"\n`);
 
     // Phase 2: Decompose
-    send('phase', { phase: 'decomposing', message: 'CEO is analyzing your mission...' });
+    const leader = resolveRoles(clawConfig).find(r => r.reportsTo === null);
+    const leaderName = leader?.name ?? 'Leader';
+    send('phase', { phase: 'decomposing', message: `${leaderName} is analyzing your mission...` });
 
     const missionObj = {
       id: `mission-${Date.now()}`, companyId: 'default', content: mission,
@@ -1292,7 +1295,8 @@ app.post('/api/mission/run', async (req, res) => {
   try {
     console.log(`\n  🎯 Mission from Chairman: "${mission}"\n`);
 
-    console.log('  Phase 2: CEO decomposing...');
+    const leaderRole = resolveRoles(clawConfig).find(r => r.reportsTo === null);
+    console.log(`  Phase 2: ${leaderRole?.name ?? 'Leader'} decomposing...`);
     const missionObj = {
       id: `mission-${Date.now()}`, companyId: 'default', content: mission,
       status: 'decomposing' as const, priority: 'normal' as const,
@@ -1424,8 +1428,9 @@ const server = app.listen(PORT, async () => {
           status: 'decomposing' as const, priority: 'normal' as const,
           approvalRequired: false, totalCost: 0, createdAt: new Date().toISOString(),
         };
+        const leaderRole = resolveRoles(clawConfig).find(r => r.reportsTo === null);
         console.log(`\n  🎯 Mission from Chairman: "${goal}"\n`);
-        console.log('  Phase 2: CEO decomposing...');
+        console.log(`  Phase 2: ${leaderRole?.name ?? 'Leader'} decomposing...`);
         const workStreams = await orchestrator.decompose(mission);
         console.log(`  ✅ Decomposed into ${workStreams.length} work streams\n`);
         console.log('  Phase 3-5: Executing...');
