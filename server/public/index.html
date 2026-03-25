@@ -330,6 +330,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 
   <!-- Mission Page -->
   <div class="page" id="page-mission">
+    <div id="missionKeyBanner" style="display:none;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#eab308">
+      ⚠️ API key required to run missions. Go to <a href="#" onclick="showPage('settings');return false" style="color:var(--coral2);text-decoration:underline">Settings</a> to add your ClawAPI key.
+    </div>
     <div class="page-title">Mission control</div>
     <div class="page-sub">Give your company a mission. The CEO will decompose and execute.</div>
 
@@ -352,6 +355,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 
   <!-- Chat Page -->
   <div class="page" id="page-chat">
+    <div id="chatKeyBanner" style="display:none;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#eab308">
+      ⚠️ API key required for Chat. Go to <a href="#" onclick="showPage('settings');return false" style="color:var(--coral2);text-decoration:underline">Settings</a> to add your ClawAPI key.
+    </div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <div>
         <div class="page-title">Chat</div>
@@ -909,6 +915,8 @@ async function loadHealth() {
     document.getElementById('providerName').textContent = 'ClawAPI';
     document.getElementById('providerStatus').textContent = data.status === 'ok' ? 'connected' : (data.apiKeyMissing ? 'no key' : data.error || 'error');
     document.getElementById('apiKeyBanner').style.display = data.apiKeyMissing ? 'block' : 'none';
+    document.getElementById('missionKeyBanner').style.display = data.apiKeyMissing ? 'block' : 'none';
+    document.getElementById('chatKeyBanner').style.display = data.apiKeyMissing ? 'block' : 'none';
   } catch(e) {
     document.getElementById('statusDot').className = 'status-dot error';
     document.getElementById('statusText').textContent = 'Offline';
