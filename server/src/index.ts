@@ -1374,10 +1374,11 @@ const server = app.listen(PORT, async () => {
   if (existsSync(configPath)) {
     try {
       userConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
-      if (userConfig.channels?.telegram?.token && !process.env.TELEGRAM_BOT_TOKEN) {
+      // Config.json tokens always win — user set them via Dashboard
+      if (userConfig.channels?.telegram?.token) {
         process.env.TELEGRAM_BOT_TOKEN = userConfig.channels.telegram.token;
       }
-      if (userConfig.channels?.discord?.token && !process.env.DISCORD_BOT_TOKEN) {
+      if (userConfig.channels?.discord?.token) {
         process.env.DISCORD_BOT_TOKEN = userConfig.channels.discord.token;
       }
       // Restore active template and roles
