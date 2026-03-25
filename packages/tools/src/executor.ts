@@ -184,16 +184,26 @@ export class ToolExecutor {
 
       // Parse DuckDuckGo HTML results
       const results: Array<{ title: string; url: string; snippet: string }> = [];
-      const resultBlocks = html.split('class="result__body"');
+
+      // Split on result__body (may have extra classes before it)
+      const resultBlocks = html.split(/result__body">/);
 
       for (let i = 1; i < resultBlocks.length && results.length < limit; i++) {
         const block = resultBlocks[i];
 
-        // Extract title
-        const titleMatch = block.match(/class="result__a"[^>]*>([^<]+)</);
-        const title = titleMatch?.[1]?.trim() ?? '';
+        // Skip ads (the preceding block contains "result--ad")
+        const prevTail = resultBlocks[i - 1].slice(-300);
+        if (prevTail.includes('result--ad')) continue;
 
-        // Extract URL
+        // Extract title
+        const titleMatch = block.match(/class="result__a"[^>]*>([^<]+)/);
+        const title = titleMatch?.[1]
+          ?.replace(/&amp;/g, '&')
+          ?.replace(/&quot;/g, '"')
+          ?.replace(/&#x27;/g, "'")
+          ?.trim() ?? '';
+
+        // Extract URL from redirect link
         const urlMatch = block.match(/href="\/\/duckduckgo\.com\/l\/\?[^"]*uddg=([^&"]+)/);
         const url = urlMatch?.[1] ? decodeURIComponent(urlMatch[1]) : '';
 
@@ -201,6 +211,9 @@ export class ToolExecutor {
         const snippetMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/a>/);
         const snippet = snippetMatch?.[1]
           ?.replace(/<[^>]+>/g, '')
+          ?.replace(/&quot;/g, '"')
+          ?.replace(/&#x27;/g, "'")
+          ?.replace(/&amp;/g, '&')
           ?.replace(/\s+/g, ' ')
           ?.trim() ?? '';
 
