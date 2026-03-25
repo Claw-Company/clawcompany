@@ -11,3 +11,4 @@ coverage/
 *.db
 *.db-journal
 pglite-data/
+.env.backup
