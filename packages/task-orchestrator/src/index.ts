@@ -26,7 +26,7 @@ export class TaskOrchestrator {
 
   /** Get the leader role ID (reportsTo === null) */
   private getLeaderId(): string {
-    const leader = this.router.getRoles().find((r) => r.reportsTo === null);
+    const leader = this.router.getRoles().find((r) => r.reportsTo === null && r.budgetTier !== 'survive');
     return leader?.id ?? 'ceo';
   }
 
@@ -35,7 +35,7 @@ export class TaskOrchestrator {
    * Human (Chairman) gives the mission → leader breaks it down.
    */
   async decompose(mission: Mission): Promise<WorkStream[]> {
-    const leader = this.router.getRoles().find((r) => r.reportsTo === null);
+    const leader = this.router.getRoles().find((r) => r.reportsTo === null && r.budgetTier !== 'survive');
     if (!leader) throw new Error('No leader role configured');
 
     const roles = this.router.getRoles().filter((r) => r.isActive && r.id !== leader.id && r.budgetTier !== 'survive');
