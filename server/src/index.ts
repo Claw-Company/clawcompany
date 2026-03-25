@@ -79,6 +79,7 @@ let router: ModelRouter;
 let orchestrator: TaskOrchestrator;
 const toolExecutor = new ToolExecutor();
 let bootError: string | null = null;
+let fallbackProvider: string | null = null; // non-null when running in auto-remap mode
 
 // ── Mission history persistence ──
 const missionsPath = `${process.env.HOME}/.clawcompany/missions.json`;
@@ -163,15 +164,17 @@ function detectFallbackProvider(): string | null {
 /**
  * Auto-remap all role models to a fallback provider.
  * Mutates clawConfig.roles in place. Only affects runtime, not config.json.
+ * Uses resolveRoles() to read the correct budgetTier from builtin definitions.
  */
 function autoRemapModels(providerId: string) {
   const models = PROVIDER_MODEL_MAP[providerId];
   if (!models) return;
 
-  for (const [, roleOverrides] of Object.entries(clawConfig.roles)) {
-    const tier = (roleOverrides as any).budgetTier ?? 'save';
-    (roleOverrides as any).model = tier === 'earn' ? models.earn : models.save;
-    (roleOverrides as any).provider = providerId;
+  const resolved = resolveRoles(clawConfig);
+  for (const role of resolved) {
+    if (!clawConfig.roles[role.id]) clawConfig.roles[role.id] = {};
+    clawConfig.roles[role.id].model = role.budgetTier === 'earn' ? models.earn : models.save;
+    clawConfig.roles[role.id].provider = providerId;
   }
 }
 
@@ -200,6 +203,7 @@ async function bootstrap() {
         autoRemapModels(fallback);
         activeProvider = fallback;
         remapped = true;
+        fallbackProvider = fallback;
       }
     } else {
       // No providers at all
@@ -322,6 +326,11 @@ app.put('/api/templates/active', (req, res) => {
 
   clawConfig.activeTemplate = templateId;
   clawConfig.roles = newRoles;
+
+  // Re-apply fallback remap if running without ClawAPI
+  if (fallbackProvider) {
+    autoRemapModels(fallbackProvider);
+  }
 
   // Persist
   const homeDir = process.env.HOME ?? '~';
@@ -569,9 +578,23 @@ app.put('/api/settings/providers/:id', (req, res) => {
       writeFileSync(configPath, JSON.stringify(userConfig, null, 2));
     }
 
-    // Re-bootstrap if AI features were not initialized (key was missing at startup)
-    if (id === 'clawapi' && !router) {
+    // Re-bootstrap if AI features were not initialized or running in fallback mode
+    if (id === 'clawapi' && (!router || fallbackProvider)) {
       clawConfig.providers[0].apiKey = apiKey;
+      // Reset roles to template defaults (undo fallback remap)
+      if (fallbackProvider) {
+        const tplId = clawConfig.activeTemplate ?? 'default';
+        const tpl = TEMPLATES[tplId];
+        if (tpl) {
+          for (const role of tpl.roles) {
+            if (clawConfig.roles[role.id]) {
+              clawConfig.roles[role.id].model = role.model;
+              clawConfig.roles[role.id].provider = role.provider;
+            }
+          }
+        }
+      }
+      fallbackProvider = null; // clear fallback — switching to ClawAPI
       bootError = null;
       bootstrap().catch(() => {});
     }
