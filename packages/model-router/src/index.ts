@@ -108,6 +108,11 @@ export class ModelRouter {
     role.updatedAt = new Date().toISOString();
   }
 
+  /** Re-resolve roles from the live config. Call after template switch or role CRUD. */
+  refreshRoles(): void {
+    this.roles = resolveRoles(this.config);
+  }
+
   getRoles(): readonly Role[] {
     return this.roles;
   }

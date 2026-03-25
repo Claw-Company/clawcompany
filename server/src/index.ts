@@ -336,6 +336,9 @@ app.put('/api/templates/active', (req, res) => {
     writeFileSync(configPath, JSON.stringify(userConfig, null, 2));
   } catch {}
 
+  // Sync router's role snapshot with updated config
+  router?.refreshRoles();
+
   const roles = resolveRoles(clawConfig);
   res.json({ ok: true, template: templateId, roles: roles.map(r => ({ id: r.id, name: r.name, model: r.model })) });
 });
@@ -412,6 +415,9 @@ app.put('/api/roles/:id', (req, res) => {
     if (name !== undefined) clawConfig.roles[id].name = name;
     if (systemPrompt !== undefined) clawConfig.roles[id].systemPrompt = systemPrompt;
 
+    // Sync router's role snapshot with updated config
+    router?.refreshRoles();
+
     // Persist to user config
     const homeDir = process.env.HOME ?? '~';
     const configPath = `${homeDir}/.clawcompany/config.json`;
@@ -455,6 +461,9 @@ app.post('/api/roles', (req, res) => {
       writeFileSync(configPath, JSON.stringify(userConfig, null, 2));
     }
 
+    // Sync router's role snapshot with updated config
+    router?.refreshRoles();
+
     const created = resolveRoles(clawConfig).find(r => r.id === id);
     res.json({ ok: true, role: created });
   } catch (e: any) {
@@ -470,6 +479,9 @@ app.delete('/api/roles/:id', async (req, res) => {
 
   try {
     delete clawConfig.roles[id];
+
+    // Sync router's role snapshot with updated config
+    router?.refreshRoles();
 
     // Persist
     const homeDir = process.env.HOME ?? '~';
@@ -523,9 +535,14 @@ app.put('/api/settings/providers/:id', (req, res) => {
   }
 
   try {
-    // Update runtime config
-    const provider = clawConfig.providers.find(p => p.id === id);
-    if (!provider) return res.status(404).json({ ok: false, error: 'Provider not found' });
+    // Update runtime config — add provider if not yet in config
+    let provider = clawConfig.providers.find(p => p.id === id);
+    if (!provider) {
+      const catalogEntry = PROVIDER_CATALOG.find(p => p.id === id);
+      if (!catalogEntry) return res.status(404).json({ ok: false, error: 'Unknown provider' });
+      provider = catalogToConfig(catalogEntry, apiKey);
+      clawConfig.providers.push(provider);
+    }
     provider.apiKey = apiKey;
 
     // Sync to process.env so bootstrap/health checks see the new key
