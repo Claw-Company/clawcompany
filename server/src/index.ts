@@ -23,6 +23,42 @@ import { CodeManager } from './code-manager.js';
 
 config({ path: '../.env' });
 
+// ── Sync config.json → process.env (before anything reads env vars) ──
+// Dashboard saves API keys and tokens to config.json. On restart, we must
+// load them into process.env so bootstrap() and bot init see them.
+const _syncHomeDir = process.env.HOME ?? '~';
+const _syncConfigPath = `${_syncHomeDir}/.clawcompany/config.json`;
+if (existsSync(_syncConfigPath)) {
+  try {
+    const _saved = JSON.parse(readFileSync(_syncConfigPath, 'utf-8'));
+    // Provider API keys (ClawAPI, Anthropic, OpenAI, Google)
+    if (_saved.apiKey) {
+      process.env.CLAWAPI_KEY = _saved.apiKey;
+    }
+    if (_saved.providers) {
+      const envVarMap: Record<string, string> = {
+        clawapi: 'CLAWAPI_KEY',
+        anthropic: 'ANTHROPIC_API_KEY',
+        openai: 'OPENAI_API_KEY',
+        google: 'GOOGLE_API_KEY',
+      };
+      for (const [id, cfg] of Object.entries(_saved.providers)) {
+        const envVar = envVarMap[id];
+        if (envVar && (cfg as any).apiKey) {
+          process.env[envVar] = (cfg as any).apiKey;
+        }
+      }
+    }
+    // Channel tokens (Telegram, Discord)
+    if (_saved.channels?.telegram?.token) {
+      process.env.TELEGRAM_BOT_TOKEN = _saved.channels.telegram.token;
+    }
+    if (_saved.channels?.discord?.token) {
+      process.env.DISCORD_BOT_TOKEN = _saved.channels.discord.token;
+    }
+  } catch {}
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -492,9 +528,15 @@ app.put('/api/settings/providers/:id', (req, res) => {
     if (!provider) return res.status(404).json({ ok: false, error: 'Provider not found' });
     provider.apiKey = apiKey;
 
-    // Also update .env for ClawAPI (primary provider)
-    if (id === 'clawapi') {
-      process.env.CLAWAPI_KEY = apiKey;
+    // Sync to process.env so bootstrap/health checks see the new key
+    const envVarMap: Record<string, string> = {
+      clawapi: 'CLAWAPI_KEY',
+      anthropic: 'ANTHROPIC_API_KEY',
+      openai: 'OPENAI_API_KEY',
+      google: 'GOOGLE_API_KEY',
+    };
+    if (envVarMap[id]) {
+      process.env[envVarMap[id]] = apiKey;
     }
 
     // Save to user config
@@ -1374,13 +1416,7 @@ const server = app.listen(PORT, async () => {
   if (existsSync(configPath)) {
     try {
       userConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
-      // Config.json tokens always win — user set them via Dashboard
-      if (userConfig.channels?.telegram?.token) {
-        process.env.TELEGRAM_BOT_TOKEN = userConfig.channels.telegram.token;
-      }
-      if (userConfig.channels?.discord?.token) {
-        process.env.DISCORD_BOT_TOKEN = userConfig.channels.discord.token;
-      }
+      // Channel tokens already synced at startup (top of file)
       // Restore active template and roles
       if (userConfig.activeTemplate && TEMPLATES[userConfig.activeTemplate]) {
         clawConfig.activeTemplate = userConfig.activeTemplate;
