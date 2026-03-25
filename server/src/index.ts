@@ -100,8 +100,19 @@ function saveChats() {
 
 async function bootstrap() {
   if (!process.env.CLAWAPI_KEY) {
-    bootError = 'CLAWAPI_KEY not set. Fix: echo "CLAWAPI_KEY=sk-claw-..." > .env';
-    console.error(`  ❌ ${bootError}`);
+    console.log('  ⚠️  No API key set. AI features disabled. Set your key in Dashboard → Settings.');
+    const roles = resolveRoles(clawConfig);
+    const active = roles.filter(r => r.isActive && r.budgetTier !== 'survive');
+    console.log(`  ✅ ${active.length} roles loaded (AI features require API key)`);
+    console.log('');
+    console.log('  👤 Chairman = Human (you)');
+    console.log('');
+    for (const role of active) {
+      const pricing = MODEL_PRICING[role.model];
+      const cost = pricing ? `$${pricing.input}/$${pricing.output}` : 'custom';
+      console.log(`     ${role.name.padEnd(12)} → ${role.model} (${cost})`);
+    }
+    console.log('');
     return;
   }
 
@@ -141,6 +152,7 @@ app.get('/api/health', (_req, res) => {
     tagline: 'Build for OPC. Every human being is a chairman.',
     telegram: !!process.env.TELEGRAM_BOT_TOKEN,
     discord: !!process.env.DISCORD_BOT_TOKEN,
+    apiKeyMissing: !process.env.CLAWAPI_KEY,
     error: bootError,
   });
 });
@@ -422,6 +434,13 @@ app.put('/api/settings/providers/:id', (req, res) => {
       if (!userConfig.providers) userConfig.providers = {};
       userConfig.providers[id] = { apiKey };
       writeFileSync(configPath, JSON.stringify(userConfig, null, 2));
+    }
+
+    // Re-bootstrap if AI features were not initialized (key was missing at startup)
+    if (id === 'clawapi' && !router) {
+      clawConfig.providers[0].apiKey = apiKey;
+      bootError = null;
+      bootstrap().catch(() => {});
     }
 
     res.json({ ok: true });

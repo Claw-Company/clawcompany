@@ -1,10 +1,11 @@
+import { existsSync, readFileSync } from 'fs';
+import { join } from 'path';
 import { input, select, confirm } from '@inquirer/prompts';
 import {
   banner,
   configExists,
   readConfig,
   writeConfig,
-  validateClawApiKey,
   getConfigDir,
 } from '../utils.js';
 import { BUILTIN_ROLES, MODEL_PRICING } from '@clawcompany/shared';
@@ -40,43 +41,10 @@ export async function initCommand() {
   console.log('  Welcome! Let\'s set up your AI company.\n');
 
   // ──────────────────────────────────────
-  // Step 1: ClawAPI key
+  // Step 1: Company name
   // ──────────────────────────────────────
 
-  console.log('  Step 1/3: Connect to ClawAPI\n');
-
-  let apiKey = '';
-  let keyValid = false;
-
-  while (!keyValid) {
-    apiKey = await input({
-      message: 'Enter your ClawAPI key:',
-      validate: (v) => {
-        if (!v.trim()) return 'Key is required.';
-        if (!v.startsWith('sk-claw-')) return 'Key should start with sk-claw-';
-        return true;
-      },
-    });
-
-    console.log('');
-    console.log('  Verifying key...');
-
-    const result = await validateClawApiKey(apiKey.trim());
-
-    if (result.valid) {
-      console.log('  ✓ Key verified\n');
-      keyValid = true;
-    } else {
-      console.log(`  ✗ ${result.error}`);
-      console.log('    Get a key at https://clawapi.org\n');
-    }
-  }
-
-  // ──────────────────────────────────────
-  // Step 2: Company name
-  // ──────────────────────────────────────
-
-  console.log('  Step 2/3: Name your company\n');
+  console.log('  Step 1/2: Name your company\n');
 
   const companyName = await input({
     message: 'Company name:',
@@ -86,38 +54,57 @@ export async function initCommand() {
   console.log('');
 
   // ──────────────────────────────────────
-  // Step 3: Template
+  // Step 2: Template
   // ──────────────────────────────────────
 
-  console.log('  Step 3/3: Choose a template\n');
+  console.log('  Step 2/2: Choose a template\n');
 
   const template = await select({
     message: 'Template:',
     choices: [
       {
-        name: 'Default (CEO + CTO + CFO + CMO + Researcher + Analyst + Engineer + Secretary + Worker)',
+        name: '🦞 Default — 9 roles, general purpose',
         value: 'default',
       },
       {
-        name: 'Trading Desk (+ Trader + Data Collector)',
-        value: 'trading-desk',
+        name: '🚀 YC Startup — 7 roles, ship fast',
+        value: 'yc_startup',
       },
       {
-        name: 'Content Agency (+ Writer + Editor + SEO)',
-        value: 'content-agency',
+        name: '📈 Trading Desk — 7 roles, Bull vs Bear',
+        value: 'trading',
       },
       {
-        name: 'Dev Shop (+ QA + DevOps)',
-        value: 'dev-shop',
-      },
-      {
-        name: 'Solo Founder (CEO + Worker only — cheapest)',
-        value: 'solo-founder',
+        name: '🔬 AutoResearch Lab — 5 roles, Karpathy Loop',
+        value: 'research_lab',
       },
     ],
   });
 
   console.log('');
+
+  // ──────────────────────────────────────
+  // Check for existing API key
+  // ──────────────────────────────────────
+
+  let apiKey = '';
+
+  // Check .env file
+  const envPath = join(process.cwd(), '.env');
+  if (existsSync(envPath)) {
+    const envContent = readFileSync(envPath, 'utf-8');
+    const match = envContent.match(/CLAWAPI_KEY=(.+)/);
+    if (match && match[1].trim()) {
+      apiKey = match[1].trim();
+      console.log('  ✓ Found ClawAPI key in .env\n');
+    }
+  }
+
+  if (!apiKey) {
+    console.log('  ℹ  API key not set. You can add it later in Dashboard → Settings.');
+    console.log('     Code Manager, Roles, and Studio work without an API key.');
+    console.log('     To run Missions and Chat, add your key at http://localhost:3200 → Settings.\n');
+  }
 
   // ──────────────────────────────────────
   // Create company
@@ -126,7 +113,7 @@ export async function initCommand() {
   console.log('  Creating company...\n');
 
   const config = {
-    apiKey: apiKey.trim(),
+    apiKey,
     companyName,
     template,
     serverPort: 3200,

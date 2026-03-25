@@ -295,6 +295,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 
   <!-- Overview Page -->
   <div class="page active" id="page-overview">
+    <div id="apiKeyBanner" style="display:none;background:var(--amberBg);border:1px solid var(--amber);border-radius:var(--radius);padding:12px 16px;margin-bottom:16px;font-size:13px;color:var(--amber)">
+      ⚠️ API key not set. Go to <a href="#" onclick="showPage('settings');return false" style="color:var(--coral2);text-decoration:underline">Settings</a> to add your ClawAPI key and unlock AI features.
+    </div>
     <div class="page-title" id="welcomeTitle">Dashboard</div>
     <div class="page-sub" id="welcomeSub">You are the Chairman. Your AI company is ready.</div>
 
@@ -902,9 +905,10 @@ async function loadHealth() {
     const res = await fetch(API + '/api/health');
     const data = await res.json();
     document.getElementById('statusDot').className = 'status-dot ' + (data.status === 'ok' ? 'ok' : 'error');
-    document.getElementById('statusText').textContent = data.status === 'ok' ? 'Connected' : 'Error';
+    document.getElementById('statusText').textContent = data.status === 'ok' ? 'Connected' : (data.apiKeyMissing ? 'No API Key' : 'Error');
     document.getElementById('providerName').textContent = 'ClawAPI';
-    document.getElementById('providerStatus').textContent = data.status === 'ok' ? 'connected' : data.error || 'error';
+    document.getElementById('providerStatus').textContent = data.status === 'ok' ? 'connected' : (data.apiKeyMissing ? 'no key' : data.error || 'error');
+    document.getElementById('apiKeyBanner').style.display = data.apiKeyMissing ? 'block' : 'none';
   } catch(e) {
     document.getElementById('statusDot').className = 'status-dot error';
     document.getElementById('statusText').textContent = 'Offline';
