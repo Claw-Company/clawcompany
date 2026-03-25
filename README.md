@@ -47,15 +47,14 @@ That's it. The wizard guides you through everything:
   🦞 ClawCompany v0.20.0
   Build for OPC. Every human being is a chairman.
 
-  Step 1/3: Connect to ClawAPI
-  ? Enter your ClawAPI key: sk-claw-████████████
-  ✓ Key verified
-
-  Step 2/3: Name your company
+  Step 1/2: Name your company
   ? Company name: Claws LTD.CO.
 
-  Step 3/3: Choose a template
+  Step 2/2: Choose a template
   ? Template: Default (CEO + CTO + CFO + CMO + Researcher + Analyst + ...)
+
+  ℹ  Set your API key in Dashboard → Settings
+     Supports: ClawAPI, Anthropic, OpenAI, Google, Ollama
 
   ✓ Company "Claws LTD.CO." created
   ✓ 9 agents hired:
@@ -81,7 +80,7 @@ clawcompany mission "Write a competitive analysis comparing OpenAI vs Anthropic"
 
 No config files. No JSON to edit. No Docker. No proxy. No server to start. Just answer 3 questions.
 
-> **Requirements:** Node.js 20+. Get a ClawAPI key at [clawapi.org](https://clawapi.org).
+> **Requirements:** Node.js 20+. Supports ClawAPI, Anthropic, OpenAI, Google, or Ollama. Set your API key in Dashboard → Settings.
 
 ---
 
