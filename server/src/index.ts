@@ -9,6 +9,8 @@ import {
   resolveRoles,
   MODEL_PRICING,
   TEMPLATES,
+  PROVIDER_CATALOG,
+  catalogToConfig,
 } from '@clawcompany/shared';
 import { ProviderRegistry } from '@clawcompany/providers';
 import { ModelRouter } from '@clawcompany/model-router';
@@ -98,29 +100,101 @@ function saveChats() {
   } catch {}
 }
 
-async function bootstrap() {
-  if (!process.env.CLAWAPI_KEY) {
-    console.log('  ⚠️  No API key set. AI features disabled. Set your key in Dashboard → Settings.');
-    const roles = resolveRoles(clawConfig);
-    const active = roles.filter(r => r.isActive && r.budgetTier !== 'survive');
-    console.log(`  ✅ ${active.length} roles loaded (AI features require API key)`);
-    console.log('');
-    console.log('  👤 Chairman = Human (you)');
-    console.log('');
-    for (const role of active) {
-      const pricing = MODEL_PRICING[role.model];
-      const cost = pricing ? `$${pricing.input}/$${pricing.output}` : 'custom';
-      console.log(`     ${role.name.padEnd(12)} → ${role.model} (${cost})`);
+// Model mapping for auto-remap when ClawAPI is not available
+const PROVIDER_MODEL_MAP: Record<string, { earn: string; save: string }> = {
+  anthropic: { earn: 'claude-opus-4-6', save: 'claude-sonnet-4-6' },
+  openai:    { earn: 'gpt-5.4', save: 'gpt-5-mini' },
+  google:    { earn: 'gemini-3.1-pro', save: 'gemini-3.1-flash' },
+  ollama:    { earn: 'llama3', save: 'llama3' },
+};
+
+/**
+ * Detect fallback providers from env vars when ClawAPI key is missing.
+ * Returns the first available provider id, or null.
+ */
+function detectFallbackProvider(): string | null {
+  for (const entry of PROVIDER_CATALOG) {
+    if (entry.id === 'clawapi') continue;
+    if (entry.id === 'ollama') continue; // ollama has no env var key
+    if (entry.apiKeyEnvVar && process.env[entry.apiKeyEnvVar]) {
+      return entry.id;
     }
-    console.log('');
-    return;
+  }
+  // Check ollama last (no key needed, just check if running)
+  return null;
+}
+
+/**
+ * Auto-remap all role models to a fallback provider.
+ * Mutates clawConfig.roles in place. Only affects runtime, not config.json.
+ */
+function autoRemapModels(providerId: string) {
+  const models = PROVIDER_MODEL_MAP[providerId];
+  if (!models) return;
+
+  for (const [, roleOverrides] of Object.entries(clawConfig.roles)) {
+    const tier = (roleOverrides as any).budgetTier ?? 'save';
+    (roleOverrides as any).model = tier === 'earn' ? models.earn : models.save;
+    (roleOverrides as any).provider = providerId;
+  }
+}
+
+async function bootstrap() {
+  // Detect available provider
+  let activeProvider = 'clawapi';
+  let remapped = false;
+
+  if (!process.env.CLAWAPI_KEY) {
+    const fallback = detectFallbackProvider();
+    if (fallback) {
+      // Add fallback provider to config
+      const catalogEntry = PROVIDER_CATALOG.find(p => p.id === fallback);
+      if (catalogEntry) {
+        const apiKey = process.env[catalogEntry.apiKeyEnvVar!] ?? '';
+        const providerConfig = catalogToConfig(catalogEntry, apiKey);
+        // Replace or add provider in config
+        const idx = clawConfig.providers.findIndex(p => p.id === fallback);
+        if (idx >= 0) {
+          clawConfig.providers[idx] = providerConfig;
+        } else {
+          clawConfig.providers.push(providerConfig);
+        }
+        // Make it the default
+        clawConfig.providers.forEach(p => p.isDefault = p.id === fallback);
+        autoRemapModels(fallback);
+        activeProvider = fallback;
+        remapped = true;
+      }
+    } else {
+      // No providers at all
+      console.log('  ⚠️  No API key set. AI features disabled. Set your key in Dashboard → Settings.');
+      const roles = resolveRoles(clawConfig);
+      const active = roles.filter(r => r.isActive && r.budgetTier !== 'survive');
+      console.log(`  ✅ ${active.length} roles loaded (AI features require API key)`);
+      console.log('');
+      console.log('  👤 Chairman = Human (you)');
+      console.log('');
+      for (const role of active) {
+        const pricing = MODEL_PRICING[role.model];
+        const cost = pricing ? `$${pricing.input}/$${pricing.output}` : 'custom';
+        console.log(`     ${role.name.padEnd(12)} → ${role.model} (${cost})`);
+      }
+      console.log('');
+      return;
+    }
   }
 
   try {
     await registry.loadFromConfig(clawConfig.providers);
     router = new ModelRouter(registry, clawConfig);
     orchestrator = new TaskOrchestrator(router);
-    console.log('  ✅ Connected to ClawAPI');
+
+    if (remapped) {
+      const models = PROVIDER_MODEL_MAP[activeProvider];
+      console.log(`  ℹ  No ClawAPI key. Auto-remapped all roles to ${activeProvider} (${models?.earn} / ${models?.save})`);
+    } else {
+      console.log('  ✅ Connected to ClawAPI');
+    }
 
     const roles = resolveRoles(clawConfig);
     const active = roles.filter(r => r.isActive && r.budgetTier !== 'survive');
