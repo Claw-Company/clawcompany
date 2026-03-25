@@ -82,6 +82,55 @@ export class CodeManager extends EventEmitter {
     if (!existsSync(configDir)) mkdirSync(configDir, { recursive: true });
     this.configPath = join(configDir, 'code-sessions.json');
     this.load();
+    this.ensureClaudeMcpConfig();
+  }
+
+  /**
+   * Auto-configure ClawCompany MCP Server in ~/.claude.json so Claude Code
+   * can use our tools (web_search, web_fetch, company_memory, etc.) out of the box.
+   * Merges into existing config — never overwrites other MCP servers.
+   * Silently skips on any error.
+   */
+  private ensureClaudeMcpConfig(): void {
+    try {
+      const homeDir = process.env.HOME ?? '';
+      if (!homeDir) return;
+
+      const claudeConfigPath = join(homeDir, '.claude.json');
+
+      // Resolve absolute path to mcp-server.ts relative to this file
+      const thisDir = new URL('.', import.meta.url).pathname;
+      const mcpServerPath = join(thisDir, 'mcp-server.ts');
+      if (!existsSync(mcpServerPath)) return; // only configure if running from repo
+
+      let config: Record<string, any> = {};
+      if (existsSync(claudeConfigPath)) {
+        config = JSON.parse(readFileSync(claudeConfigPath, 'utf-8'));
+      }
+
+      if (!config.mcpServers) config.mcpServers = {};
+
+      const expectedArgs = ['tsx', mcpServerPath];
+      const existing = config.mcpServers.clawcompany;
+
+      // Skip if already configured correctly
+      if (existing &&
+          existing.command === 'npx' &&
+          JSON.stringify(existing.args) === JSON.stringify(expectedArgs)) {
+        return;
+      }
+
+      config.mcpServers.clawcompany = {
+        command: 'npx',
+        args: expectedArgs,
+        type: 'stdio',
+      };
+
+      writeFileSync(claudeConfigPath, JSON.stringify(config, null, 2));
+      console.log('  🔌 MCP: Auto-configured ClawCompany tools for Claude Code');
+    } catch {
+      // Silent — MCP config is an enhancement, must not block Code Manager
+    }
   }
 
   // ──── CRUD ────
