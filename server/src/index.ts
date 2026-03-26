@@ -1255,22 +1255,19 @@ app.post('/api/mission/run-stream', async (req, res) => {
       status: r.status, cost: r.cost, time: r.time,
       output: r.output,
     }));
-    // Build final result: last output + deliverable code from generator work streams
+    // Build final result: last output + deliverable code from the LAST generator work stream only
     const lastWsOutput = results[results.length - 1]?.output || '';
-    const codeBlocks: string[] = [];
+    let lastGeneratorCode: string[] = [];
     for (const r of results) {
       if (r.status !== 'completed' || !r.output) continue;
-      // Extract fenced code blocks (```lang ... ```)
       const matches = r.output.match(/```[\s\S]*?```/g);
       if (matches && matches.some((m: string) => m.length > 200)) {
-        // This work stream has substantial code — collect it
-        for (const m of matches) {
-          if (m.length > 200) codeBlocks.push(m);
-        }
+        // Overwrite (not accumulate) — so only the last work stream with code wins
+        lastGeneratorCode = matches.filter((m: string) => m.length > 200);
       }
     }
-    if (codeBlocks.length > 0 && !lastWsOutput.includes('## Deliverable Code')) {
-      missionRecord.result = lastWsOutput + '\n\n## Deliverable Code\n\n' + codeBlocks.join('\n\n');
+    if (lastGeneratorCode.length > 0 && !lastWsOutput.includes('## Deliverable Code')) {
+      missionRecord.result = lastWsOutput + '\n\n## Deliverable Code\n\n' + lastGeneratorCode.join('\n\n');
     } else {
       missionRecord.result = lastWsOutput;
     }
