@@ -74,6 +74,29 @@ const PORT = process.env.PORT ?? 3200;
 const clawConfig = getDefaultConfig();
 clawConfig.providers[0].apiKey = process.env.CLAWAPI_KEY ?? '';
 
+// ── Restore saved template BEFORE bootstrap (so ModelRouter gets correct roles) ──
+{
+  const _cfgPath = `${process.env.HOME ?? '~'}/.clawcompany/config.json`;
+  if (existsSync(_cfgPath)) {
+    try {
+      const _cfg = JSON.parse(readFileSync(_cfgPath, 'utf-8'));
+      if (_cfg.activeTemplate && TEMPLATES[_cfg.activeTemplate]) {
+        clawConfig.activeTemplate = _cfg.activeTemplate;
+        if (_cfg.roles) {
+          clawConfig.roles = _cfg.roles;
+        } else {
+          const tpl = TEMPLATES[_cfg.activeTemplate];
+          const rolesMap: Record<string, any> = {};
+          for (const role of tpl.roles) {
+            rolesMap[role.id] = { model: role.model, provider: role.provider };
+          }
+          clawConfig.roles = rolesMap;
+        }
+      }
+    } catch {}
+  }
+}
+
 const registry = new ProviderRegistry();
 let router: ModelRouter;
 let orchestrator: TaskOrchestrator;
@@ -1462,21 +1485,7 @@ const server = app.listen(PORT, async () => {
     try {
       userConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
       // Channel tokens already synced at startup (top of file)
-      // Restore active template and roles
-      if (userConfig.activeTemplate && TEMPLATES[userConfig.activeTemplate]) {
-        clawConfig.activeTemplate = userConfig.activeTemplate;
-        if (userConfig.roles) {
-          clawConfig.roles = userConfig.roles;
-        } else {
-          // Build roles map from template
-          const template = TEMPLATES[userConfig.activeTemplate];
-          const rolesMap: Record<string, any> = {};
-          for (const role of template.roles) {
-            rolesMap[role.id] = { model: role.model, provider: role.provider };
-          }
-          clawConfig.roles = rolesMap;
-        }
-      }
+      // Template & roles already restored before bootstrap() — no duplicate restore here
     } catch {}
   }
 
