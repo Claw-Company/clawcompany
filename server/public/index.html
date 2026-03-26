@@ -1128,7 +1128,7 @@ function toggleOutput(wsId, output) {
   outputDiv.id = 'output-' + wsId;
   outputDiv.className = 'md-output';
   outputDiv.innerHTML = marked.parse(output || '');
-  outputDiv.onclick = (e) => { if (e.target === outputDiv) toggleOutput(wsId, output); };
+  outputDiv.onclick = (e) => { const s = window.getSelection(); if (s && s.toString().length > 0) return; if (e.target === outputDiv) toggleOutput(wsId, output); };
   wsEl.appendChild(outputDiv);
 
   const toggle = document.getElementById('toggle-' + wsId);
@@ -1202,6 +1202,9 @@ function getTimeAgo(dateStr) {
 const _wsOutputCache = {};
 
 async function expandMission(id) {
+  // Don't collapse if user is selecting text (e.g. to copy)
+  const sel = window.getSelection();
+  if (sel && sel.toString().length > 0) return;
   const detail = document.getElementById('detail-' + id);
   const toggle = document.getElementById('toggle-hist-' + id);
   if (!detail) return;
