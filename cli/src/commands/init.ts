@@ -82,6 +82,10 @@ export async function initCommand() {
         name: '💻 Software Dev Company — 6 roles, full SOP',
         value: 'software_dev',
       },
+      {
+        name: '🏗️ Harness Builder — 3 roles, GAN-inspired autonomous coding',
+        value: 'harness_builder',
+      },
     ],
   });
 
