@@ -66,15 +66,15 @@ Decompose into work streams. For each, specify:
 - requiredTools (array)
 
 IMPORTANT RULES:
-1. You MUST create at least 3 different work streams using at least 3 different roles
+1. You MUST create at least 3 different work streams using at least ${Math.min(3, roles.length)} different roles
 2. NEVER assign the entire mission to one person — that is lazy and unacceptable
-3. Break it down: data collection (worker), deep research (researcher), analysis (analyst/cfo), writing/positioning (cmo), formatting (secretary)
-4. Assign grunt work to worker (cheap). Technical to cto/engineer. Financial to cfo/analyst. Marketing to cmo. Research to researcher. Format to secretary.
+3. You may ONLY use roles from "Your team" above: ${roles.map(r => r.id).join(', ')}
+4. Distribute work across roles based on each role's description. Use every available role if possible.
 5. A mission with only 1 work stream will be REJECTED automatically
 
 Respond ONLY with JSON:
 {
-  "workStreams": [ { "id": "ws_1", "title": "...", "description": "...", "assignTo": "worker", "dependencies": [], "estimatedComplexity": "low", "requiredTools": ["http"] } ]
+  "workStreams": [ { "id": "ws_1", "title": "...", "description": "...", "assignTo": "${roles[0]?.id ?? 'worker'}", "dependencies": [], "estimatedComplexity": "low", "requiredTools": ["http"] } ]
 }`,
       },
     ]);
@@ -88,12 +88,13 @@ Respond ONLY with JSON:
         status: 'pending' as const,
       }));
     } catch {
+      const fallbackRole = roles[0]?.id ?? leader.id;
       return [{
         id: 'ws_1',
         missionId: mission.id,
         title: mission.content.slice(0, 100),
         description: mission.content,
-        assignTo: 'researcher',
+        assignTo: fallbackRole,
         dependencies: [],
         estimatedComplexity: 'medium' as const,
         requiredTools: [],
