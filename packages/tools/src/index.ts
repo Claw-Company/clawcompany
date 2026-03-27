@@ -131,6 +131,21 @@ export const BUILTIN_TOOLS: Record<string, ToolDefinition> = {
     },
   },
 
+  memory_search: {
+    type: 'function',
+    function: {
+      name: 'memory_search',
+      description: 'Search company memory for relevant information. Searches across all memory partitions (chairman, culture, decisions, learnings, tech-stack) using keyword matching.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search keywords (e.g. "TypeScript deploy", "pricing decision")' },
+        },
+        required: ['query'],
+      },
+    },
+  },
+
   price_feed: {
     type: 'function',
     function: {

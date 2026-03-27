@@ -232,6 +232,31 @@ function appendMemory(entry: string) {
   appendPartition('learnings', entry);
 }
 
+function searchMemory(query: string): { partition: string; matches: string[] }[] {
+  const results: { partition: string; matches: string[] }[] = [];
+  const queryLower = query.toLowerCase();
+  const keywords = queryLower.split(/\s+/).filter(k => k.length > 1);
+
+  const chairman = loadChairman();
+  if (chairman && keywords.some(k => chairman.toLowerCase().includes(k))) {
+    results.push({ partition: 'chairman', matches: [chairman] });
+  }
+
+  for (const p of MEMORY_PARTITIONS) {
+    const content = loadPartition(p);
+    if (!content.trim()) continue;
+    const entries = content.split('---').map(s => s.trim()).filter(s => s);
+    const matched = entries.filter(entry =>
+      keywords.some(k => entry.toLowerCase().includes(k))
+    );
+    if (matched.length > 0) {
+      results.push({ partition: p, matches: matched });
+    }
+  }
+
+  return results;
+}
+
 // Initialize on startup
 initChairman();
 initMemoryPartitions();
@@ -985,6 +1010,13 @@ app.post('/api/memory', (req, res) => {
   const p: MemoryPartition = (partition && MEMORY_PARTITIONS.includes(partition)) ? partition : 'learnings';
   appendPartition(p, entry);
   res.json({ ok: true });
+});
+
+app.get('/api/memory/search', (req, res) => {
+  const q = req.query.q as string;
+  if (!q) return res.status(400).json({ error: 'q parameter required' });
+  const results = searchMemory(q);
+  res.json({ query: q, results, totalMatches: results.reduce((a, r) => a + r.matches.length, 0) });
 });
 
 // ──── Chat ────

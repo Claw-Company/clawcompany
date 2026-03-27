@@ -61,6 +61,31 @@ function appendMemory(entry: string, partition: MemoryPartition = 'learnings'): 
   } catch {}
 }
 
+function searchMemory(query: string): { partition: string; matches: string[] }[] {
+  const results: { partition: string; matches: string[] }[] = [];
+  const queryLower = query.toLowerCase();
+  const keywords = queryLower.split(/\s+/).filter(k => k.length > 1);
+
+  const chairman = loadChairman();
+  if (chairman && keywords.some(k => chairman.toLowerCase().includes(k))) {
+    results.push({ partition: 'chairman', matches: [chairman] });
+  }
+
+  for (const p of MEMORY_PARTITIONS) {
+    const content = loadPartition(p);
+    if (!content.trim()) continue;
+    const entries = content.split('---').map(s => s.trim()).filter(s => s);
+    const matched = entries.filter(entry =>
+      keywords.some(k => entry.toLowerCase().includes(k))
+    );
+    if (matched.length > 0) {
+      results.push({ partition: p, matches: matched });
+    }
+  }
+
+  return results;
+}
+
 // ── Tool executor ──
 const executor = new ToolExecutor();
 
@@ -102,9 +127,9 @@ server.tool(
   'company_memory',
   'Read or append to ClawCompany shared memory (partitions: culture, decisions, learnings, tech-stack)',
   {
-    action: z.enum(['read', 'append']).describe('Read all memory or append a new entry'),
+    action: z.enum(['read', 'append', 'search']).describe('Read all memory, append a new entry, or search memory'),
     partition: z.enum(['culture', 'decisions', 'learnings', 'tech-stack']).optional().describe('Memory partition (default: all for read, learnings for append)'),
-    entry: z.string().optional().describe('New memory entry to append (required for append)'),
+    entry: z.string().optional().describe('New memory entry to append (required for append), or search query (required for search)'),
   },
   async ({ action, partition, entry }) => {
     if (action === 'read') {
@@ -121,6 +146,26 @@ server.tool(
         if (c.trim()) result += `--- ${p} ---\n${c}\n\n`;
       }
       return { content: [{ type: 'text', text: result || '(empty — no memory entries yet)' }] };
+    }
+    if (action === 'search') {
+      if (!entry) {
+        return {
+          content: [{ type: 'text', text: 'Error: query required for search (pass as entry)' }],
+          isError: true,
+        };
+      }
+      const results = searchMemory(entry);
+      if (results.length === 0) {
+        return { content: [{ type: 'text', text: 'No matches found for: ' + entry }] };
+      }
+      let text = `Search results for "${entry}":\n\n`;
+      for (const r of results) {
+        text += `[${r.partition}]\n`;
+        for (const m of r.matches) {
+          text += m.slice(0, 200) + '\n\n';
+        }
+      }
+      return { content: [{ type: 'text', text }] };
     }
     // append
     if (!entry) {

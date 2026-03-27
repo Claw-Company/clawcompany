@@ -589,6 +589,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
     <div class="page-title">Memory</div>
     <div class="page-sub">Your AI company's brain. The longer you run, the smarter it gets.</div>
 
+    <div style="display:flex;gap:8px;margin-top:20px;margin-bottom:20px">
+      <input id="memorySearchInput" type="text" placeholder="Search company memory..."
+        style="flex:1;padding:10px 14px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:14px;outline:none;box-sizing:border-box"
+        onkeydown="if(event.key==='Enter') searchMemoryUI()">
+      <button onclick="searchMemoryUI()" style="background:var(--coral);color:white;border:none;border-radius:8px;padding:10px 20px;font-size:13px;cursor:pointer;white-space:nowrap">Search</button>
+    </div>
+    <div id="memorySearchResults"></div>
+
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-top:20px">
       <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px">👤 Chairman Profile</h3>
       <p style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5">Your personal preferences, communication style, and industry context. Always injected into every AI interaction — your team knows who you are.</p>
@@ -2697,6 +2705,37 @@ function updateMemoryStats(chairman, mem) {
     // Estimate: chairman full + 200 chars per partition, ~4 chars per token
     const total = (chairman || '').length + Math.min((mem.culture||'').length,200) + Math.min((mem.decisions||'').length,200) + Math.min((mem.learnings||'').length,200) + Math.min((mem.techStack||'').length,200);
     sIn.textContent = '~' + Math.round(total / 4) + ' tokens';
+  }
+}
+
+async function searchMemoryUI() {
+  const input = document.getElementById('memorySearchInput');
+  const results = document.getElementById('memorySearchResults');
+  const q = input.value.trim();
+  if (!q) return;
+
+  try {
+    const res = await fetch(API + '/api/memory/search?q=' + encodeURIComponent(q));
+    const data = await res.json();
+
+    if (data.totalMatches === 0) {
+      results.innerHTML = '<p style="color:var(--text3);font-size:13px;margin-bottom:16px">No matches found.</p>';
+      return;
+    }
+
+    let html = '<p style="color:var(--text3);font-size:12px;margin-bottom:8px">' + data.totalMatches + ' matches found:</p>';
+    for (const r of data.results) {
+      html += '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px">';
+      html += '<div style="font-size:12px;color:var(--coral);font-weight:600;margin-bottom:6px">' + r.partition + '</div>';
+      for (const m of r.matches) {
+        const escaped = m.slice(0, 200).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+        html += '<div style="font-size:13px;color:var(--text);margin-bottom:4px;font-family:monospace;white-space:pre-wrap">' + escaped + '</div>';
+      }
+      html += '</div>';
+    }
+    results.innerHTML = html;
+  } catch {
+    results.innerHTML = '<p style="color:var(--red);font-size:13px">Search failed.</p>';
   }
 }
 

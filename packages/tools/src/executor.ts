@@ -29,6 +29,8 @@ export class ToolExecutor {
         return this.execPriceFeed(args);
       case 'browser_use':
         return this.execBrowserUse(args);
+      case 'memory_search':
+        return this.execMemorySearch(args);
       default:
         return `Unknown tool: ${toolName}`;
     }
@@ -344,6 +346,26 @@ export class ToolExecutor {
     } catch (err: any) {
       if (err.name === 'AbortError') return 'Error: Price feed timed out (10s)';
       return `Error fetching price: ${err.message}`;
+    }
+  }
+
+  private async execMemorySearch(args: Record<string, unknown>): Promise<string> {
+    const query = args.query as string;
+    if (!query) return 'Error: query is required';
+    try {
+      const res = await fetch('http://localhost:3200/api/memory/search?q=' + encodeURIComponent(query));
+      const data = await res.json() as { totalMatches: number; results: { partition: string; matches: string[] }[] };
+      if (data.totalMatches === 0) return 'No matches found for: ' + query;
+      let result = `Found ${data.totalMatches} matches:\n\n`;
+      for (const r of data.results) {
+        result += `[${r.partition}]\n`;
+        for (const m of r.matches) {
+          result += m.slice(0, 300) + '\n\n';
+        }
+      }
+      return result;
+    } catch {
+      return 'Error: memory search unavailable';
     }
   }
 }
