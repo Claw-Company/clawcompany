@@ -130,10 +130,12 @@ export class CronScheduler {
   private configPath: string;
   private logPath: string;
   private running: Set<string> = new Set(); // prevent double-runs
+  private getLeaderId: () => string;
 
-  constructor(runner: DirectRunner, sendResult: ResultSender) {
+  constructor(runner: DirectRunner, sendResult: ResultSender, getLeaderId?: () => string) {
     this.runner = runner;
     this.sendResult = sendResult;
+    this.getLeaderId = getLeaderId ?? (() => 'ceo');
     const dir = join(homedir(), '.clawcompany');
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     this.configPath = join(dir, 'routines.json');
@@ -342,7 +344,7 @@ export class CronScheduler {
         resultText = header + summaryLine + details;
         summary = report.workStreams.map(ws => ws.title).join(', ');
       } else {
-        const role = routine.role ?? 'ceo';
+        const role = routine.role ?? this.getLeaderId();
         const chat = await this.runner.runChat(role, routine.content);
         cost = chat.cost;
         resultText = `📅 **${routine.name}** (${role})\n\n${chat.content}`;
@@ -398,7 +400,6 @@ export const ROUTINE_TEMPLATES: Array<Omit<Routine, 'id' | 'createdAt' | 'lastRu
     cron: '0 10 * * 1',
     type: 'mission',
     content: 'Generate a weekly cost analysis report. Review all mission costs from the past week, identify most expensive operations, and recommend optimizations.',
-    role: 'cfo',
     channel: 'telegram',
     enabled: false,
   },
@@ -407,7 +408,6 @@ export const ROUTINE_TEMPLATES: Array<Omit<Routine, 'id' | 'createdAt' | 'lastRu
     cron: '0 8 * * 1,4',
     type: 'mission',
     content: 'Research latest updates from our competitors. Check GitHub releases, social media, and news. Summarize key developments and strategic implications.',
-    role: 'researcher',
     channel: 'telegram',
     enabled: false,
   },
@@ -416,7 +416,6 @@ export const ROUTINE_TEMPLATES: Array<Omit<Routine, 'id' | 'createdAt' | 'lastRu
     cron: '30 9 * * 1-5',
     type: 'chat',
     content: 'Give me a brief morning standup: what was accomplished yesterday, what\'s planned for today, and any blockers.',
-    role: 'ceo',
     channel: 'telegram',
     enabled: false,
   },

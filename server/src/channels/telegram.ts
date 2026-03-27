@@ -26,9 +26,9 @@ export class TelegramAdapter implements ChannelAdapter {
   private offset = 0;
   private onChatIdChange?: (chatId: string) => void;
 
-  constructor(token: string, apiBase?: string, directRunner?: DirectRunner, opts?: { lastChatId?: string; onChatIdChange?: (id: string) => void }) {
+  constructor(token: string, apiBase?: string, directRunner?: DirectRunner, opts?: { lastChatId?: string; onChatIdChange?: (id: string) => void; getRoles?: () => Array<{ id: string; name: string; reportsTo: string | null; budgetTier: string; isActive: boolean }> }) {
     this.token = token;
-    this.router = new ChannelRouter(apiBase, directRunner);
+    this.router = new ChannelRouter(apiBase, directRunner, opts?.getRoles);
     if (opts?.lastChatId) this.lastChatId = opts.lastChatId;
     if (opts?.onChatIdChange) this.onChatIdChange = opts.onChatIdChange;
   }

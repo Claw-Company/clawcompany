@@ -77,10 +77,33 @@ export interface SendOptions {
 export class ChannelRouter {
   private apiBase: string;
   private directRunner?: DirectRunner;
+  private getRoles?: () => Array<{ id: string; name: string; reportsTo: string | null; budgetTier: string; isActive: boolean }>;
 
-  constructor(apiBase: string = 'http://localhost:3200', directRunner?: DirectRunner) {
+  constructor(apiBase: string = 'http://localhost:3200', directRunner?: DirectRunner, getRoles?: () => Array<{ id: string; name: string; reportsTo: string | null; budgetTier: string; isActive: boolean }>) {
     this.apiBase = apiBase;
     this.directRunner = directRunner;
+    this.getRoles = getRoles;
+  }
+
+  /** Get active role IDs from the current template */
+  private getActiveRoleIds(): string[] {
+    if (this.getRoles) {
+      return this.getRoles()
+        .filter(r => r.isActive && r.budgetTier !== 'survive')
+        .map(r => r.id);
+    }
+    return [];
+  }
+
+  /** Get the leader role ID (reportsTo === null) */
+  private getLeaderId(): string {
+    if (this.getRoles) {
+      const roles = this.getRoles().filter(r => r.isActive && r.budgetTier !== 'survive');
+      const leader = roles.find(r => r.reportsTo === null);
+      if (leader) return leader.id;
+      if (roles.length > 0) return roles[0].id;
+    }
+    return 'ceo'; // absolute last resort
   }
 
   /**
@@ -106,7 +129,7 @@ export class ChannelRouter {
           // Send acknowledgment
           sendFn({
             chatId: msg.chatId,
-            text: `🦞 Mission received: "${intent.content}"\n\nCEO is decomposing. Results will be delivered here when ready...`,
+            text: `🦞 Mission received: "${intent.content}"\n\nLeader is decomposing. Results will be delivered here when ready...`,
             replyToId: msg.id,
           });
 
@@ -134,8 +157,8 @@ export class ChannelRouter {
       } else if (intent.type === 'price') {
         responseText = await this.getPrice(intent.asset);
       } else {
-        // Default: chat with CEO
-        responseText = await this.runChat('ceo', msg.text);
+        // Default: chat with leader role
+        responseText = await this.runChat(this.getLeaderId(), msg.text);
       }
 
       return {
@@ -182,9 +205,9 @@ export class ChannelRouter {
       }
     }
 
-    // Role shortcuts: /ceo, /cto, /cfo, /cmo, /researcher, /analyst, /engineer
-    const roleShortcuts = ['ceo', 'cto', 'cfo', 'cmo', 'researcher', 'analyst', 'engineer', 'secretary', 'worker'];
-    for (const role of roleShortcuts) {
+    // Role shortcuts: /<roleId> <msg> — dynamically from active roles
+    const roleIds = this.getActiveRoleIds();
+    for (const role of roleIds) {
       if (trimmed.startsWith(`/${role} `)) {
         return { type: 'chat', role, content: trimmed.slice(role.length + 2).trim() };
       }
@@ -204,7 +227,7 @@ export class ChannelRouter {
       return { type: 'price', asset };
     }
 
-    // Default: chat with CEO
+    // Default: chat with leader role
     return { type: 'default', content: trimmed };
   }
 
@@ -447,13 +470,15 @@ _Free · No AI cost · Direct API_`;
   }
 
   private getHelpText(): string {
+    const roleIds = this.getActiveRoleIds();
+    const leaderId = this.getLeaderId();
+    const roleShortcuts = roleIds.slice(0, 3).map(r => `/${r} <message> — Talk to ${r}`).join('\n');
     return `🦞 **ClawCompany** — Your AI company in a chat.
 
 **Commands:**
 /mission <goal> — Give your company a mission
 /price <asset> — Real-time price: crypto or stocks (free)
-/ceo <message> — Talk to the CEO
-/cto <message> — Talk to the CTO
+${roleShortcuts}
 /chat <role> <message> — Talk to any role
 /status — Check company status
 /help — Show this help
@@ -462,10 +487,9 @@ _Free · No AI cost · Direct API_`;
 /mission Analyze Bitcoin price trends and recommend a strategy
 /price bitcoin
 /price AAPL
-/price 特斯拉
-/ceo What's our competitive advantage?
+/${leaderId} What's our strategy?
 
-Just type anything to chat with the CEO directly.`;
+Just type anything to chat with the ${leaderId} directly.`;
   }
 
   /**

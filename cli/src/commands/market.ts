@@ -109,7 +109,7 @@ export async function marketInstallCommand(itemId: string) {
       const builtin = BUILTIN_ROLES.find(r => r.id === id);
       const name = overrides.name ?? builtin?.name ?? id;
       const model = overrides.model ?? builtin?.model ?? 'default';
-      const reportsTo = overrides.reportsTo ?? builtin?.reportsTo ?? 'ceo';
+      const reportsTo = overrides.reportsTo ?? builtin?.reportsTo ?? null;
       const pricing = MODEL_PRICING[model];
       const cost = pricing ? `$${pricing.input}/$${pricing.output}` : '';
 

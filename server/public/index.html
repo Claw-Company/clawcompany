@@ -800,11 +800,13 @@ async function loadRoles() {
       initProviderDropdown('nr');
     }
 
-    const tierMap = {
-      ceo: 'csuite', cto: 'csuite', cfo: 'csuite', cmo: 'csuite',
-      researcher: 'mid', analyst: 'mid', engineer: 'mid',
-      secretary: 'ops', worker: 'ops'
-    };
+    // Derive display tier from budgetTier/reportsTo (no hardcoded role IDs)
+    function getRoleTier(r) {
+      if (!r.reportsTo) return 'csuite'; // leader roles
+      if (r.budgetTier === 'earn') return 'csuite';
+      if (r.budgetTier === 'save') return 'mid';
+      return 'ops'; // survive or unknown
+    }
 
     // Find which provider a model belongs to
     function findProvider(modelId) {
@@ -815,7 +817,7 @@ async function loadRoles() {
     }
 
     const roleHTML = active.map(r => {
-      const tier = tierMap[r.id] || (r.isBuiltin ? 'ops' : 'mid');
+      const tier = getRoleTier(r);
       const tierLabel = tier === 'csuite' ? 'C-suite' : tier === 'mid' ? 'Mid-level' : 'Operations';
       const currentProvider = r.provider || findProvider(r.model);
       const providerLabel = PROVIDER_NAMES[currentProvider] || currentProvider;
@@ -860,7 +862,7 @@ async function loadRoles() {
     }).join('');
 
     document.getElementById('overviewRoles').innerHTML = active.map(r => {
-      const tier = tierMap[r.id] || 'ops';
+      const tier = getRoleTier(r);
       const tierLabel = tier === 'csuite' ? 'C-suite' : tier === 'mid' ? 'Mid-level' : 'Operations';
       return `<div class="role-card">
         <div class="role-header">

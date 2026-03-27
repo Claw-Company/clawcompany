@@ -26,8 +26,12 @@ export class TaskOrchestrator {
 
   /** Get the leader role ID (reportsTo === null) */
   private getLeaderId(): string {
-    const leader = this.router.getRoles().find((r) => r.reportsTo === null && r.budgetTier !== 'survive');
-    return leader?.id ?? 'ceo';
+    const roles = this.router.getRoles().filter((r) => r.budgetTier !== 'survive');
+    const leader = roles.find((r) => r.reportsTo === null);
+    if (leader) return leader.id;
+    // No explicit leader — fall back to first active role
+    if (roles.length > 0) return roles[0].id;
+    throw new Error('No active roles configured');
   }
 
   /**

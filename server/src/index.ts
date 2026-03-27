@@ -597,7 +597,7 @@ app.post('/api/roles', (req, res) => {
     clawConfig.roles[id] = {
       name, model, provider: provider || 'clawapi',
       description: description || '', systemPrompt: systemPrompt || `You are ${name}.`,
-      reportsTo: reportsTo || resolveRoles(clawConfig).find(r => r.reportsTo === null && r.budgetTier !== 'survive')?.id || 'ceo', isActive: true, isBuiltin: false,
+      reportsTo: reportsTo || resolveRoles(clawConfig).find(r => r.reportsTo === null && r.budgetTier !== 'survive')?.id || resolveRoles(clawConfig).filter(r => r.budgetTier !== 'survive')[0]?.id || null, isActive: true, isBuiltin: false,
     };
 
     // Persist
@@ -836,7 +836,7 @@ app.put('/api/settings/channels/:id', async (req, res) => {
       if (!telegramAdapterRef) {
         try {
           const { TelegramAdapter } = await import('./channels/telegram.js');
-          telegramAdapterRef = new TelegramAdapter(token, `http://localhost:${PORT}`);
+          telegramAdapterRef = new TelegramAdapter(token, `http://localhost:${PORT}`, undefined, { getRoles: () => resolveRoles(clawConfig) });
           await telegramAdapterRef.start();
           connected = true;
         } catch (e: any) {
@@ -849,7 +849,7 @@ app.put('/api/settings/channels/:id', async (req, res) => {
       if (!discordAdapterRef) {
         try {
           const { DiscordAdapter } = await import('./channels/discord.js');
-          discordAdapterRef = new DiscordAdapter(token, `http://localhost:${PORT}`);
+          discordAdapterRef = new DiscordAdapter(token, `http://localhost:${PORT}`, undefined, { getRoles: () => resolveRoles(clawConfig) });
           await discordAdapterRef.start();
           connected = true;
         } catch (e: any) {
@@ -1693,6 +1693,7 @@ const server = app.listen(PORT, async () => {
         {
           lastChatId: userConfig.channels?.telegram?.lastChatId ?? '',
           onChatIdChange: (id) => saveChatId('telegram', id),
+          getRoles: () => resolveRoles(clawConfig),
         },
       );
       await telegramAdapterRef.start();
@@ -1712,6 +1713,7 @@ const server = app.listen(PORT, async () => {
         {
           lastChatId: userConfig.channels?.discord?.lastChatId ?? '',
           onChatIdChange: (id) => saveChatId('discord', id),
+          getRoles: () => resolveRoles(clawConfig),
         },
       );
       await discordAdapterRef.start();
@@ -1753,7 +1755,11 @@ const server = app.listen(PORT, async () => {
       }
     };
 
-    scheduler = new CronScheduler(directRunner, sendResult);
+    scheduler = new CronScheduler(directRunner, sendResult, () => {
+      const roles = resolveRoles(clawConfig).filter(r => r.budgetTier !== 'survive' && r.isActive);
+      const leader = roles.find(r => r.reportsTo === null);
+      return leader?.id ?? roles[0]?.id ?? 'leader';
+    });
     scheduler.start();
   }
 
