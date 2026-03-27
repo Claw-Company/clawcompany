@@ -767,6 +767,7 @@ function showPage(id) {
   const page = document.getElementById('page-' + id);
   page.classList.add('active');
   event.currentTarget.classList.add('active');
+  if (id === 'chat') initChatRoles();
   const main = document.querySelector('.main');
   if (id === 'studio') {
     main.style.padding = '0';
@@ -1448,6 +1449,7 @@ async function switchTemplate(id, name) {
     if (data.ok) {
       loadTemplates();
       loadRoles();
+      initChatRoles();
     }
   } catch {}
 }
@@ -1980,28 +1982,29 @@ let chatStore = {};
 let chatCurrentRole = '';
 let chatTotalCost = 0;
 
-function initChatRoles() {
+async function initChatRoles() {
   const sel = document.getElementById('chatRole');
-  if (!sel || sel.options.length > 0) return;
+  if (!sel) return;
 
-  const roles = [
-    { id: 'ceo', name: 'CEO', model: 'claude-opus-4-6' },
-    { id: 'cto', name: 'CTO', model: 'gpt-5.4' },
-    { id: 'cfo', name: 'CFO', model: 'gpt-5-mini' },
-    { id: 'cmo', name: 'CMO', model: 'claude-sonnet-4-6' },
-    { id: 'researcher', name: 'Researcher', model: 'claude-sonnet-4-6' },
-    { id: 'analyst', name: 'Analyst', model: 'gpt-5-mini' },
-    { id: 'engineer', name: 'Engineer', model: 'gpt-5.4' },
-    { id: 'secretary', name: 'Secretary', model: 'gemini-flash-lite' },
-    { id: 'worker', name: 'Worker', model: 'gemini-flash-lite' },
-  ];
+  try {
+    const res = await fetch(API + '/api/roles');
+    const roles = await res.json();
+    const active = roles.filter(r => r.isActive && r.budgetTier !== 'survive');
 
-  sel.innerHTML = roles.map(r =>
-    `<option value="${r.id}" data-model="${r.model}">${r.name} (${r.model})</option>`
-  ).join('');
+    const prevRole = chatCurrentRole;
+    sel.innerHTML = active.map(r =>
+      `<option value="${r.id}" data-model="${r.model}">${r.name} (${r.model})</option>`
+    ).join('');
 
-  chatCurrentRole = 'ceo';
-  onChatRoleChange();
+    // If previously selected role no longer exists, reset chat store
+    if (prevRole && !active.some(r => r.id === prevRole)) {
+      chatStore = {};
+      chatTotalCost = 0;
+    }
+
+    chatCurrentRole = sel.value || (active[0] && active[0].id) || '';
+    onChatRoleChange();
+  } catch {}
 }
 
 function onChatRoleChange() {
