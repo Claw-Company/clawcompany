@@ -112,50 +112,73 @@ export class OpenAICompatibleProvider implements LLMProvider {
     let completionTokens = 0;
     const toolCallBuffers: Map<number, { id: string; name: string; args: string }> = new Map();
 
-    const reader = response.body!.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
+    const contentType = response.headers.get('content-type') ?? '';
+    const isSSE = contentType.includes('text/event-stream');
+    // If the API returned JSON (not SSE), parse it directly
+    if (!isSSE) {
+      const data = await response.json() as any;
+      content = data.choices?.[0]?.message?.content ?? '';
+      model = data.model ?? params.model;
+      finishReason = data.choices?.[0]?.finish_reason ?? 'stop';
+      promptTokens = data.usage?.prompt_tokens ?? 0;
+      completionTokens = data.usage?.completion_tokens ?? 0;
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+      // Collect tool calls
+      const tcList = data.choices?.[0]?.message?.tool_calls;
+      if (tcList?.length) {
+        for (const tc of tcList) {
+          toolCallBuffers.set(toolCallBuffers.size, {
+            id: tc.id, name: tc.function?.name ?? '', args: tc.function?.arguments ?? '',
+          });
+        }
+      }
+    } else {
+      // SSE streaming path
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() ?? '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      for (const line of lines) {
-        if (!line.startsWith('data: ') || line === 'data: [DONE]') continue;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
 
-        try {
-          const chunk = JSON.parse(line.slice(6));
-          const delta = chunk.choices?.[0]?.delta;
+        for (const line of lines) {
+          if (!line.startsWith('data: ') || line === 'data: [DONE]') continue;
 
-          if (delta?.content) content += delta.content;
-          if (chunk.model) model = chunk.model;
+          try {
+            const chunk = JSON.parse(line.slice(6));
+            const delta = chunk.choices?.[0]?.delta;
 
-          const fr = chunk.choices?.[0]?.finish_reason;
-          if (fr) finishReason = fr;
+            if (delta?.content) content += delta.content;
+            if (chunk.model) model = chunk.model;
 
-          // Collect streamed tool calls
-          if (delta?.tool_calls) {
-            for (const tc of delta.tool_calls) {
-              const idx = tc.index ?? 0;
-              if (!toolCallBuffers.has(idx)) {
-                toolCallBuffers.set(idx, { id: tc.id ?? `call_${idx}`, name: '', args: '' });
+            const fr = chunk.choices?.[0]?.finish_reason;
+            if (fr) finishReason = fr;
+
+            // Collect streamed tool calls
+            if (delta?.tool_calls) {
+              for (const tc of delta.tool_calls) {
+                const idx = tc.index ?? 0;
+                if (!toolCallBuffers.has(idx)) {
+                  toolCallBuffers.set(idx, { id: tc.id ?? `call_${idx}`, name: '', args: '' });
+                }
+                const buf = toolCallBuffers.get(idx)!;
+                if (tc.id) buf.id = tc.id;
+                if (tc.function?.name) buf.name = tc.function.name;
+                if (tc.function?.arguments) buf.args += tc.function.arguments;
               }
-              const buf = toolCallBuffers.get(idx)!;
-              if (tc.id) buf.id = tc.id;
-              if (tc.function?.name) buf.name = tc.function.name;
-              if (tc.function?.arguments) buf.args += tc.function.arguments;
             }
-          }
 
-          if (chunk.usage) {
-            promptTokens = chunk.usage.prompt_tokens ?? 0;
-            completionTokens = chunk.usage.completion_tokens ?? 0;
-          }
-        } catch {}
+            if (chunk.usage) {
+              promptTokens = chunk.usage.prompt_tokens ?? 0;
+              completionTokens = chunk.usage.completion_tokens ?? 0;
+            }
+          } catch {}
+        }
       }
     }
 
