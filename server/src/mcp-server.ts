@@ -17,25 +17,47 @@ import { existsSync, readFileSync, mkdirSync, writeFileSync } from 'fs';
 import { ToolExecutor } from '../../packages/tools/src/executor.js';
 
 // ── Memory helpers (mirrors server/src/index.ts logic) ──
-const memoryPath = `${process.env.HOME}/.clawcompany/memory.md`;
+const clawDir = `${process.env.HOME}/.clawcompany`;
+const chairmanPath = `${clawDir}/chairman.md`;
+const memoryDir = `${clawDir}/memory`;
+const MEMORY_PARTITIONS = ['culture', 'decisions', 'learnings', 'tech-stack'] as const;
+type MemoryPartition = typeof MEMORY_PARTITIONS[number];
 
-function loadMemory(): string {
+function ensureClawDir() {
+  if (!existsSync(clawDir)) mkdirSync(clawDir, { recursive: true });
+}
+
+function loadChairman(): string {
   try {
-    if (existsSync(memoryPath)) return readFileSync(memoryPath, 'utf-8');
+    if (existsSync(chairmanPath)) return readFileSync(chairmanPath, 'utf-8');
   } catch {}
   return '';
 }
 
-function appendMemory(entry: string): void {
-  const dir = `${process.env.HOME}/.clawcompany`;
+function loadPartition(p: MemoryPartition): string {
   try {
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-    const existing = loadMemory();
+    const fp = `${memoryDir}/${p}.md`;
+    if (existsSync(fp)) return readFileSync(fp, 'utf-8');
+  } catch {}
+  return '';
+}
+
+function loadMemory(): string {
+  return MEMORY_PARTITIONS.map(p => loadPartition(p)).filter(s => s.trim()).join('\n\n---\n\n');
+}
+
+function appendMemory(entry: string, partition: MemoryPartition = 'learnings'): void {
+  try {
+    ensureClawDir();
+    if (!existsSync(memoryDir)) mkdirSync(memoryDir, { recursive: true });
+    const fp = `${memoryDir}/${partition}.md`;
+    if (!existsSync(fp)) writeFileSync(fp, '');
+    const existing = loadPartition(partition);
     const newContent =
       existing +
       '\n\n---\n\n' +
       `[${new Date().toISOString().slice(0, 10)}] ${entry}`;
-    writeFileSync(memoryPath, newContent);
+    writeFileSync(fp, newContent);
   } catch {}
 }
 
@@ -78,17 +100,27 @@ server.tool(
 
 server.tool(
   'company_memory',
-  'Read or append to ClawCompany shared memory (~/.clawcompany/memory.md)',
+  'Read or append to ClawCompany shared memory (partitions: culture, decisions, learnings, tech-stack)',
   {
     action: z.enum(['read', 'append']).describe('Read all memory or append a new entry'),
+    partition: z.enum(['culture', 'decisions', 'learnings', 'tech-stack']).optional().describe('Memory partition (default: all for read, learnings for append)'),
     entry: z.string().optional().describe('New memory entry to append (required for append)'),
   },
-  async ({ action, entry }) => {
+  async ({ action, partition, entry }) => {
     if (action === 'read') {
-      const memory = loadMemory();
-      return {
-        content: [{ type: 'text', text: memory || '(empty — no memory entries yet)' }],
-      };
+      if (partition) {
+        const content = loadPartition(partition);
+        return { content: [{ type: 'text', text: content || `(empty — no ${partition} entries yet)` }] };
+      }
+      // Return all partitions + chairman
+      const chairman = loadChairman();
+      let result = '';
+      if (chairman.trim()) result += `--- Chairman ---\n${chairman}\n\n`;
+      for (const p of MEMORY_PARTITIONS) {
+        const c = loadPartition(p);
+        if (c.trim()) result += `--- ${p} ---\n${c}\n\n`;
+      }
+      return { content: [{ type: 'text', text: result || '(empty — no memory entries yet)' }] };
     }
     // append
     if (!entry) {
@@ -97,8 +129,9 @@ server.tool(
         isError: true,
       };
     }
-    appendMemory(entry);
-    return { content: [{ type: 'text', text: `Memory entry appended successfully.` }] };
+    const target = partition || 'learnings';
+    appendMemory(entry, target);
+    return { content: [{ type: 'text', text: `Memory entry appended to ${target}.` }] };
   },
 );
 
@@ -199,12 +232,18 @@ server.tool(
 // ────── Resources ──────
 
 server.resource('company-memory', 'company://memory', async () => {
-  const memory = loadMemory();
+  const chairman = loadChairman();
+  let text = '';
+  if (chairman.trim()) text += `--- Chairman ---\n${chairman}\n\n`;
+  for (const p of MEMORY_PARTITIONS) {
+    const c = loadPartition(p);
+    if (c.trim()) text += `--- ${p} ---\n${c}\n\n`;
+  }
   return {
     contents: [
       {
         uri: 'company://memory',
-        text: memory || '(empty — no memory entries yet)',
+        text: text || '(empty — no memory entries yet)',
         mimeType: 'text/markdown',
       },
     ],

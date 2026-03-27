@@ -120,29 +120,121 @@ function saveMissions() {
   } catch {}
 }
 
-// ── Company Memory persistence ──
-const memoryPath = `${process.env.HOME}/.clawcompany/memory.md`;
+// ── Chairman Profile persistence (Layer 4) ──
+const clawDir = `${process.env.HOME}/.clawcompany`;
+const chairmanPath = `${clawDir}/chairman.md`;
 
-function loadMemory(): string {
+const DEFAULT_CHAIRMAN = `# Chairman Profile
+
+## Preferences
+- Language:
+- Industry:
+- Report style:
+- Working hours:
+
+## Common Instructions
+-
+
+## Notes
+- Company founded: ${new Date().toISOString().slice(0, 10)}
+`;
+
+function ensureClawDir() {
+  if (!existsSync(clawDir)) mkdirSync(clawDir, { recursive: true });
+}
+
+function loadChairman(): string {
   try {
-    if (existsSync(memoryPath)) return readFileSync(memoryPath, 'utf-8');
+    if (existsSync(chairmanPath)) return readFileSync(chairmanPath, 'utf-8');
   } catch {}
   return '';
 }
 
-function saveMemory(content: string) {
+function saveChairman(content: string) {
   try {
-    const dir = `${process.env.HOME}/.clawcompany`;
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-    writeFileSync(memoryPath, content);
+    ensureClawDir();
+    writeFileSync(chairmanPath, content);
   } catch {}
 }
 
-function appendMemory(entry: string) {
-  const existing = loadMemory();
-  const newContent = existing + '\n\n---\n\n' + `[${new Date().toISOString().slice(0, 10)}] ${entry}`;
-  saveMemory(newContent);
+function initChairman() {
+  ensureClawDir();
+  if (!existsSync(chairmanPath)) writeFileSync(chairmanPath, DEFAULT_CHAIRMAN);
 }
+
+// ── Company Memory persistence (Layer 3 — partitioned) ──
+const legacyMemoryPath = `${clawDir}/memory.md`;
+const memoryDir = `${clawDir}/memory`;
+const MEMORY_PARTITIONS = ['culture', 'decisions', 'learnings', 'tech-stack'] as const;
+type MemoryPartition = typeof MEMORY_PARTITIONS[number];
+
+function partitionPath(p: MemoryPartition): string {
+  return `${memoryDir}/${p}.md`;
+}
+
+function initMemoryPartitions() {
+  ensureClawDir();
+  if (!existsSync(memoryDir)) mkdirSync(memoryDir, { recursive: true });
+
+  // Migration: if legacy memory.md exists and culture.md doesn't, migrate
+  if (existsSync(legacyMemoryPath) && !existsSync(partitionPath('culture'))) {
+    try {
+      const legacy = readFileSync(legacyMemoryPath, 'utf-8');
+      if (legacy.trim()) writeFileSync(partitionPath('culture'), legacy);
+    } catch {}
+  }
+
+  // Ensure all partition files exist
+  for (const p of MEMORY_PARTITIONS) {
+    const fp = partitionPath(p);
+    if (!existsSync(fp)) writeFileSync(fp, '');
+  }
+}
+
+function loadPartition(p: MemoryPartition): string {
+  try {
+    const fp = partitionPath(p);
+    if (existsSync(fp)) return readFileSync(fp, 'utf-8');
+  } catch {}
+  return '';
+}
+
+function savePartition(p: MemoryPartition, content: string) {
+  try {
+    ensureClawDir();
+    if (!existsSync(memoryDir)) mkdirSync(memoryDir, { recursive: true });
+    writeFileSync(partitionPath(p), content);
+  } catch {}
+}
+
+function appendPartition(p: MemoryPartition, entry: string) {
+  const existing = loadPartition(p);
+  const newContent = existing + '\n\n---\n\n' + `[${new Date().toISOString().slice(0, 10)}] ${entry}`;
+  savePartition(p, newContent);
+}
+
+function loadAllMemory(): { chairman: string; culture: string; decisions: string; learnings: string; techStack: string } {
+  return {
+    chairman: loadChairman(),
+    culture: loadPartition('culture'),
+    decisions: loadPartition('decisions'),
+    learnings: loadPartition('learnings'),
+    techStack: loadPartition('tech-stack'),
+  };
+}
+
+// Legacy compat — loadMemory returns merged view for old callers
+function loadMemory(): string {
+  return MEMORY_PARTITIONS.map(p => loadPartition(p)).filter(s => s.trim()).join('\n\n---\n\n');
+}
+
+function appendMemory(entry: string) {
+  appendPartition('learnings', entry);
+}
+
+// Initialize on startup
+initChairman();
+initMemoryPartitions();
 
 // ── Chat history persistence ──
 const chatHistoryPath = `${process.env.HOME}/.clawcompany/chats.json`;
@@ -854,23 +946,44 @@ app.post('/api/routines/:id/run', async (req, res) => {
   }
 });
 
-// ──── Memory API ────
+// ──── Chairman API ────
+
+app.get('/api/chairman', (_req, res) => {
+  res.json({ content: loadChairman() });
+});
+
+app.put('/api/chairman', (req, res) => {
+  const { content } = req.body;
+  if (typeof content !== 'string') return res.status(400).json({ error: 'content required' });
+  saveChairman(content);
+  res.json({ ok: true });
+});
+
+// ──── Memory API (partitioned) ────
 
 app.get('/api/memory', (_req, res) => {
-  res.json({ content: loadMemory() });
+  res.json(loadAllMemory());
 });
 
 app.put('/api/memory', (req, res) => {
-  const { content } = req.body;
+  const { partition, content } = req.body;
   if (typeof content !== 'string') return res.status(400).json({ error: 'content required' });
-  saveMemory(content);
+  if (partition && MEMORY_PARTITIONS.includes(partition)) {
+    savePartition(partition, content);
+  } else if (!partition) {
+    // Legacy compat: save to culture
+    savePartition('culture', content);
+  } else {
+    return res.status(400).json({ error: 'invalid partition' });
+  }
   res.json({ ok: true });
 });
 
 app.post('/api/memory', (req, res) => {
-  const { entry } = req.body;
+  const { entry, partition } = req.body;
   if (!entry) return res.status(400).json({ error: 'entry required' });
-  appendMemory(entry);
+  const p: MemoryPartition = (partition && MEMORY_PARTITIONS.includes(partition)) ? partition : 'learnings';
+  appendPartition(p, entry);
   res.json({ ok: true });
 });
 
@@ -886,11 +999,22 @@ app.post('/api/chat', async (req, res) => {
     const tools = roleObj ? getToolsForRole(roleObj.tools) : [];
     const messages: Message[] = [];
 
-    // Inject company memory as system context
-    const memory = loadMemory();
-    if (memory.trim()) {
-      const trimmedMemory = memory.slice(-2000);
-      messages.push({ role: 'system', content: `COMPANY MEMORY (facts from past missions and conversations):\n${trimmedMemory}` });
+    // Inject chairman profile + company memory as system context
+    const chairman = loadChairman();
+    if (chairman.trim()) {
+      messages.push({ role: 'system', content: `--- Chairman ---\n${chairman}` });
+    }
+    const culture = loadPartition('culture');
+    const decisions = loadPartition('decisions');
+    const learnings = loadPartition('learnings');
+    const techStack = loadPartition('tech-stack');
+    if (culture.trim() || decisions.trim() || learnings.trim() || techStack.trim()) {
+      let memorySummary = '--- Company Memory ---\n';
+      if (culture.trim()) memorySummary += 'Culture: ' + culture.slice(0, 200) + '\n';
+      if (decisions.trim()) memorySummary += 'Decisions: ' + decisions.slice(0, 200) + '\n';
+      if (learnings.trim()) memorySummary += 'Learnings: ' + learnings.slice(0, 200) + '\n';
+      if (techStack.trim()) memorySummary += 'Tech: ' + techStack.slice(0, 200);
+      messages.push({ role: 'system', content: memorySummary });
     }
 
     messages.push({ role: 'user', content: message });
@@ -1189,12 +1313,23 @@ app.post('/api/mission/run-stream', async (req, res) => {
           }
         }
 
-        // Build messages with memory context
+        // Build messages with chairman + memory context
         const wsMessages: Message[] = [];
-        const missionMemory = loadMemory();
-        if (missionMemory.trim()) {
-          const trimmedMem = missionMemory.slice(-2000);
-          wsMessages.push({ role: 'system', content: `COMPANY MEMORY (facts from past missions and conversations):\n${trimmedMem}` });
+        const wsChairman = loadChairman();
+        if (wsChairman.trim()) {
+          wsMessages.push({ role: 'system', content: `--- Chairman ---\n${wsChairman}` });
+        }
+        const wsCulture = loadPartition('culture');
+        const wsDecisions = loadPartition('decisions');
+        const wsLearnings = loadPartition('learnings');
+        const wsTechStack = loadPartition('tech-stack');
+        if (wsCulture.trim() || wsDecisions.trim() || wsLearnings.trim() || wsTechStack.trim()) {
+          let wsMem = '--- Company Memory ---\n';
+          if (wsCulture.trim()) wsMem += 'Culture: ' + wsCulture.slice(0, 200) + '\n';
+          if (wsDecisions.trim()) wsMem += 'Decisions: ' + wsDecisions.slice(0, 200) + '\n';
+          if (wsLearnings.trim()) wsMem += 'Learnings: ' + wsLearnings.slice(0, 200) + '\n';
+          if (wsTechStack.trim()) wsMem += 'Tech: ' + wsTechStack.slice(0, 200);
+          wsMessages.push({ role: 'system', content: wsMem });
         }
         wsMessages.push({ role: 'user', content: `## Task: ${ws.title}\n\n${ws.description}\n\nComplexity: ${ws.estimatedComplexity}${context}\n\nComplete this task. Provide your output clearly and concisely.` });
 
