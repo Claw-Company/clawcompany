@@ -284,6 +284,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
   <div class="nav-item" onclick="showPage('studio')">
     <span class="nav-icon">🦞</span> <span>Studio</span>
   </div>
+  <div class="nav-item" onclick="showPage('memory')">
+    <span class="nav-icon">🧠</span> <span>Memory</span>
+  </div>
   <div class="nav-item" onclick="showPage('settings')">
     <span class="nav-icon">⚙</span> <span>Settings</span>
   </div>
@@ -575,37 +578,94 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 
     <div id="settingsProviders"></div>
 
-    <div style="margin-top:32px">
-      <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:12px">👤 Chairman Profile</h3>
-      <p style="font-size:12px;color:var(--text3);margin-bottom:8px">Your personal preferences. Always injected into every AI interaction.</p>
-      <textarea id="chairmanEditor" style="width:100%;height:180px;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:13px;font-family:monospace;resize:vertical;outline:none;box-sizing:border-box" placeholder="Chairman profile not set."></textarea>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button onclick="saveChairmanEdit()" style="background:var(--coral);color:white;border:none;border-radius:6px;padding:6px 16px;font-size:12px;cursor:pointer">Save</button>
-        <span id="chairmanSaveStatus" style="font-size:11px;color:var(--text3);align-self:center"></span>
-      </div>
-    </div>
-
-    <div style="margin-top:32px">
-      <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:12px">🧠 Company Memory</h3>
-      <p style="font-size:12px;color:var(--text3);margin-bottom:8px">Your AI team remembers facts from past missions and conversations. Organized by category.</p>
-      <div id="memoryTabs" style="display:flex;gap:4px;margin-bottom:8px">
-        <button class="mem-tab active" data-partition="culture" onclick="switchMemoryTab('culture')" style="background:var(--coral);color:white;border:none;border-radius:6px 6px 0 0;padding:6px 14px;font-size:12px;cursor:pointer">Culture</button>
-        <button class="mem-tab" data-partition="decisions" onclick="switchMemoryTab('decisions')" style="background:var(--bg2);color:var(--text3);border:1px solid var(--border);border-bottom:none;border-radius:6px 6px 0 0;padding:6px 14px;font-size:12px;cursor:pointer">Decisions</button>
-        <button class="mem-tab" data-partition="learnings" onclick="switchMemoryTab('learnings')" style="background:var(--bg2);color:var(--text3);border:1px solid var(--border);border-bottom:none;border-radius:6px 6px 0 0;padding:6px 14px;font-size:12px;cursor:pointer">Learnings</button>
-        <button class="mem-tab" data-partition="tech-stack" onclick="switchMemoryTab('tech-stack')" style="background:var(--bg2);color:var(--text3);border:1px solid var(--border);border-bottom:none;border-radius:6px 6px 0 0;padding:6px 14px;font-size:12px;cursor:pointer">Tech Stack</button>
-      </div>
-      <textarea id="memoryEditor" style="width:100%;height:200px;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:0 8px 8px 8px;padding:12px;font-size:13px;font-family:monospace;resize:vertical;outline:none;box-sizing:border-box" placeholder="No memories yet. Run missions and your AI team will remember key facts."></textarea>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button onclick="saveMemoryEdit()" style="background:var(--coral);color:white;border:none;border-radius:6px;padding:6px 16px;font-size:12px;cursor:pointer">Save Memory</button>
-        <button onclick="clearMemory()" style="background:var(--bg2);color:var(--text3);border:1px solid var(--border);border-radius:6px;padding:6px 16px;font-size:12px;cursor:pointer">Clear All</button>
-        <span id="memorySaveStatus" style="font-size:11px;color:var(--text3);align-self:center"></span>
-      </div>
-    </div>
-
     <div style="margin-top:24px">
       <div class="page-title" style="font-size:16px;margin-bottom:8px">Channels</div>
       <div class="page-sub">Connect chat apps. Agents will deliver routine results here.</div>
       <div id="settingsChannels"></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-memory">
+    <div class="page-title">Memory</div>
+    <div class="page-sub">Your AI company's brain. The longer you run, the smarter it gets.</div>
+
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-top:20px">
+      <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px">👤 Chairman Profile</h3>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5">Your personal preferences, communication style, and industry context. Always injected into every AI interaction — your team knows who you are.</p>
+      <textarea id="chairmanEditor" style="width:100%;height:150px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:13px;font-family:monospace;resize:vertical;outline:none;box-sizing:border-box" placeholder="Example:
+- Language: Chinese preferred for reports
+- Industry: Cryptocurrency, AI
+- Report style: Data-driven, concise
+- Working hours: Evening (SGT)
+- Common instructions: Always include market data when analyzing crypto"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+        <button onclick="saveChairmanEdit()" style="background:var(--coral);color:white;border:none;border-radius:6px;padding:6px 16px;font-size:12px;cursor:pointer">Save</button>
+        <span id="chairmanSaveStatus" style="font-size:11px;color:var(--text3)"></span>
+      </div>
+    </div>
+
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-top:16px">
+      <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px">🏢 Company Culture</h3>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5">Your company's values, principles, and identity. Examples: "Customer-first", "Ship fast, fix fast", "All reports in Chinese"</p>
+      <textarea id="memCulture" style="width:100%;height:150px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:13px;font-family:monospace;resize:vertical;outline:none;box-sizing:border-box" placeholder="Example:
+- Company name: ClawCompany
+- Mission: Build for OPC
+- Core values: Customer-centric, code lean, design minimal
+- Tech stack: Node.js, TypeScript, pnpm"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+        <button onclick="savePartition('culture')" style="background:var(--coral);color:white;border:none;border-radius:6px;padding:6px 16px;font-size:12px;cursor:pointer">Save</button>
+        <span id="cultureSaveStatus" style="font-size:11px;color:var(--text3)"></span>
+      </div>
+    </div>
+
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-top:16px">
+      <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px">📋 Key Decisions</h3>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5">Important decisions your company has made. Your AI team will reference these to stay consistent. Examples: "Chose React over Vue", "Target market: solo developers"</p>
+      <textarea id="memDecisions" style="width:100%;height:150px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:13px;font-family:monospace;resize:vertical;outline:none;box-sizing:border-box" placeholder="Example:
+- 2026-03-14: Chose ClawAPI as default provider
+- 2026-03-20: Added Harness Builder template
+- Provider order: ClawAPI > Anthropic > OpenAI > Google"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+        <button onclick="savePartition('decisions')" style="background:var(--coral);color:white;border:none;border-radius:6px;padding:6px 16px;font-size:12px;cursor:pointer">Save</button>
+        <span id="decisionsSaveStatus" style="font-size:11px;color:var(--text3)"></span>
+      </div>
+    </div>
+
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-top:16px">
+      <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px">💡 Learnings</h3>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5">Lessons learned from past missions — what worked, what failed. Auto-updated after each mission. Your team learns from experience. Examples: "Bull analyst missed on-chain data", "Trading Desk needs longer timeout"</p>
+      <textarea id="memLearnings" style="width:100%;height:150px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:13px;font-family:monospace;resize:vertical;outline:none;box-sizing:border-box" placeholder="Auto-populated from missions. You can also add manually."></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+        <button onclick="savePartition('learnings')" style="background:var(--coral);color:white;border:none;border-radius:6px;padding:6px 16px;font-size:12px;cursor:pointer">Save</button>
+        <span id="learningsSaveStatus" style="font-size:11px;color:var(--text3)"></span>
+      </div>
+    </div>
+
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-top:16px">
+      <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px">🔧 Tech Stack</h3>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5">Technical preferences and standards your AI engineers should follow. Examples: "Use pnpm not npm", "Always TypeScript strict mode", "Deploy on Vercel"</p>
+      <textarea id="memTechStack" style="width:100%;height:150px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:13px;font-family:monospace;resize:vertical;outline:none;box-sizing:border-box" placeholder="Example:
+- Runtime: Node.js 24, pnpm
+- Language: TypeScript strict
+- Hosting: Vercel
+- Database: PGlite (planned)
+- CSS: Tailwind preferred"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+        <button onclick="savePartition('tech-stack')" style="background:var(--coral);color:white;border:none;border-radius:6px;padding:6px 16px;font-size:12px;cursor:pointer">Save</button>
+        <span id="techStackSaveStatus" style="font-size:11px;color:var(--text3)"></span>
+      </div>
+    </div>
+
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-top:16px;margin-bottom:32px">
+      <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:12px">📊 Memory Stats</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
+        <span style="color:var(--text3)">Chairman Profile:</span> <span id="statChairman" style="color:var(--text)">0 chars</span>
+        <span style="color:var(--text3)">Culture:</span> <span id="statCulture" style="color:var(--text)">0 entries</span>
+        <span style="color:var(--text3)">Decisions:</span> <span id="statDecisions" style="color:var(--text)">0 entries</span>
+        <span style="color:var(--text3)">Learnings:</span> <span id="statLearnings" style="color:var(--text)">0 entries</span>
+        <span style="color:var(--text3)">Tech Stack:</span> <span id="statTechStack" style="color:var(--text)">0 chars</span>
+        <span style="color:var(--text3)">Total injection:</span> <span id="statInjection" style="color:var(--coral);font-weight:600">~0 tokens</span>
+      </div>
     </div>
   </div>
 
@@ -2553,14 +2613,29 @@ lobsterStyle.textContent = `
 `;
 document.head.appendChild(lobsterStyle);
 
-// ──── Chairman Profile ────
+// ──── Memory Page ────
 
-async function loadChairmanEditor() {
+let memoryData = {};
+
+async function loadMemoryPage() {
   try {
-    const res = await fetch(API + '/api/chairman');
-    const data = await res.json();
-    const editor = document.getElementById('chairmanEditor');
-    if (editor) editor.value = data.content || '';
+    const [chairRes, memRes] = await Promise.all([
+      fetch(API + '/api/chairman'),
+      fetch(API + '/api/memory'),
+    ]);
+    const chairData = await chairRes.json();
+    memoryData = await memRes.json();
+
+    const ce = document.getElementById('chairmanEditor');
+    if (ce) ce.value = chairData.content || '';
+
+    const fields = { culture: 'memCulture', decisions: 'memDecisions', learnings: 'memLearnings', techStack: 'memTechStack' };
+    for (const [key, id] of Object.entries(fields)) {
+      const el = document.getElementById(id);
+      if (el) el.value = memoryData[key] || '';
+    }
+
+    updateMemoryStats(chairData.content || '', memoryData);
   } catch {}
 }
 
@@ -2574,80 +2649,55 @@ async function saveChairmanEdit() {
       body: JSON.stringify({ content: editor.value }),
     });
     if (status) { status.textContent = '✓ Saved'; setTimeout(() => status.textContent = '', 2000); }
+    updateMemoryStats(editor.value, memoryData);
   } catch (err) {
     if (status) status.textContent = 'Error saving';
   }
 }
 
-// ──── Memory (partitioned) ────
-
-let memoryData = {};
-let currentMemoryTab = 'culture';
-
-async function loadMemoryEditor() {
-  try {
-    const res = await fetch(API + '/api/memory');
-    memoryData = await res.json();
-    const editor = document.getElementById('memoryEditor');
-    if (editor) editor.value = memoryData[currentMemoryTab === 'tech-stack' ? 'techStack' : currentMemoryTab] || '';
-  } catch {}
-}
-
-function switchMemoryTab(partition) {
-  // Save current tab content to local cache before switching
-  const editor = document.getElementById('memoryEditor');
-  const key = currentMemoryTab === 'tech-stack' ? 'techStack' : currentMemoryTab;
-  if (editor) memoryData[key] = editor.value;
-
-  currentMemoryTab = partition;
-  const newKey = partition === 'tech-stack' ? 'techStack' : partition;
-  if (editor) editor.value = memoryData[newKey] || '';
-
-  // Update tab styles
-  document.querySelectorAll('.mem-tab').forEach(btn => {
-    if (btn.dataset.partition === partition) {
-      btn.style.background = 'var(--coral)';
-      btn.style.color = 'white';
-      btn.style.border = 'none';
-      btn.classList.add('active');
-    } else {
-      btn.style.background = 'var(--bg2)';
-      btn.style.color = 'var(--text3)';
-      btn.style.border = '1px solid var(--border)';
-      btn.style.borderBottom = 'none';
-      btn.classList.remove('active');
-    }
-  });
-}
-
-async function saveMemoryEdit() {
-  const editor = document.getElementById('memoryEditor');
-  const status = document.getElementById('memorySaveStatus');
+async function savePartition(name) {
+  const idMap = { culture: 'memCulture', decisions: 'memDecisions', learnings: 'memLearnings', 'tech-stack': 'memTechStack' };
+  const keyMap = { culture: 'culture', decisions: 'decisions', learnings: 'learnings', 'tech-stack': 'techStack' };
+  const statusMap = { culture: 'cultureSaveStatus', decisions: 'decisionsSaveStatus', learnings: 'learningsSaveStatus', 'tech-stack': 'techStackSaveStatus' };
+  const editor = document.getElementById(idMap[name]);
+  const status = document.getElementById(statusMap[name]);
   try {
     await fetch(API + '/api/memory', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ partition: currentMemoryTab, content: editor.value }),
+      body: JSON.stringify({ partition: name, content: editor.value }),
     });
-    // Update local cache
-    const key = currentMemoryTab === 'tech-stack' ? 'techStack' : currentMemoryTab;
-    memoryData[key] = editor.value;
+    memoryData[keyMap[name]] = editor.value;
     if (status) { status.textContent = '✓ Saved'; setTimeout(() => status.textContent = '', 2000); }
+    const ce = document.getElementById('chairmanEditor');
+    updateMemoryStats(ce ? ce.value : '', memoryData);
   } catch (err) {
     if (status) status.textContent = 'Error saving';
   }
 }
 
-async function clearMemory() {
-  if (!confirm('Clear this memory partition (' + currentMemoryTab + ')?')) return;
-  await fetch(API + '/api/memory', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ partition: currentMemoryTab, content: '' }),
-  });
-  document.getElementById('memoryEditor').value = '';
-  const key = currentMemoryTab === 'tech-stack' ? 'techStack' : currentMemoryTab;
-  memoryData[key] = '';
+function countEntries(text) {
+  if (!text || !text.trim()) return 0;
+  return text.split('---').filter(s => s.trim()).length;
+}
+
+function updateMemoryStats(chairman, mem) {
+  const sc = document.getElementById('statChairman');
+  const sCu = document.getElementById('statCulture');
+  const sDe = document.getElementById('statDecisions');
+  const sLe = document.getElementById('statLearnings');
+  const sTs = document.getElementById('statTechStack');
+  const sIn = document.getElementById('statInjection');
+  if (sc) sc.textContent = (chairman || '').length + ' chars';
+  if (sCu) sCu.textContent = countEntries(mem.culture) + ' entries';
+  if (sDe) sDe.textContent = countEntries(mem.decisions) + ' entries';
+  if (sLe) sLe.textContent = countEntries(mem.learnings) + ' entries';
+  if (sTs) sTs.textContent = (mem.techStack || '').length + ' chars';
+  if (sIn) {
+    // Estimate: chairman full + 200 chars per partition, ~4 chars per token
+    const total = (chairman || '').length + Math.min((mem.culture||'').length,200) + Math.min((mem.decisions||'').length,200) + Math.min((mem.learnings||'').length,200) + Math.min((mem.techStack||'').length,200);
+    sIn.textContent = '~' + Math.round(total / 4) + ' tokens';
+  }
 }
 
 // Init
@@ -2661,8 +2711,7 @@ loadRoutines();
 loadCode();
 loadMissionHistory();
 loadStudioRoles();
-loadChairmanEditor();
-loadMemoryEditor();
+loadMemoryPage();
 setInterval(loadHealth, 30000);
 setInterval(syncLobsterState, 5000);
 </script>
