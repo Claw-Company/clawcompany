@@ -46,6 +46,30 @@ function loadMemory(): string {
   return MEMORY_PARTITIONS.map(p => loadPartition(p)).filter(s => s.trim()).join('\n\n---\n\n');
 }
 
+function categorizeMemoryEntry(entry: string): MemoryPartition {
+  const lower = entry.toLowerCase();
+
+  if (/\b(decided|chose|selected|switched to|changed to|adopted|approved|rejected|committed to)\b/.test(lower) ||
+      /\b(决定|选择|采用|切换|更换|批准|否决)\b/.test(lower) ||
+      /\b(provider|template|strategy|policy|priority)\b/.test(lower)) {
+    return 'decisions';
+  }
+
+  if (/\b(install|package|dependency|framework|library|stack|runtime|deploy|hosting|database|sdk|compiler|bundler)\b/.test(lower) ||
+      /\b(typescript|javascript|node|react|vue|python|docker|vercel|pnpm|npm|git)\b/.test(lower) ||
+      /\b(安装|部署|技术栈|框架|依赖)\b/.test(lower)) {
+    return 'tech-stack';
+  }
+
+  if (/\b(principle|value|culture|motto|philosophy|vision|mission statement|belief|tradition)\b/.test(lower) ||
+      /\b(原则|文化|理念|价值观|使命|愿景|口号)\b/.test(lower) ||
+      /\b(customer.first|team.spirit|code.quality)\b/.test(lower)) {
+    return 'culture';
+  }
+
+  return 'learnings';
+}
+
 function appendMemory(entry: string, partition: MemoryPartition = 'learnings'): void {
   try {
     ensureClawDir();
@@ -174,7 +198,7 @@ server.tool(
         isError: true,
       };
     }
-    const target = partition || 'learnings';
+    const target = partition || categorizeMemoryEntry(entry);
     appendMemory(entry, target);
     return { content: [{ type: 'text', text: `Memory entry appended to ${target}.` }] };
   },

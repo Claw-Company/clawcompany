@@ -228,8 +228,37 @@ function loadMemory(): string {
   return MEMORY_PARTITIONS.map(p => loadPartition(p)).filter(s => s.trim()).join('\n\n---\n\n');
 }
 
+function categorizeMemoryEntry(entry: string): MemoryPartition {
+  const lower = entry.toLowerCase();
+
+  // 决策相关
+  if (/\b(decided|chose|selected|switched to|changed to|adopted|approved|rejected|committed to)\b/.test(lower) ||
+      /\b(决定|选择|采用|切换|更换|批准|否决)\b/.test(lower) ||
+      /\b(provider|template|strategy|policy|priority)\b/.test(lower)) {
+    return 'decisions';
+  }
+
+  // 技术栈相关
+  if (/\b(install|package|dependency|framework|library|stack|runtime|deploy|hosting|database|sdk|compiler|bundler)\b/.test(lower) ||
+      /\b(typescript|javascript|node|react|vue|python|docker|vercel|pnpm|npm|git)\b/.test(lower) ||
+      /\b(安装|部署|技术栈|框架|依赖)\b/.test(lower)) {
+    return 'tech-stack';
+  }
+
+  // 文化相关
+  if (/\b(principle|value|culture|motto|philosophy|vision|mission statement|belief|tradition)\b/.test(lower) ||
+      /\b(原则|文化|理念|价值观|使命|愿景|口号)\b/.test(lower) ||
+      /\b(customer.first|team.spirit|code.quality)\b/.test(lower)) {
+    return 'culture';
+  }
+
+  // 默认：经验教训
+  return 'learnings';
+}
+
 function appendMemory(entry: string) {
-  appendPartition('learnings', entry);
+  const partition = categorizeMemoryEntry(entry);
+  appendPartition(partition, entry);
 }
 
 function searchMemory(query: string): { partition: string; matches: string[] }[] {
@@ -1007,7 +1036,7 @@ app.put('/api/memory', (req, res) => {
 app.post('/api/memory', (req, res) => {
   const { entry, partition } = req.body;
   if (!entry) return res.status(400).json({ error: 'entry required' });
-  const p: MemoryPartition = (partition && MEMORY_PARTITIONS.includes(partition)) ? partition : 'learnings';
+  const p: MemoryPartition = (partition && MEMORY_PARTITIONS.includes(partition)) ? partition : categorizeMemoryEntry(entry);
   appendPartition(p, entry);
   res.json({ ok: true });
 });
