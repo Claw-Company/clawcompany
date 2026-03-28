@@ -44,7 +44,7 @@ npx clawcompany
 That's it. The wizard guides you through everything:
 
 ```
-  🦞 ClawCompany v0.32.0
+  🦞 ClawCompany v0.33.0
   Build for OPC. Every human being is a chairman.
 
   Step 1/2: Name your company
