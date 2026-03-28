@@ -86,7 +86,7 @@ No config files. No JSON to edit. No Docker. No proxy. No server to start. Just 
 
 ## Your AI team
 
-One ClawAPI key activates your entire company — 9 roles across 4 models:
+One ClawAPI key activates your entire company — 38 roles across 6 templates:
 
 | Role | Model | Cost (in/out per 1M) | What they do |
 |------|-------|---------------------|--------------|
