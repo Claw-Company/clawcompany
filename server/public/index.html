@@ -208,6 +208,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 .chat-bubble .md-output h1,.chat-bubble .md-output h2,.chat-bubble .md-output h3{margin-top:8px}
 .chat-bubble .md-output p{margin:4px 0}
 .chat-meta{font-size:10px;color:var(--text3);margin-top:4px}
+.chat-bubble.chat-error{background:rgba(255,107,107,0.12);border:1px solid rgba(255,107,107,0.3);color:#ff6b6b}
 .chat-msg.user .chat-meta{text-align:right}
 .chat-typing{display:flex;gap:4px;padding:10px 14px}
 .chat-typing span{width:6px;height:6px;border-radius:50%;background:var(--text3);animation:chatTyping .8s ease-in-out infinite}
@@ -2079,12 +2080,14 @@ function addChatMessage(role, content, meta) {
   div.className = `chat-msg ${role}`;
 
   const avatar = role === 'user' ? '👤' : '🦞';
+  const isError = role === 'assistant' && content.startsWith('⚠️');
   const rendered = role === 'assistant' ? marked.parse(content) : escHtml(content);
+  const errorClass = isError ? ' chat-error' : '';
 
   div.innerHTML = `
     <div class="chat-avatar">${avatar}</div>
     <div>
-      <div class="chat-bubble">${role === 'assistant' ? '<div class="md-output">' + rendered + '</div>' : rendered}</div>
+      <div class="chat-bubble${errorClass}">${role === 'assistant' ? '<div class="md-output">' + rendered + '</div>' : rendered}</div>
       ${meta ? `<div class="chat-meta">${meta}</div>` : ''}
     </div>
   `;

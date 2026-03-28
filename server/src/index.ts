@@ -1095,7 +1095,16 @@ app.post('/api/chat', async (req, res) => {
       usage: { inputTokens: totalIn, outputTokens: totalOut, cost: totalCost },
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    const errorMsg = err.message || 'Unknown error';
+    const roleObj = router!.getRole(roleId);
+    res.json({
+      role: roleId,
+      model: roleObj?.model ?? 'unknown',
+      provider: roleObj?.provider ?? 'unknown',
+      content: '⚠️ ' + errorMsg,
+      error: errorMsg,
+      usage: { inputTokens: 0, outputTokens: 0, cost: 0 },
+    });
   }
 });
 

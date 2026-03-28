@@ -97,11 +97,23 @@ export class OpenAICompatibleProvider implements LLMProvider {
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => '');
-      throw new ProviderError(
-        response.status,
-        `${this.name} API error ${response.status}: ${errorBody}`,
-        this.id,
-      );
+      const status = response.status;
+      let friendly: string;
+      switch (true) {
+        case status === 429:
+          friendly = 'Rate limited — too many requests. Please wait and try again.'; break;
+        case status === 529:
+          friendly = 'Model overloaded — the API is currently busy. Try again in a moment.'; break;
+        case status === 502 || status === 504:
+          friendly = 'Request timeout — the model took too long to respond. Try a different role or model.'; break;
+        case status === 401 || status === 403:
+          friendly = 'Authentication failed — check your API key.'; break;
+        case status === 400:
+          friendly = `Bad request — this model may not support the current settings. (${errorBody.slice(0, 120)})`; break;
+        default:
+          friendly = `API error ${status}: ${errorBody.slice(0, 200)}`;
+      }
+      throw new ProviderError(status, friendly, this.id);
     }
 
     // Collect SSE stream chunks into a single response
@@ -188,6 +200,18 @@ export class OpenAICompatibleProvider implements LLMProvider {
       toolCalls.push({ id: buf.id, type: 'function', function: { name: buf.name, arguments: buf.args } });
     }
 
+    // Detect empty response (no content, no tool calls, zero cost)
+    const cost = calculateCost(params.model, promptTokens, completionTokens);
+    if (!content && toolCalls.length === 0 && cost === 0) {
+      return {
+        content: '⚠️ No response received from the model. This usually means the API is temporarily unavailable. Try again or switch to a different role.',
+        model,
+        provider: this.id,
+        usage: { inputTokens: 0, outputTokens: 0, cost: 0 },
+        finishReason,
+      };
+    }
+
     return {
       content,
       model,
@@ -195,7 +219,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
       usage: {
         inputTokens: promptTokens,
         outputTokens: completionTokens,
-        cost: calculateCost(params.model, promptTokens, completionTokens),
+        cost,
       },
       toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
       finishReason,
