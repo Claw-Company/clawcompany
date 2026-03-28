@@ -49,20 +49,26 @@ function loadMemory(): string {
 function categorizeMemoryEntry(entry: string): MemoryPartition {
   const lower = entry.toLowerCase();
 
+  const hasChineseTech = /(安装|部署|技术栈|框架|依赖)/.test(lower);
+  const hasEnglishTech = /\b(install|package|dependency|framework|library|stack|runtime|deploy|hosting|database|sdk|compiler|bundler|typescript|javascript|node|react|vue|python|docker|vercel|pnpm|npm|git)\b/.test(lower);
+
+  // Chinese tech keywords take priority (e.g. "采用了新的框架" → tech, not decisions)
+  if (hasChineseTech) {
+    return 'tech-stack';
+  }
+
   if (/\b(decided|chose|selected|switched to|changed to|adopted|approved|rejected|committed to)\b/.test(lower) ||
-      /\b(决定|选择|采用|切换|更换|批准|否决)\b/.test(lower) ||
+      /(决定|选择|采用|切换|更换|批准|否决)/.test(lower) ||
       /\b(provider|template|strategy|policy|priority)\b/.test(lower)) {
     return 'decisions';
   }
 
-  if (/\b(install|package|dependency|framework|library|stack|runtime|deploy|hosting|database|sdk|compiler|bundler)\b/.test(lower) ||
-      /\b(typescript|javascript|node|react|vue|python|docker|vercel|pnpm|npm|git)\b/.test(lower) ||
-      /\b(安装|部署|技术栈|框架|依赖)\b/.test(lower)) {
+  if (hasEnglishTech) {
     return 'tech-stack';
   }
 
   if (/\b(principle|value|culture|motto|philosophy|vision|mission statement|belief|tradition)\b/.test(lower) ||
-      /\b(原则|文化|理念|价值观|使命|愿景|口号)\b/.test(lower) ||
+      /(原则|文化|理念|价值观|使命|愿景|口号)/.test(lower) ||
       /\b(customer.first|team.spirit|code.quality)\b/.test(lower)) {
     return 'culture';
   }
