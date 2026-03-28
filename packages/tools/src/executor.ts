@@ -121,7 +121,7 @@ export class ToolExecutor {
           'Accept': 'text/html,application/xhtml+xml,text/plain,application/json',
         },
         redirect: 'follow',
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(30_000),
       });
 
       if (!response.ok) {
@@ -159,7 +159,7 @@ export class ToolExecutor {
       // Plain text
       return raw.slice(0, limit);
     } catch (err: any) {
-      if (err.name === 'TimeoutError') return 'Error: Request timed out (15s)';
+      if (err.name === 'TimeoutError') return 'Error: Request timed out (30s)';
       return `Error: ${err.message}`;
     }
   }
@@ -175,7 +175,7 @@ export class ToolExecutor {
         headers: {
           'User-Agent': 'ClawCompany/1.0 (AI Agent)',
         },
-        signal: AbortSignal.timeout(10_000),
+        signal: AbortSignal.timeout(30_000),
       });
 
       if (!response.ok) {
@@ -240,7 +240,7 @@ export class ToolExecutor {
       }
       return output;
     } catch (err: any) {
-      if (err.name === 'TimeoutError') return 'Error: Search timed out (10s)';
+      if (err.name === 'TimeoutError') return 'Error: Search timed out (30s)';
       return `Error: ${err.message}`;
     }
   }
@@ -296,7 +296,7 @@ export class ToolExecutor {
     }
 
     try {
-      const { stdout, stderr } = await execAsync(cmd, { timeout: 30_000 });
+      const { stdout, stderr } = await execAsync(cmd, { timeout: 60_000 });
       return stdout + (stderr ? `\nSTDERR: ${stderr}` : '');
     } catch (err: any) {
       if (err.code === 'ENOENT' || err.message?.includes('not found') || err.message?.includes('ENOENT')) {
@@ -312,7 +312,7 @@ export class ToolExecutor {
 
     try {
       const controller = new AbortController();
-      setTimeout(() => controller.abort(), 10000);
+      setTimeout(() => controller.abort(), 20000);
 
       const url = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(asset)}&vs_currencies=${currency}&include_market_cap=true&include_24hr_vol=true&include_24hr_change=true`;
 
@@ -344,7 +344,7 @@ export class ToolExecutor {
   24h Volume: $${vol24h ? (vol24h / 1e9).toFixed(2) + 'B' : 'N/A'}
   24h Change: ${change24h?.toFixed(2) ?? 'N/A'}%`;
     } catch (err: any) {
-      if (err.name === 'AbortError') return 'Error: Price feed timed out (10s)';
+      if (err.name === 'AbortError') return 'Error: Price feed timed out (20s)';
       return `Error fetching price: ${err.message}`;
     }
   }

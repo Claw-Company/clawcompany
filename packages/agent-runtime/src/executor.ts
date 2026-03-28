@@ -37,7 +37,7 @@ export class AgentExecutor {
       },
     ];
 
-    const MAX_TURNS = 15;
+    const MAX_TURNS = 25;
 
     for (let turn = 0; turn < MAX_TURNS; turn++) {
       // Think + Act
