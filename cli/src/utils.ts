@@ -7,7 +7,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 
 export function banner() {
   console.log('');
-  console.log('  🦞 ClawCompany v0.33.0');
+  console.log('  🦞 ClawCompany v0.34.0');
   console.log('  Build for OPC. Every human being is a chairman.');
   console.log('');
 }
