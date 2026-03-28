@@ -1,0 +1,1 @@
+{"version":3,"file":"executor.d.ts","sourceRoot":"","sources":["executor.ts"],"names":[],"mappings":"AAMA;;GAEG;AACH,qBAAa,YAAY;IACjB,OAAO,CACX,QAAQ,EAAE,MAAM,EAChB,IAAI,EAAE,MAAM,CAAC,MAAM,EAAE,OAAO,CAAC,GAC5B,OAAO,CAAC,MAAM,CAAC;YAyBJ,cAAc;YAuBd,SAAS;YAaT,QAAQ;YAkBR,QAAQ;YAoBR,YAAY;YAsDZ,aAAa;YAiFb,cAAc;YA6Dd,aAAa;YA2Cb,gBAAgB;CAmB/B"}

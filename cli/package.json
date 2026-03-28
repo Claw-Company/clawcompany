@@ -1,6 +1,6 @@
 {
   "name": "clawcompany",
-  "version": "0.32.0",
+  "version": "0.33.0",
   "description": "Build for OPC. Every human being is a chairman. AI company infrastructure — one key, 9 roles, 4 models.",
   "type": "module",
   "bin": { "clawcompany": "dist/index.js" },
