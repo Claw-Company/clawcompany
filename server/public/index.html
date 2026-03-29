@@ -666,7 +666,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
     </div>
 
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-top:16px;margin-bottom:32px">
-      <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:12px">📊 Memory Stats</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3 style="font-size:15px;font-weight:600;color:var(--text);margin:0">📊 Memory Stats</h3>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="compressStatus" style="font-size:11px;color:var(--text3)"></span>
+          <button onclick="compressMemory()" id="compressBtn" style="background:var(--coral);color:white;border:none;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer">🗜️ Compress</button>
+        </div>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
         <span style="color:var(--text3)">Chairman Profile:</span> <span id="statChairman" style="color:var(--text)">0 chars</span>
         <span style="color:var(--text3)">Culture:</span> <span id="statCulture" style="color:var(--text)">0 entries</span>
@@ -674,6 +680,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
         <span style="color:var(--text3)">Learnings:</span> <span id="statLearnings" style="color:var(--text)">0 entries</span>
         <span style="color:var(--text3)">Tech Stack:</span> <span id="statTechStack" style="color:var(--text)">0 chars</span>
         <span style="color:var(--text3)">Total injection:</span> <span id="statInjection" style="color:var(--coral);font-weight:600">~0 tokens</span>
+        <span style="color:var(--text3)">Archive:</span> <span id="statArchive" style="color:var(--text)">0 entries</span>
       </div>
     </div>
   </div>
@@ -2633,12 +2640,14 @@ let memoryData = {};
 
 async function loadMemoryPage() {
   try {
-    const [chairRes, memRes] = await Promise.all([
+    const [chairRes, memRes, statsRes] = await Promise.all([
       fetch(API + '/api/chairman'),
       fetch(API + '/api/memory'),
+      fetch(API + '/api/memory/stats'),
     ]);
     const chairData = await chairRes.json();
     memoryData = await memRes.json();
+    const statsData = await statsRes.json();
 
     const ce = document.getElementById('chairmanEditor');
     if (ce) ce.value = chairData.content || '';
@@ -2650,6 +2659,8 @@ async function loadMemoryPage() {
     }
 
     updateMemoryStats(chairData.content || '', memoryData);
+    const archiveEl = document.getElementById('statArchive');
+    if (archiveEl) archiveEl.textContent = (statsData.archiveEntries || 0) + ' entries';
   } catch {}
 }
 
@@ -2711,6 +2722,32 @@ function updateMemoryStats(chairman, mem) {
     // Estimate: chairman full + 200 chars per partition, ~4 chars per token
     const total = (chairman || '').length + Math.min((mem.culture||'').length,200) + Math.min((mem.decisions||'').length,200) + Math.min((mem.learnings||'').length,200) + Math.min((mem.techStack||'').length,200);
     sIn.textContent = '~' + Math.round(total / 4) + ' tokens';
+  }
+}
+
+async function compressMemory(partition) {
+  const btn = document.getElementById('compressBtn');
+  const status = document.getElementById('compressStatus');
+  if (btn) btn.disabled = true;
+  if (status) status.textContent = 'Compressing...';
+  try {
+    const res = await fetch(API + '/api/memory/compress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(partition ? { partition } : {}),
+    });
+    const data = await res.json();
+    const compressed = data.results.filter(r => r.status === 'compressed').length;
+    const skipped = data.results.filter(r => r.status === 'skipped').length;
+    if (status) {
+      status.textContent = compressed > 0 ? `✓ Compressed ${compressed} partition(s)` : 'All partitions skipped (too few entries)';
+      setTimeout(() => status.textContent = '', 4000);
+    }
+    if (compressed > 0) loadMemoryPage();
+  } catch (err) {
+    if (status) { status.textContent = 'Compression failed'; setTimeout(() => status.textContent = '', 3000); }
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 

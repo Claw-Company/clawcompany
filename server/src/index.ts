@@ -3,7 +3,7 @@ import cors from 'cors';
 import { config } from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, appendFileSync, readdirSync } from 'fs';
 import {
   getDefaultConfig,
   resolveRoles,
@@ -211,6 +211,61 @@ function appendPartition(p: MemoryPartition, entry: string) {
   const existing = loadPartition(p);
   const newContent = existing + '\n\n---\n\n' + `[${new Date().toISOString().slice(0, 10)}] ${entry}`;
   savePartition(p, newContent);
+  // Auto-compress if entries exceed threshold
+  checkAndCompressPartition(p);
+}
+
+function getPartitionEntries(content: string): string[] {
+  return content.split('---').map(s => s.trim()).filter(s => s);
+}
+
+function checkAndCompressPartition(p: MemoryPartition) {
+  const content = loadPartition(p);
+  const entries = getPartitionEntries(content);
+  if (entries.length <= 20) return;
+  compressPartition(p, entries);
+}
+
+async function compressPartition(p: MemoryPartition | string, entries: string[]) {
+  // Step 1: Archive original entries
+  const archiveDir = `${memoryDir}/archive`;
+  if (!existsSync(archiveDir)) mkdirSync(archiveDir, { recursive: true });
+
+  const timestamp = new Date().toISOString().slice(0, 10);
+  const archivePath = `${archiveDir}/${p}-${timestamp}.md`;
+
+  const archiveContent = entries.join('\n\n---\n\n');
+  appendFileSync(archivePath, '\n\n---\n\n' + archiveContent);
+
+  // Step 2: Summarize with LLM
+  const prompt = `You are a company memory curator. Below are ${entries.length} memory entries from the "${p}" partition of a company's knowledge base.
+
+Summarize these into a concise, well-organized summary of the most important points. Keep key dates, specific decisions, and lessons learned. Remove redundancy but preserve critical details.
+
+Format: Use markdown with clear sections. Keep under 500 words.
+
+Entries:
+${entries.join('\n---\n')}
+
+Summary:`;
+
+  try {
+    const leaderRole = resolveRoles(clawConfig).find(r => r.reportsTo === null);
+    const response = await router.chatAsRole(
+      leaderRole?.id || 'ceo',
+      [{ role: 'user', content: prompt }],
+    );
+
+    if (response.content && response.content.trim()) {
+      const compressed = `[Compressed on ${timestamp} from ${entries.length} entries]\n\n${response.content}`;
+      if (MEMORY_PARTITIONS.includes(p as MemoryPartition)) {
+        savePartition(p as MemoryPartition, compressed);
+      }
+      console.log(`  🧠 Memory compressed: ${p} (${entries.length} entries → summary)`);
+    }
+  } catch (err: any) {
+    console.log(`  ⚠️ Memory compression failed for ${p}: ${err.message}`);
+  }
 }
 
 function loadAllMemory(): { chairman: string; culture: string; decisions: string; learnings: string; techStack: string } {
@@ -287,6 +342,25 @@ function searchMemory(query: string): { partition: string; matches: string[] }[]
     if (matched.length > 0) {
       results.push({ partition: p, matches: matched });
     }
+  }
+
+  // Search archive directory
+  const archiveDir = `${memoryDir}/archive`;
+  if (existsSync(archiveDir)) {
+    try {
+      const archiveFiles = readdirSync(archiveDir).filter(f => f.endsWith('.md'));
+      for (const file of archiveFiles) {
+        const content = readFileSync(`${archiveDir}/${file}`, 'utf-8');
+        if (!content.trim()) continue;
+        const entries = content.split('---').map(s => s.trim()).filter(s => s);
+        const matched = entries.filter(entry =>
+          keywords.some(k => entry.toLowerCase().includes(k))
+        );
+        if (matched.length > 0) {
+          results.push({ partition: `archive/${file}`, matches: matched });
+        }
+      }
+    } catch {}
   }
 
   return results;
@@ -1052,6 +1126,51 @@ app.get('/api/memory/search', (req, res) => {
   if (!q) return res.status(400).json({ error: 'q parameter required' });
   const results = searchMemory(q);
   res.json({ query: q, results, totalMatches: results.reduce((a, r) => a + r.matches.length, 0) });
+});
+
+app.get('/api/memory/stats', (_req, res) => {
+  const stats: Record<string, { entries: number }> = {};
+  for (const p of MEMORY_PARTITIONS) {
+    const content = loadPartition(p);
+    stats[p] = { entries: getPartitionEntries(content).length };
+  }
+  // Count archive entries
+  let archiveEntries = 0;
+  const archiveDir = `${memoryDir}/archive`;
+  if (existsSync(archiveDir)) {
+    try {
+      const files = readdirSync(archiveDir).filter(f => f.endsWith('.md'));
+      for (const file of files) {
+        const content = readFileSync(`${archiveDir}/${file}`, 'utf-8');
+        archiveEntries += getPartitionEntries(content).length;
+      }
+    } catch {}
+  }
+  res.json({ partitions: stats, archiveEntries });
+});
+
+app.post('/api/memory/compress', async (req, res) => {
+  if (!router) return res.status(503).json({ error: 'Not initialized' });
+  const { partition } = req.body;
+  const partitions: string[] = partition ? [partition] : [...MEMORY_PARTITIONS];
+  const results: { partition: string; status: string; reason?: string; from?: number }[] = [];
+
+  for (const p of partitions) {
+    if (!MEMORY_PARTITIONS.includes(p as MemoryPartition)) {
+      results.push({ partition: p, status: 'skipped', reason: 'invalid partition' });
+      continue;
+    }
+    const content = loadPartition(p as MemoryPartition);
+    const entries = getPartitionEntries(content);
+    if (entries.length <= 5) {
+      results.push({ partition: p, status: 'skipped', reason: 'too few entries' });
+      continue;
+    }
+    await compressPartition(p as MemoryPartition, entries);
+    results.push({ partition: p, status: 'compressed', from: entries.length });
+  }
+
+  res.json({ results });
 });
 
 // ──── Chat ────
