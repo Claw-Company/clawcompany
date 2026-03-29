@@ -4,7 +4,7 @@
 
 Your AI company remembers everything — locally.
 
-[Website](https://clawcompany.org) · [Setup Guide](https://clawcompany.org/setup.html) · [ClawAPI](https://clawapi.com)
+[Website](https://clawcompany.org) · [Setup Guide](https://clawcompany.org/setup.html) · [ClawAPI](https://clawapi.org)
 
 ---
 
