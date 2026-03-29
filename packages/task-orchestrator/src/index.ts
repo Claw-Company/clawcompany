@@ -112,58 +112,88 @@ Respond ONLY with JSON:
     const totalStart = Date.now();
     let totalCost = 0;
 
-    const order = this.topologicalSort(workStreams);
+    const completed = new Set<string>();
+    const remaining = new Map(workStreams.map(ws => [ws.id, ws]));
 
-    console.log(`\n  📋 Executing ${order.length} work streams...\n`);
+    console.log(`\n  📋 Executing ${workStreams.length} work streams (batch-parallel)...\n`);
 
-    for (const ws of order) {
-      const depOutputs: Record<string, string> = {};
-      for (const depId of ws.dependencies) {
-        const dep = results.get(depId);
-        if (dep && dep.status === 'completed') depOutputs[depId] = dep.output;
+    let batch = 1;
+    while (remaining.size > 0) {
+      // Find streams whose dependencies are all completed
+      const ready = [...remaining.values()].filter(ws =>
+        (ws.dependencies ?? []).every(dep => completed.has(dep)),
+      );
+
+      if (ready.length === 0) {
+        // Circular dependency or missing deps — force-run remaining
+        console.log(`  ⚠️  Unresolvable dependencies — forcing remaining streams`);
+        ready.push(...remaining.values());
       }
 
-      const role = this.router.getRole(ws.assignTo);
-      const roleName = role?.name ?? ws.assignTo;
-      const modelName = role?.model ?? 'unknown';
+      console.log(`  📦 Batch ${batch}: ${ready.map(ws => ws.id).join(', ')}\n`);
 
-      console.log(`  ⚡ ${ws.id}: ${ws.title}`);
-      console.log(`     → ${roleName} (${modelName})`);
+      const batchResults = await Promise.all(ready.map(async (ws) => {
+        const depOutputs: Record<string, string> = {};
+        for (const depId of (ws.dependencies ?? [])) {
+          const dep = results.get(depId);
+          if (dep && dep.status === 'completed') depOutputs[depId] = dep.output;
+        }
 
-      const startTime = Date.now();
+        const role = this.router.getRole(ws.assignTo);
+        const roleName = role?.name ?? ws.assignTo;
+        const modelName = role?.model ?? 'unknown';
 
-      try {
-        const output = await this.executeWorkStream(ws, depOutputs);
-        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        console.log(`  ⚡ ${ws.id}: ${ws.title}`);
+        console.log(`     → ${roleName} (${modelName})`);
 
-        results.set(ws.id, {
-          workStreamId: ws.id,
-          title: ws.title,
-          assignedTo: ws.assignTo,
-          output: output.content,
-          cost: output.cost,
-          tokensIn: output.tokensIn,
-          tokensOut: output.tokensOut,
-          model: output.model,
-          status: 'completed',
-        });
+        const startTime = Date.now();
 
-        totalCost += output.cost;
-        console.log(`     ✅ Done (${elapsed}s, $${output.cost.toFixed(4)})\n`);
-      } catch (err: any) {
-        console.log(`     ❌ Failed: ${err.message}\n`);
-        results.set(ws.id, {
-          workStreamId: ws.id,
-          title: ws.title,
-          assignedTo: ws.assignTo,
-          output: `Error: ${err.message}`,
-          cost: 0,
-          tokensIn: 0,
-          tokensOut: 0,
-          model: 'none',
-          status: 'failed',
-        });
+        try {
+          const output = await this.executeWorkStream(ws, depOutputs);
+          const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+
+          totalCost += output.cost;
+          console.log(`     ✅ Done (${elapsed}s, $${output.cost.toFixed(4)})\n`);
+
+          return {
+            id: ws.id,
+            result: {
+              workStreamId: ws.id,
+              title: ws.title,
+              assignedTo: ws.assignTo,
+              output: output.content,
+              cost: output.cost,
+              tokensIn: output.tokensIn,
+              tokensOut: output.tokensOut,
+              model: output.model,
+              status: 'completed' as const,
+            },
+          };
+        } catch (err: any) {
+          console.log(`     ❌ Failed: ${err.message}\n`);
+          return {
+            id: ws.id,
+            result: {
+              workStreamId: ws.id,
+              title: ws.title,
+              assignedTo: ws.assignTo,
+              output: `Error: ${err.message}`,
+              cost: 0,
+              tokensIn: 0,
+              tokensOut: 0,
+              model: 'none',
+              status: 'failed' as const,
+            },
+          };
+        }
+      }));
+
+      for (const { id, result } of batchResults) {
+        results.set(id, result);
+        completed.add(id);
+        remaining.delete(id);
       }
+      batch++;
     }
 
     const totalElapsed = ((Date.now() - totalStart) / 1000).toFixed(1);
@@ -228,22 +258,6 @@ Respond ONLY with JSON:
     };
   }
 
-  private topologicalSort(workStreams: WorkStream[]): WorkStream[] {
-    const sorted: WorkStream[] = [];
-    const visited = new Set<string>();
-    const wsMap = new Map(workStreams.map((ws) => [ws.id, ws]));
-    const visit = (ws: WorkStream) => {
-      if (visited.has(ws.id)) return;
-      visited.add(ws.id);
-      for (const depId of ws.dependencies) {
-        const dep = wsMap.get(depId);
-        if (dep) visit(dep);
-      }
-      sorted.push(ws);
-    };
-    for (const ws of workStreams) visit(ws);
-    return sorted;
-  }
 }
 
 export interface WorkStreamResult {
