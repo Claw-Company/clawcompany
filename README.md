@@ -191,28 +191,34 @@ clawcompany role set cto --model deepseek-coder --provider deepseek
 
 Run Claude Code, Codex, Cursor, and any CLI tool from browser tabs. Full PTY terminal with ANSI colors and interactive input.
 
-- 7 projects. 5 running. 2 stopped. One glance.
-- Start all → green dots. Stop all → done.
-- Process completes → phone buzzes (Telegram/Discord).
+- Multiple Claude Code sessions running in parallel
+- Multiple Codex instances side by side
+- Any CLI tool — npm, python, git, docker
+- Process completes → phone buzzes (Telegram/Discord)
 - Real terminal. Not a text viewer.
 
 ![Code Manager](assets/code-manager.png)
 
 ---
 
-## 🚀 Company Templates — Switch your org chart in one click
+## 🚀 6 Company Templates — Switch your org chart in one click
 
-Pre-built role configurations for different business types. Switch instantly, keep your custom roles.
+| Template | Roles | Focus |
+|----------|-------|-------|
+| 🦞 Default | 9 roles | General purpose — CEO, CTO, CFO, CMO, Researcher, Analyst, Engineer |
+| 🚀 YC Startup | 7 roles | YC methodology — Founder Coach, Product Manager, Growth Hacker |
+| 📈 Trading Desk | 7 roles | Investment analysis — Fund Manager, Bull/Bear Analyst, Risk Manager |
+| 🔬 Research Lab | 5 roles | Deep research — Principal Researcher, Experimenter, Evaluator |
+| 💻 Software Dev | 6 roles | Sprint-based development — Product Manager, Architect, QA Engineer |
+| 🏗️ Harness Builder | 3 roles | GAN-inspired — Planner, Generator, Evaluator (inspired by Anthropic) |
 
-- 🦞 **Default** — 9 roles, 4 AI models, general purpose
-- 🚀 **YC Startup** — 7 roles, YC methodology, ship fast
-- More coming: Media Studio, Trading Desk, E-Commerce
+38 roles total. Every role gets all 9 tools. Switch templates instantly.
 
 ![Templates](assets/templates.png)
 
 ---
 
-## ClawMarket — download a company, one click, it runs
+## ClawMall — download a company, one click, it runs
 
 Browse templates, skills, and tools. Install and run instantly.
 ```bash
@@ -232,19 +238,52 @@ One click = working company. No configuration needed.
 
 ---
 
+## 🧠 Company Memory — 4-layer architecture that remembers everything
+
+Your AI company has a brain. Not a flat file — a structured, searchable, self-compressing memory system.
+
+### Layer 4: Chairman Profile
+Your preferences, industry, communication style. Always injected — your team knows who you are.
+
+### Layer 3: Company Memory (4 partitions)
+| Partition | What it stores |
+|-----------|---------------|
+| 🏢 Culture | Values, principles, company identity |
+| 📋 Decisions | Key decisions with timestamps — agents don't re-debate what's decided |
+| 💡 Learnings | Lessons from past missions — auto-updated after every mission |
+| 🔧 Tech Stack | Technical preferences and standards |
+
+### Layer 2: Mission Archive
+Full history of every mission — searchable.
+
+### Layer 1: Session Context
+Current conversation — standard chat history.
+
+**Smart features:**
+- **Auto-categorize** — new entries automatically sorted into the right partition (keyword matching, supports English + Chinese)
+- **memory_search** — agents actively search memory when they need context
+- **LLM compression** — when a partition exceeds 20 entries, LLM summarizes into a concise version. Originals archived.
+- **~400 tokens injected** — chairman full + 200-char summaries per partition. Not brute force.
+
+No other AI agent framework has this. OpenClaw has flat files. Paperclip has no memory. Hermes has 3 layers without partitions.
+
+---
+
 ## Agent tools — agents that do things, not just say things
 
-6 built-in tools. Your agents can search the web, read pages, call APIs, write files, and execute code — autonomously.
+9 built-in tools. Your agents can search the web, read pages, call APIs, write files, execute code, browse websites, and search memory — autonomously.
 
 | Tool | What it does |
 |------|-------------|
-| **Web Search** | Search the web for real-time info (DuckDuckGo, no API key needed) |
-| **Web Fetch** | Read any web page, strip HTML, return clean text |
-| **HTTP Requests** | Call any API — GET, POST, PUT, DELETE |
-| **Filesystem** | Read, write, list, delete files |
-| **Shell** | Execute shell commands (30s timeout) |
-| **Code Interpreter** | Run JavaScript or Python code |
-| **Browser Use** | Navigate pages, click, type, screenshot, run JS |
+| **Web Search** | Search the web (DuckDuckGo, no API key) |
+| **Web Fetch** | Read any web page, clean text |
+| **Price Feed** | Real-time crypto + stock prices |
+| **Browser Use** | Navigate, click, type, screenshot |
+| **Shell** | Execute shell commands |
+| **Filesystem** | Read, write, list files |
+| **HTTP** | Call any API |
+| **Code Interpreter** | Run JavaScript/Python |
+| **Memory Search** | Search company memory across all partitions + archive |
 
 Agents use a **think → act → observe** loop: reason about the task, use tools, observe results, repeat until done. Verified: Researcher made 16 tool calls in one mission to gather real-time data.
 
@@ -256,7 +295,7 @@ Agents use a **think → act → observe** loop: reason about the task, use tool
 |---------|--------|-----|
 | **WebChat** | ✅ Live | `http://localhost:3200/chat.html` |
 | **Telegram** | ✅ Live | Add `TELEGRAM_BOT_TOKEN` to `.env` |
-| **Discord** | ✅ Live | Coming next |
+| **Discord** | ✅ Live | Add `DISCORD_BOT_TOKEN` to `.env` |
 | **Slack** | 🔜 Soon | Planned |
 | **Feishu** | 🔜 Soon | Planned |
 
@@ -284,31 +323,33 @@ Missions that mention assets are auto-enriched with real-time data before reachi
 
 ## Company memory — gets smarter every mission
 
-Your company auto-learns your preferences, domain, and patterns. Zero configuration.
-```
-🧠 Company memory loaded
+Your company auto-learns your preferences, domain, and patterns. Zero configuration — 4-layer memory with LLM compression.
 
-chairman.language: "zh"              // auto-detected
-chairman.domains: ["crypto", "finance"]  // learned from missions
-chairman.commonMissions: ["analysis", "research"]
-company.missionCount: 12
-company.recentMissions: ["BTC分析", "ETH对比", ...]
+```
+🧠 Company memory loaded (4-layer architecture)
+
+Layer 4 — Chairman: language=zh, domains=[crypto, finance]
+Layer 3 — Company: culture(2), decisions(10), learnings(8), tech-stack(3)
+Layer 2 — Archive: 206 entries (LLM-compressed originals)
+Layer 1 — Session: current conversation
+
+~400 tokens injected per mission
 ```
 
-**~300 tokens** injected per mission. OpenClaw's SOUL.md loads 4,000-10,000 tokens every session. Same memory quality, **1/17 the cost**.
+**~400 tokens** injected per mission. OpenClaw's SOUL.md loads 4,000-10,000 tokens every session. Same memory quality, **1/13 the cost**. When partitions grow past 20 entries, LLM auto-compresses — originals archived, summary replaces.
 
 ---
 
 ## Why ClawCompany?
 
-| | Single agent (OpenClaw) | Orchestrator (Paperclip) | **ClawCompany** |
+| | Single Agent (OpenClaw) | Orchestrator (Paperclip) | **ClawCompany** |
 |---|---|---|---|
 | For whom | Developers | Technical users | **Everyone** |
-| Agent source | One agent | External agents | **Built-in team** |
-| Model strategy | One model | Agent brings own | **Right model per role** |
-| Setup | npm install + config JSON | Docker + Postgres | **npx + 1 key** |
-| Human role | Every step | Configure + monitor | **Set goal only** |
-| Cost per mission | $0.40-$0.50 (single Opus) | Varies | **$0.06 (multi-model)** |
+| Roles | 1 agent | Bring your own | **38 built-in** |
+| Templates | None | None | **6 templates** |
+| Memory | Flat files | None | **4-layer + LLM compression** |
+| Setup | npm + config JSON | Docker + Postgres | **npx + 1 key** |
+| Cost/mission | $0.40+ (single model) | Varies | **$0.06 (multi-model)** |
 
 ---
 
