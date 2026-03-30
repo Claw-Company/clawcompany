@@ -1496,75 +1496,86 @@ app.post('/api/mission/run-stream', async (req, res) => {
         });
       }
 
+      const MAX_RETRIES = 2;
+
       const batchResults = await Promise.all(ready.map(async (ws) => {
         const role = router.getRole(ws.assignTo);
         const startTime = Date.now();
 
-        try {
-          // Build context from dependencies
-          let context = '';
-          const deps = ws.dependencies ?? [];
-          if (deps.length > 0) {
-            context = '\n\n## Previous work stream outputs:\n';
-            for (const depId of deps) {
-              const depOutput = completedOutputs.get(depId);
-              if (depOutput) {
-                const truncated = depOutput.length > 500 ? depOutput.slice(0, 500) + '\n...(truncated)' : depOutput;
-                context += `\n### ${depId}:\n${truncated}\n`;
-              }
+        // Build context from dependencies (once, before retry loop)
+        let context = '';
+        const deps = ws.dependencies ?? [];
+        if (deps.length > 0) {
+          context = '\n\n## Previous work stream outputs:\n';
+          for (const depId of deps) {
+            const depOutput = completedOutputs.get(depId);
+            if (depOutput) {
+              const truncated = depOutput.length > 500 ? depOutput.slice(0, 500) + '\n...(truncated)' : depOutput;
+              context += `\n### ${depId}:\n${truncated}\n`;
             }
           }
-
-          // Build messages with chairman + memory context
-          const wsMessages: Message[] = [];
-          const wsChairman = loadChairman();
-          if (wsChairman.trim()) {
-            wsMessages.push({ role: 'system', content: `--- Chairman ---\n${wsChairman}` });
-          }
-          const wsCulture = loadPartition('culture');
-          const wsDecisions = loadPartition('decisions');
-          const wsLearnings = loadPartition('learnings');
-          const wsTechStack = loadPartition('tech-stack');
-          if (wsCulture.trim() || wsDecisions.trim() || wsLearnings.trim() || wsTechStack.trim()) {
-            let wsMem = '--- Company Memory ---\n';
-            if (wsCulture.trim()) wsMem += 'Culture: ' + wsCulture.slice(0, 200) + '\n';
-            if (wsDecisions.trim()) wsMem += 'Decisions: ' + wsDecisions.slice(0, 200) + '\n';
-            if (wsLearnings.trim()) wsMem += 'Learnings: ' + wsLearnings.slice(0, 200) + '\n';
-            if (wsTechStack.trim()) wsMem += 'Tech: ' + wsTechStack.slice(0, 200);
-            wsMessages.push({ role: 'system', content: wsMem });
-          }
-          wsMessages.push({ role: 'user', content: `## Task: ${ws.title}\n\n${ws.description}\n\nComplexity: ${ws.estimatedComplexity}${context}\n\nComplete this task. Provide your output clearly and concisely.` });
-
-          const response = await router.chatAsRole(ws.assignTo, wsMessages);
-
-          const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-          const cost = response.usage.cost;
-
-          const wsResult = {
-            id: ws.id, title: ws.title, role: ws.assignTo,
-            model: response.model, status: 'completed',
-            cost: `$${cost.toFixed(4)}`, time: `${elapsed}s`,
-            output: response.content,
-            outputPreview: response.content.slice(0, 300) + (response.content.length > 300 ? '...' : ''),
-          };
-
-          send('ws_done', wsResult);
-          console.log(`  ✅ ${ws.id}: ${ws.title} (${elapsed}s, $${cost.toFixed(4)})`);
-
-          return { ws, wsResult, cost, output: response.content };
-        } catch (err: any) {
-          const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-          const wsResult = {
-            id: ws.id, title: ws.title, role: ws.assignTo,
-            model: 'none', status: 'failed',
-            cost: '$0.0000', time: `${elapsed}s`,
-            error: err.message, output: '', outputPreview: `Error: ${err.message}`,
-          };
-          send('ws_failed', wsResult);
-          console.log(`  ❌ ${ws.id}: ${err.message}`);
-
-          return { ws, wsResult, cost: 0, output: '' };
         }
+
+        // Build messages with chairman + memory context
+        const wsMessages: Message[] = [];
+        const wsChairman = loadChairman();
+        if (wsChairman.trim()) {
+          wsMessages.push({ role: 'system', content: `--- Chairman ---\n${wsChairman}` });
+        }
+        const wsCulture = loadPartition('culture');
+        const wsDecisions = loadPartition('decisions');
+        const wsLearnings = loadPartition('learnings');
+        const wsTechStack = loadPartition('tech-stack');
+        if (wsCulture.trim() || wsDecisions.trim() || wsLearnings.trim() || wsTechStack.trim()) {
+          let wsMem = '--- Company Memory ---\n';
+          if (wsCulture.trim()) wsMem += 'Culture: ' + wsCulture.slice(0, 200) + '\n';
+          if (wsDecisions.trim()) wsMem += 'Decisions: ' + wsDecisions.slice(0, 200) + '\n';
+          if (wsLearnings.trim()) wsMem += 'Learnings: ' + wsLearnings.slice(0, 200) + '\n';
+          if (wsTechStack.trim()) wsMem += 'Tech: ' + wsTechStack.slice(0, 200);
+          wsMessages.push({ role: 'system', content: wsMem });
+        }
+        wsMessages.push({ role: 'user', content: `## Task: ${ws.title}\n\n${ws.description}\n\nComplexity: ${ws.estimatedComplexity}${context}\n\nComplete this task. Provide your output clearly and concisely.` });
+
+        for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
+          try {
+            const response = await router.chatAsRole(ws.assignTo, wsMessages);
+
+            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+            const cost = response.usage.cost;
+
+            const wsResult = {
+              id: ws.id, title: ws.title, role: ws.assignTo,
+              model: response.model, status: 'completed',
+              cost: `$${cost.toFixed(4)}`, time: `${elapsed}s`,
+              output: response.content,
+              outputPreview: response.content.slice(0, 300) + (response.content.length > 300 ? '...' : ''),
+            };
+
+            send('ws_done', wsResult);
+            console.log(`  ✅ ${ws.id}: ${ws.title} (${elapsed}s, $${cost.toFixed(4)})${attempt > 1 ? ` [retry ${attempt - 1}]` : ''}`);
+
+            return { ws, wsResult, cost, output: response.content };
+          } catch (err: any) {
+            if (attempt <= MAX_RETRIES) {
+              console.log(`  🔄 ${ws.id}: Retry ${attempt}/${MAX_RETRIES} — ${err.message}`);
+              send('ws_retry', { id: ws.id, attempt, maxRetries: MAX_RETRIES, error: err.message });
+              continue;
+            }
+            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+            const wsResult = {
+              id: ws.id, title: ws.title, role: ws.assignTo,
+              model: 'none', status: 'failed',
+              cost: '$0.0000', time: `${elapsed}s`,
+              error: err.message, output: '', outputPreview: `Error: ${err.message}`,
+            };
+            send('ws_failed', wsResult);
+            console.log(`  ❌ ${ws.id}: Failed after ${MAX_RETRIES} retries — ${err.message}`);
+
+            return { ws, wsResult, cost: 0, output: '' };
+          }
+        }
+        // Unreachable, but TypeScript needs it
+        throw new Error(`Unexpected: ${ws.id} exited retry loop`);
       }));
 
       for (const { ws, wsResult, cost, output } of batchResults) {

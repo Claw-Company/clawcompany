@@ -132,6 +132,8 @@ Respond ONLY with JSON:
 
       console.log(`  📦 Batch ${batch}: ${ready.map(ws => ws.id).join(', ')}\n`);
 
+      const MAX_RETRIES = 2;
+
       const batchResults = await Promise.all(ready.map(async (ws) => {
         const depOutputs: Record<string, string> = {};
         for (const depId of (ws.dependencies ?? [])) {
@@ -148,44 +150,52 @@ Respond ONLY with JSON:
 
         const startTime = Date.now();
 
-        try {
-          const output = await this.executeWorkStream(ws, depOutputs);
-          const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
+          try {
+            const output = await this.executeWorkStream(ws, depOutputs);
+            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
-          totalCost += output.cost;
-          console.log(`     ✅ Done (${elapsed}s, $${output.cost.toFixed(4)})\n`);
+            totalCost += output.cost;
+            console.log(`     ✅ Done (${elapsed}s, $${output.cost.toFixed(4)})${attempt > 1 ? ` [retry ${attempt - 1}]` : ''}\n`);
 
-          return {
-            id: ws.id,
-            result: {
-              workStreamId: ws.id,
-              title: ws.title,
-              assignedTo: ws.assignTo,
-              output: output.content,
-              cost: output.cost,
-              tokensIn: output.tokensIn,
-              tokensOut: output.tokensOut,
-              model: output.model,
-              status: 'completed' as const,
-            },
-          };
-        } catch (err: any) {
-          console.log(`     ❌ Failed: ${err.message}\n`);
-          return {
-            id: ws.id,
-            result: {
-              workStreamId: ws.id,
-              title: ws.title,
-              assignedTo: ws.assignTo,
-              output: `Error: ${err.message}`,
-              cost: 0,
-              tokensIn: 0,
-              tokensOut: 0,
-              model: 'none',
-              status: 'failed' as const,
-            },
-          };
+            return {
+              id: ws.id,
+              result: {
+                workStreamId: ws.id,
+                title: ws.title,
+                assignedTo: ws.assignTo,
+                output: output.content,
+                cost: output.cost,
+                tokensIn: output.tokensIn,
+                tokensOut: output.tokensOut,
+                model: output.model,
+                status: 'completed' as const,
+              },
+            };
+          } catch (err: any) {
+            if (attempt <= MAX_RETRIES) {
+              console.log(`     🔄 ${ws.id}: Retry ${attempt}/${MAX_RETRIES} — ${err.message}`);
+              continue;
+            }
+            console.log(`     ❌ Failed after ${MAX_RETRIES} retries: ${err.message}\n`);
+            return {
+              id: ws.id,
+              result: {
+                workStreamId: ws.id,
+                title: ws.title,
+                assignedTo: ws.assignTo,
+                output: `Error: ${err.message}`,
+                cost: 0,
+                tokensIn: 0,
+                tokensOut: 0,
+                model: 'none',
+                status: 'failed' as const,
+              },
+            };
+          }
         }
+        // Unreachable, but TypeScript needs it
+        throw new Error(`Unexpected: ${ws.id} exited retry loop`);
       }));
 
       for (const { id, result } of batchResults) {

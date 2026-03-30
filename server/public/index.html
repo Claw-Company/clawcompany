@@ -1154,6 +1154,18 @@ async function runMission() {
             progressText.textContent = `${event.role} completed (${wsDone}/${wsCount})`;
           }
 
+          if (event.type === 'ws_retry') {
+            const wsEl = document.getElementById('ws-' + event.id);
+            if (wsEl) {
+              wsEl.querySelector('.ws-icon').textContent = '🔄';
+              wsEl.querySelector('.ws-detail').innerHTML = `
+                <span style="color:var(--amber)">Retrying (${event.attempt}/${event.maxRetries})...</span>
+                <span style="font-family:var(--mono);color:var(--muted)">${(event.error || '').slice(0, 60)}</span>
+              `;
+            }
+            progressText.textContent = `${event.id}: retrying (${event.attempt}/${event.maxRetries})...`;
+          }
+
           if (event.type === 'ws_failed') {
             wsDone++;
             const wsEl = document.getElementById('ws-' + event.id);
