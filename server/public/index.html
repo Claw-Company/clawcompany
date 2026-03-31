@@ -259,6 +259,15 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 </head>
 <body>
 
+<div id="chairmanUpdateBanner" style="display:none;position:fixed;top:60px;right:20px;z-index:1000;background:var(--bg2);border:1px solid var(--coral);border-radius:12px;padding:16px 20px;max-width:400px;box-shadow:0 4px 20px rgba(0,0,0,0.3)">
+  <div style="font-weight:600;color:var(--text);margin-bottom:8px">🧠 Chairman Profile Update Suggested</div>
+  <div id="chairmanSuggestion" style="font-size:12px;color:var(--text2);max-height:200px;overflow-y:auto;margin-bottom:12px;white-space:pre-wrap;font-family:var(--mono)"></div>
+  <div style="display:flex;gap:8px">
+    <button onclick="respondChairmanUpdate('approve')" style="flex:1;background:var(--coral);color:white;border:none;border-radius:6px;padding:8px;cursor:pointer">✅ Approve</button>
+    <button onclick="respondChairmanUpdate('reject')" style="flex:1;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;cursor:pointer">❌ Reject</button>
+  </div>
+</div>
+
 <nav class="sidebar">
   <div class="sidebar-brand">
     <h1><span>🦞</span> <span id="sidebarCompany">ClawCompany</span></h1>
@@ -2809,6 +2818,32 @@ loadStudioRoles();
 loadMemoryPage();
 setInterval(loadHealth, 30000);
 setInterval(syncLobsterState, 5000);
+
+// Chairman auto-learn polling
+async function checkChairmanPending() {
+  try {
+    const res = await fetch(API + '/api/chairman/pending');
+    const data = await res.json();
+    const banner = document.getElementById('chairmanUpdateBanner');
+    if (data.hasPending) {
+      document.getElementById('chairmanSuggestion').textContent = data.suggestion;
+      banner.style.display = 'block';
+    } else {
+      banner.style.display = 'none';
+    }
+  } catch {}
+}
+async function respondChairmanUpdate(action) {
+  await fetch(API + '/api/chairman/pending', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action }),
+  });
+  document.getElementById('chairmanUpdateBanner').style.display = 'none';
+  if (action === 'approve') loadMemoryPage();
+}
+checkChairmanPending();
+setInterval(checkChairmanPending, 30000);
 </script>
 </body>
 </html>

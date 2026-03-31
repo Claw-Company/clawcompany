@@ -162,6 +162,73 @@ function initChairman() {
   if (!existsSync(chairmanPath)) writeFileSync(chairmanPath, DEFAULT_CHAIRMAN);
 }
 
+// ── Chairman Auto-Learn state (in-memory, resets on restart) ──
+let interactionCount = 0;
+let lastLearnAt: string | null = null;
+let pendingChairmanUpdate: string | null = null;
+const recentInteractions: string[] = [];
+const MAX_RECENT = 20;
+
+function recordInteraction(summary: string) {
+  recentInteractions.push(summary);
+  if (recentInteractions.length > MAX_RECENT) recentInteractions.shift();
+  interactionCount++;
+  if (interactionCount % 10 === 0) {
+    autoLearnChairmanProfile().catch(() => {});
+  }
+}
+
+async function autoLearnChairmanProfile() {
+  if (!router) return;
+  const recent = recentInteractions.slice(-10);
+  if (recent.length === 0) return;
+
+  const currentProfile = loadChairman();
+
+  const prompt = `You are analyzing a chairman's interaction history to update their profile.
+
+Current chairman profile:
+${currentProfile || '(empty)'}
+
+Recent interactions (last ${recent.length}):
+${recent.join('\n---\n')}
+
+Based on these interactions, extract or update:
+1. Preferred language (e.g., English, Chinese, mixed)
+2. Industry focus (e.g., AI, crypto, finance, venture capital)
+3. Communication style (e.g., concise, detailed, data-driven)
+4. Common topics and interests
+5. Decision-making patterns
+6. Any other notable preferences
+
+Output the updated chairman profile in this exact format:
+---
+Language: [language preference]
+Industry: [industry focus areas]
+Style: [communication style]
+Topics: [common topics]
+Preferences: [other preferences]
+---
+
+Keep existing accurate information. Only add or update based on new evidence from interactions. Be concise.`;
+
+  try {
+    const leaderRole = resolveRoles(clawConfig).find(r => r.reportsTo === null);
+    const response = await router.chatAsRole(
+      leaderRole?.id || 'ceo',
+      [{ role: 'user', content: prompt }],
+    );
+
+    if (response.content && response.content.trim()) {
+      pendingChairmanUpdate = response.content.trim();
+      lastLearnAt = new Date().toISOString();
+      console.log('  🧠 Chairman profile update suggested');
+    }
+  } catch (err: any) {
+    console.log(`  ⚠️ Chairman auto-learn failed: ${err.message}`);
+  }
+}
+
 // ── Company Memory persistence (Layer 3 — partitioned) ──
 const legacyMemoryPath = `${clawDir}/memory.md`;
 const memoryDir = `${clawDir}/memory`;
@@ -1093,6 +1160,38 @@ app.put('/api/chairman', (req, res) => {
   res.json({ ok: true });
 });
 
+app.get('/api/chairman/pending', (_req, res) => {
+  res.json({
+    hasPending: pendingChairmanUpdate !== null,
+    suggestion: pendingChairmanUpdate ?? '',
+    current: loadChairman(),
+  });
+});
+
+app.post('/api/chairman/pending', (req, res) => {
+  const { action } = req.body;
+  if (action === 'approve' && pendingChairmanUpdate) {
+    saveChairman(pendingChairmanUpdate);
+    console.log('  ✅ Chairman profile update approved');
+    pendingChairmanUpdate = null;
+    res.json({ ok: true, action: 'approved' });
+  } else if (action === 'reject') {
+    console.log('  ❌ Chairman profile update rejected');
+    pendingChairmanUpdate = null;
+    res.json({ ok: true, action: 'rejected' });
+  } else {
+    res.status(400).json({ error: 'action must be "approve" or "reject"' });
+  }
+});
+
+app.get('/api/chairman/stats', (_req, res) => {
+  res.json({
+    interactionCount,
+    lastLearnAt,
+    nextLearnAt: 10 - (interactionCount % 10),
+  });
+});
+
 // ──── Memory API (partitioned) ────
 
 app.get('/api/memory', (_req, res) => {
@@ -1226,6 +1325,7 @@ app.post('/api/chat', async (req, res) => {
           at: new Date().toISOString(),
         });
         saveChats();
+        recordInteraction(`[Chat] Role: ${roleId} | User: ${message.slice(0, 200)} | Reply: ${(response.content || '').slice(0, 200)}`);
         return res.json({
           role: roleId, model: response.model, provider: response.provider,
           content: response.content,
@@ -1635,6 +1735,9 @@ app.post('/api/mission/run-stream', async (req, res) => {
       const missionSummary = `Mission: "${mission.slice(0, 100)}"\nKey roles: ${[...new Set(results.map((r: any) => r.role))].join(', ')}\nCost: $${totalCost.toFixed(4)}, Time: ${totalElapsed}s\nTemplate: ${clawConfig.activeTemplate || 'default'}`;
       appendMemory(missionSummary);
     }
+
+    // Record for chairman auto-learn
+    recordInteraction(`[Mission] "${mission.slice(0, 200)}" | Roles: ${[...new Set(results.map((r: any) => r.role))].join(', ')} | Result: ${(lastOutput || '').slice(0, 200)}`);
 
   } catch (err: any) {
     send('error', { message: err.message });
