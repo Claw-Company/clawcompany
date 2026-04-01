@@ -307,14 +307,20 @@ async function compressPartition(p: MemoryPartition | string, entries: string[])
   // Step 2: Summarize with LLM
   const prompt = `You are a company memory curator. Below are ${entries.length} memory entries from the "${p}" partition of a company's knowledge base.
 
-Summarize these into a concise, well-organized summary of the most important points. Keep key dates, specific decisions, and lessons learned. Remove redundancy but preserve critical details.
+Perform these tasks:
+
+1. SUMMARIZE: Condense into a concise summary of the most important points
+2. DEDUPLICATE: Merge duplicate or near-duplicate entries
+3. RESOLVE CONTRADICTIONS: If two entries conflict, keep the newer/more recent one. Note what was superseded.
+4. UPGRADE CONFIDENCE: Convert uncertain statements ("might", "probably", "seems like") into definitive statements where the evidence across multiple entries supports it
+5. PRESERVE: Keep all key dates, specific decisions, and critical details
 
 Format: Use markdown with clear sections. Keep under 500 words.
 
 Entries:
 ${entries.join('\n---\n')}
 
-Summary:`;
+Output only the consolidated summary. No preamble.`;
 
   try {
     const leaderRole = resolveRoles(clawConfig).find(r => r.reportsTo === null);
