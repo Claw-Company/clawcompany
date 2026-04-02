@@ -1393,8 +1393,14 @@ app.post('/api/chat', async (req, res) => {
       subagentCalls.push({ role: delegateRoleId, task: delegateTask.slice(0, 200), status: 'running' });
 
       try {
-        const subResponse = await router.chatAsRole(delegateRoleId, [
-          { role: 'user', content: delegateTask },
+        const SUBAGENT_TIMEOUT = 30000; // 30s per subagent
+        const subResponse = await Promise.race([
+          router.chatAsRole(delegateRoleId, [
+            { role: 'user', content: delegateTask },
+          ]),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Subagent timeout (30s)')), SUBAGENT_TIMEOUT)
+          ),
         ]);
         totalIn += subResponse.usage.inputTokens;
         totalOut += subResponse.usage.outputTokens;
