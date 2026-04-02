@@ -1310,49 +1310,130 @@ app.post('/api/chat', async (req, res) => {
 
     messages.push({ role: 'user', content: message });
 
-    let totalIn = 0, totalOut = 0, totalCost = 0;
-    const MAX_TOOL_TURNS = 10;
+    // ── Subagent: leader can delegate to team members ──
+    const allRoles = resolveRoles(clawConfig);
+    const currentRole = allRoles.find(r => r.id === roleId);
+    const isLeader = currentRole?.reportsTo === null;
+    const MAX_SUBAGENT = 3;
+    const subagentCalls: { role: string; task: string; status: string }[] = [];
 
-    for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
-      const response = await router.chatAsRole(roleId, messages, tools.length > 0 ? tools : undefined);
-      totalIn += response.usage.inputTokens;
-      totalOut += response.usage.outputTokens;
-      totalCost += response.usage.cost;
-
-      // No tool calls → return final answer
-      if (!response.toolCalls?.length || response.finishReason === 'stop') {
-        chatHistoryData.unshift({
-          id: `chat_${Date.now()}`,
-          role: roleId,
-          model: response.model,
-          input: message.slice(0, 100),
-          cost: totalCost,
-          tokens: totalIn + totalOut,
-          at: new Date().toISOString(),
+    if (isLeader) {
+      const teamRoles = allRoles.filter(r => r.id !== roleId && r.isActive && r.budgetTier !== 'survive');
+      if (teamRoles.length > 0) {
+        const roleList = teamRoles.map(r => `- ${r.id}: ${r.name} — ${r.description?.slice(0, 80) || 'team member'}`).join('\n');
+        messages.unshift({
+          role: 'system',
+          content: `You are the leader. You can delegate tasks to team members by including this exact format in your response:\n[DELEGATE:role_id:task description]\n\nAvailable team members:\n${roleList}\n\nAfter receiving their response, synthesize all information into your final answer. Maximum ${MAX_SUBAGENT} delegations per conversation. Only delegate when the task genuinely benefits from another role's expertise.`,
         });
-        saveChats();
-        recordInteraction(`[Chat] Role: ${roleId} | User: ${message.slice(0, 200)} | Reply: ${(response.content || '').slice(0, 200)}`);
-        return res.json({
-          role: roleId, model: response.model, provider: response.provider,
-          content: response.content,
-          usage: { inputTokens: totalIn, outputTokens: totalOut, cost: totalCost },
-        });
-      }
-
-      // Process tool calls
-      messages.push({ role: 'assistant', content: response.content ?? '', toolCalls: response.toolCalls });
-      for (const tc of response.toolCalls) {
-        const args = JSON.parse(tc.function.arguments);
-        const result = await toolExecutor.execute(tc.function.name, args);
-        messages.push({ role: 'tool', content: result, toolCallId: tc.id });
       }
     }
 
-    // Max turns reached — return whatever we have
+    let totalIn = 0, totalOut = 0, totalCost = 0;
+    const MAX_TOOL_TURNS = 10;
+    let lastModel = roleObj?.model ?? 'unknown';
+    let lastProvider = roleObj?.provider ?? 'unknown';
+    let finalContent = '';
+
+    // Outer loop: handles subagent delegation rounds
+    let subagentRound = 0;
+    const MAX_SUBAGENT_ROUNDS = MAX_SUBAGENT + 1; // +1 for final answer
+
+    for (let round = 0; round < MAX_SUBAGENT_ROUNDS; round++) {
+      // Inner loop: handles tool calls within a single round
+      let roundDone = false;
+
+      for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
+        const response = await router.chatAsRole(roleId, messages, tools.length > 0 ? tools : undefined);
+        totalIn += response.usage.inputTokens;
+        totalOut += response.usage.outputTokens;
+        totalCost += response.usage.cost;
+        lastModel = response.model;
+        lastProvider = response.provider;
+
+        // Tool calls pending → process them and continue inner loop
+        if (response.toolCalls?.length && response.finishReason !== 'stop') {
+          messages.push({ role: 'assistant', content: response.content ?? '', toolCalls: response.toolCalls });
+          for (const tc of response.toolCalls) {
+            const args = JSON.parse(tc.function.arguments);
+            const result = await toolExecutor.execute(tc.function.name, args);
+            messages.push({ role: 'tool', content: result, toolCallId: tc.id });
+          }
+          continue;
+        }
+
+        // No tool calls → check for DELEGATE
+        finalContent = response.content || '';
+        roundDone = true;
+        break;
+      }
+
+      if (!roundDone) {
+        finalContent = '[Chat reached maximum tool turns]';
+        break;
+      }
+
+      // Check for [DELEGATE:roleId:task] in leader response
+      if (!isLeader || subagentRound >= MAX_SUBAGENT) break;
+
+      const delegateMatch = finalContent.match(/\[DELEGATE:([a-zA-Z0-9_-]+):(.+?)\]/s);
+      if (!delegateMatch) break;
+
+      const [, delegateRoleId, delegateTask] = delegateMatch;
+      const delegateRoleObj = allRoles.find(r => r.id === delegateRoleId && r.isActive);
+      if (!delegateRoleObj) {
+        // Invalid role — tell leader and let it retry
+        messages.push({ role: 'assistant', content: finalContent });
+        messages.push({ role: 'user', content: `[System: Role "${delegateRoleId}" not found. Available: ${allRoles.filter(r => r.id !== roleId && r.isActive).map(r => r.id).join(', ')}]` });
+        subagentRound++;
+        continue;
+      }
+
+      subagentRound++;
+      console.log(`  📡 Subagent: ${roleId} → ${delegateRoleId}: ${delegateTask.slice(0, 80)}`);
+      subagentCalls.push({ role: delegateRoleId, task: delegateTask.slice(0, 200), status: 'running' });
+
+      try {
+        const subResponse = await router.chatAsRole(delegateRoleId, [
+          { role: 'user', content: delegateTask },
+        ]);
+        totalIn += subResponse.usage.inputTokens;
+        totalOut += subResponse.usage.outputTokens;
+        totalCost += subResponse.usage.cost;
+
+        const subContent = (subResponse.content || '').slice(0, 2000);
+        messages.push({ role: 'assistant', content: finalContent });
+        messages.push({ role: 'user', content: `[Team Response from ${delegateRoleId} (${delegateRoleObj.name})]:\n${subContent}` });
+        subagentCalls[subagentCalls.length - 1].status = 'done';
+        console.log(`  ✅ Subagent ${delegateRoleId} responded (${subResponse.usage.inputTokens + subResponse.usage.outputTokens} tokens)`);
+      } catch (err: any) {
+        messages.push({ role: 'assistant', content: finalContent });
+        messages.push({ role: 'user', content: `[${delegateRoleId} failed: ${err.message}]` });
+        subagentCalls[subagentCalls.length - 1].status = 'error';
+        console.log(`  ❌ Subagent ${delegateRoleId} failed: ${err.message}`);
+      }
+      // Continue outer loop — leader will process the result
+    }
+
+    // Clean DELEGATE markers from final content
+    const cleanContent = finalContent.replace(/\[DELEGATE:[a-zA-Z0-9_-]+:.+?\]/gs, '').trim();
+
+    chatHistoryData.unshift({
+      id: `chat_${Date.now()}`,
+      role: roleId,
+      model: lastModel,
+      input: message.slice(0, 100),
+      cost: totalCost,
+      tokens: totalIn + totalOut,
+      at: new Date().toISOString(),
+    });
+    saveChats();
+    const subagentLog = subagentCalls.length > 0 ? ` | Subagents: ${subagentCalls.map(s => `${s.role}(${s.status})`).join(',')}` : '';
+    recordInteraction(`[Chat] Role: ${roleId} | User: ${message.slice(0, 200)} | Reply: ${cleanContent.slice(0, 200)}${subagentLog}`);
     res.json({
-      role: roleId, model: roleObj?.model ?? 'unknown', provider: roleObj?.provider ?? 'unknown',
-      content: '[Chat reached maximum tool turns]',
+      role: roleId, model: lastModel, provider: lastProvider,
+      content: cleanContent,
       usage: { inputTokens: totalIn, outputTokens: totalOut, cost: totalCost },
+      ...(subagentCalls.length > 0 && { subagentCalls }),
     });
   } catch (err: any) {
     const errorMsg = err.message || 'Unknown error';
