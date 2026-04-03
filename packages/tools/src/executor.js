@@ -97,7 +97,7 @@ export class ToolExecutor {
                     'Accept': 'text/html,application/xhtml+xml,text/plain,application/json',
                 },
                 redirect: 'follow',
-                signal: AbortSignal.timeout(15_000),
+                signal: AbortSignal.timeout(30_000),
             });
             if (!response.ok) {
                 return `Error: HTTP ${response.status} ${response.statusText}`;
@@ -132,7 +132,7 @@ export class ToolExecutor {
         }
         catch (err) {
             if (err.name === 'TimeoutError')
-                return 'Error: Request timed out (15s)';
+                return 'Error: Request timed out (30s)';
             return `Error: ${err.message}`;
         }
     }
@@ -146,7 +146,7 @@ export class ToolExecutor {
                 headers: {
                     'User-Agent': 'ClawCompany/1.0 (AI Agent)',
                 },
-                signal: AbortSignal.timeout(10_000),
+                signal: AbortSignal.timeout(30_000),
             });
             if (!response.ok) {
                 return `Error: Search failed with HTTP ${response.status}`;
@@ -202,7 +202,7 @@ export class ToolExecutor {
         }
         catch (err) {
             if (err.name === 'TimeoutError')
-                return 'Error: Search timed out (10s)';
+                return 'Error: Search timed out (30s)';
             return `Error: ${err.message}`;
         }
     }
@@ -253,7 +253,7 @@ export class ToolExecutor {
                 return `Unknown browser action: ${action}. Valid: open, state, click, type, input, screenshot, eval, scroll, close`;
         }
         try {
-            const { stdout, stderr } = await execAsync(cmd, { timeout: 30_000 });
+            const { stdout, stderr } = await execAsync(cmd, { timeout: 60_000 });
             return stdout + (stderr ? `\nSTDERR: ${stderr}` : '');
         }
         catch (err) {
@@ -268,7 +268,7 @@ export class ToolExecutor {
         const currency = (args.currency ?? 'usd').toLowerCase();
         try {
             const controller = new AbortController();
-            setTimeout(() => controller.abort(), 10000);
+            setTimeout(() => controller.abort(), 20000);
             const url = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(asset)}&vs_currencies=${currency}&include_market_cap=true&include_24hr_vol=true&include_24hr_change=true`;
             const res = await fetch(url, { signal: controller.signal });
             const data = await res.json();
@@ -296,7 +296,7 @@ export class ToolExecutor {
         }
         catch (err) {
             if (err.name === 'AbortError')
-                return 'Error: Price feed timed out (10s)';
+                return 'Error: Price feed timed out (20s)';
             return `Error fetching price: ${err.message}`;
         }
     }
