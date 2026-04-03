@@ -1157,15 +1157,6 @@ async function runMission() {
                 toggleEl.onclick = () => toggleOutput(event.id, event.output);
                 wsEl.querySelector('.ws-info').appendChild(toggleEl);
               }
-              // Export buttons
-              const exportRow = document.createElement('div');
-              exportRow.style.cssText = 'display:flex;gap:6px;margin-top:6px';
-              exportRow.innerHTML = `
-                <button onclick="exportDoc('pptx', this)" style="font-size:11px;padding:3px 8px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:4px;cursor:pointer">PPT</button>
-                <button onclick="exportDoc('docx', this)" style="font-size:11px;padding:3px 8px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:4px;cursor:pointer">Word</button>
-                <button onclick="exportDoc('pdf', this)" style="font-size:11px;padding:3px 8px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:4px;cursor:pointer">PDF</button>
-              `;
-              wsEl.querySelector('.ws-info').appendChild(exportRow);
               // Store full output
               wsEl.dataset.output = event.output || '';
             }
@@ -1201,10 +1192,22 @@ async function runMission() {
             progressText.textContent = 'Delivered to Chairman!';
             setTimeout(() => { progress.style.display = 'none'; }, 2000);
 
+            // Build final report from last completed work stream
+            const completedWs = (event.workStreams || []).filter(w => w.status === 'completed' && w.output);
+            const finalReport = completedWs.length ? completedWs[completedWs.length - 1].output : '';
+            _wsOutputCache['live-mission-report'] = finalReport;
+
+            const exportBtns = finalReport ? `
+              <button onclick="exportMissionReport('pptx', this, 'live-mission-report')" style="font-size:11px;padding:3px 8px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:4px;cursor:pointer">PPT</button>
+              <button onclick="exportMissionReport('docx', this, 'live-mission-report')" style="font-size:11px;padding:3px 8px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:4px;cursor:pointer">Word</button>
+              <button onclick="exportMissionReport('pdf', this, 'live-mission-report')" style="font-size:11px;padding:3px 8px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:4px;cursor:pointer">PDF</button>
+            ` : '';
+
             document.getElementById('liveMeta').innerHTML = `
               <span>${event.totalCost}</span>
               <span>${event.totalTime}</span>
               <span>${event.workStreams.length} streams</span>
+              ${exportBtns}
             `;
 
             // Update overview stats
@@ -1235,22 +1238,28 @@ async function runMission() {
   input.focus();
 }
 
-// Export work stream output as PPT/Word/PDF
-async function exportDoc(format, btn) {
-  const wsEl = btn.closest('[id^="ws-"]');
-  const uid = wsEl?.dataset?.wsuid;
-  const output = (uid && _wsOutputCache[uid]) || wsEl?.dataset?.output || '';
-  if (!output) return alert('No content to export');
-
+// Export mission Final Report as PPT/Word/PDF
+async function exportMissionReport(format, btn, missionId) {
   const origText = btn.textContent;
   btn.textContent = '...';
   btn.disabled = true;
 
   try {
+    // Get report content: from cache (live mission) or fetch from API (history)
+    let content = _wsOutputCache[missionId] || '';
+    if (!content && missionId !== 'live-mission-report') {
+      const mRes = await fetch(API + '/api/missions/' + missionId);
+      if (!mRes.ok) throw new Error('Failed to load mission');
+      const m = await mRes.json();
+      content = m.result || '';
+      if (content) _wsOutputCache[missionId] = content;
+    }
+    if (!content) { alert('No report content to export'); return; }
+
     const res = await fetch(API + '/api/export', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: output, format, filename: 'clawcompany-report' }),
+      body: JSON.stringify({ content, format, filename: 'clawcompany-report' }),
     });
 
     if (!res.ok) {
@@ -1324,6 +1333,11 @@ async function loadMissionHistory() {
               ${m.totalCost ? `<span style="font-size:11px;color:var(--text3)">${m.totalCost}</span>` : ''}
               ${m.totalTime ? `<span style="font-size:11px;color:var(--text3)">${m.totalTime}</span>` : ''}
               <span style="font-size:11px;color:var(--text3)">${m.template}</span>
+              ${m.status === 'completed' ? `
+                <button onclick="event.stopPropagation();exportMissionReport('pptx', this, '${m.id}')" style="font-size:11px;padding:3px 8px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:4px;cursor:pointer">PPT</button>
+                <button onclick="event.stopPropagation();exportMissionReport('docx', this, '${m.id}')" style="font-size:11px;padding:3px 8px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:4px;cursor:pointer">Word</button>
+                <button onclick="event.stopPropagation();exportMissionReport('pdf', this, '${m.id}')" style="font-size:11px;padding:3px 8px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:4px;cursor:pointer">PDF</button>
+              ` : ''}
               <button onclick="event.stopPropagation();deleteMission('${m.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:2px 4px;opacity:0.4;transition:opacity .15s" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.4'" title="Delete">×</button>
             </div>
           </div>
@@ -1412,11 +1426,6 @@ async function expandMission(id) {
             </div>
             <div id="wsout-${uid}" class="md-output" style="margin-top:6px;max-height:none;cursor:default;border:none;padding:0;background:none">${typeof marked !== 'undefined' ? marked.parse(preview) : preview}${hasMore ? '<div style="color:var(--text3)">...</div>' : ''}</div>
             ${hasMore ? `<div id="wstoggle-${uid}" style="font-size:11px;color:var(--coral2);margin-top:4px;cursor:pointer" onclick="event.stopPropagation();toggleWsOutput('${uid}')">▶ Show full output</div>` : ''}
-            ${ws.status === 'completed' && output ? `<div style="display:flex;gap:6px;margin-top:6px">
-              <button onclick="event.stopPropagation();exportDoc('pptx', this)" style="font-size:11px;padding:3px 8px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:4px;cursor:pointer">PPT</button>
-              <button onclick="event.stopPropagation();exportDoc('docx', this)" style="font-size:11px;padding:3px 8px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:4px;cursor:pointer">Word</button>
-              <button onclick="event.stopPropagation();exportDoc('pdf', this)" style="font-size:11px;padding:3px 8px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:4px;cursor:pointer">PDF</button>
-            </div>` : ''}
           </div>`;
         }).join('');
         html += `</div>`;
