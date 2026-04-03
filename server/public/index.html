@@ -1238,7 +1238,8 @@ async function runMission() {
 // Export work stream output as PPT/Word/PDF
 async function exportDoc(format, btn) {
   const wsEl = btn.closest('[id^="ws-"]');
-  const output = wsEl?.dataset?.output || '';
+  const uid = wsEl?.dataset?.wsuid;
+  const output = (uid && _wsOutputCache[uid]) || wsEl?.dataset?.output || '';
   if (!output) return alert('No content to export');
 
   const origText = btn.textContent;
@@ -1403,14 +1404,19 @@ async function expandMission(id) {
           const preview = output.slice(0, 500);
           const hasMore = output.length > 500;
           const uid = id + '-ws-' + i;
-          if (hasMore) _wsOutputCache[uid] = output;
-          return `<div style="margin-bottom:12px;padding:8px;background:rgba(255,255,255,0.03);border-radius:6px">
+          _wsOutputCache[uid] = output;
+          return `<div id="ws-hist-${uid}" data-wsuid="${uid}" style="margin-bottom:12px;padding:8px;background:rgba(255,255,255,0.03);border-radius:6px">
             <div style="display:flex;justify-content:space-between;align-items:center">
               <span>${statusIcon} <strong>${ws.title}</strong></span>
               <span style="font-size:11px;color:var(--text3)">${ws.role} · ${ws.model} · ${ws.cost} · ${ws.time}</span>
             </div>
             <div id="wsout-${uid}" class="md-output" style="margin-top:6px;max-height:none;cursor:default;border:none;padding:0;background:none">${typeof marked !== 'undefined' ? marked.parse(preview) : preview}${hasMore ? '<div style="color:var(--text3)">...</div>' : ''}</div>
             ${hasMore ? `<div id="wstoggle-${uid}" style="font-size:11px;color:var(--coral2);margin-top:4px;cursor:pointer" onclick="event.stopPropagation();toggleWsOutput('${uid}')">▶ Show full output</div>` : ''}
+            ${ws.status === 'completed' && output ? `<div style="display:flex;gap:6px;margin-top:6px">
+              <button onclick="event.stopPropagation();exportDoc('pptx', this)" style="font-size:11px;padding:3px 8px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:4px;cursor:pointer">PPT</button>
+              <button onclick="event.stopPropagation();exportDoc('docx', this)" style="font-size:11px;padding:3px 8px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:4px;cursor:pointer">Word</button>
+              <button onclick="event.stopPropagation();exportDoc('pdf', this)" style="font-size:11px;padding:3px 8px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:4px;cursor:pointer">PDF</button>
+            </div>` : ''}
           </div>`;
         }).join('');
         html += `</div>`;
