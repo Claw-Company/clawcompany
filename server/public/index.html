@@ -1157,6 +1157,15 @@ async function runMission() {
                 toggleEl.onclick = () => toggleOutput(event.id, event.output);
                 wsEl.querySelector('.ws-info').appendChild(toggleEl);
               }
+              // Export buttons
+              const exportRow = document.createElement('div');
+              exportRow.style.cssText = 'display:flex;gap:6px;margin-top:6px';
+              exportRow.innerHTML = `
+                <button onclick="exportDoc('pptx', this)" style="font-size:11px;padding:3px 8px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:4px;cursor:pointer">PPT</button>
+                <button onclick="exportDoc('docx', this)" style="font-size:11px;padding:3px 8px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:4px;cursor:pointer">Word</button>
+                <button onclick="exportDoc('pdf', this)" style="font-size:11px;padding:3px 8px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:4px;cursor:pointer">PDF</button>
+              `;
+              wsEl.querySelector('.ws-info').appendChild(exportRow);
               // Store full output
               wsEl.dataset.output = event.output || '';
             }
@@ -1224,6 +1233,43 @@ async function runMission() {
   input.disabled = false;
   input.value = '';
   input.focus();
+}
+
+// Export work stream output as PPT/Word/PDF
+async function exportDoc(format, btn) {
+  const wsEl = btn.closest('[id^="ws-"]');
+  const output = wsEl?.dataset?.output || '';
+  if (!output) return alert('No content to export');
+
+  const origText = btn.textContent;
+  btn.textContent = '...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(API + '/api/export', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: output, format, filename: 'clawcompany-report' }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Export failed');
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `clawcompany-report.${format}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    alert('Export failed: ' + err.message);
+  } finally {
+    btn.textContent = origText;
+    btn.disabled = false;
+  }
 }
 
 // Toggle full output display with rendered markdown
