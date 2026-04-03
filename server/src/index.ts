@@ -1933,7 +1933,7 @@ async function ensureExportDep(format: string) {
   } catch {
     console.log(`  📦 Installing ${pkg} for ${format} export (one-time)...`);
     const { execSync } = await import('child_process');
-    execSync(`npm install ${pkg} --no-save`, { cwd: join(__dirname, '../..'), stdio: 'pipe' });
+    execSync(`pnpm add ${pkg}`, { cwd: join(__dirname, '..'), stdio: 'pipe', timeout: 120_000 });
     console.log(`  ✅ ${pkg} installed`);
   }
 }

@@ -13,8 +13,11 @@
     "@clawcompany/task-orchestrator": "workspace:*",
     "@clawcompany/tools": "workspace:*",
     "cors": "^2.8.5",
+    "docx": "^9.6.1",
     "dotenv": "^16.4.0",
     "express": "^4.21.0",
+    "pdf-lib": "^1.17.1",
+    "pptxgenjs": "^4.0.1",
     "ws": "^8.20.0"
   },
   "optionalDependencies": {
