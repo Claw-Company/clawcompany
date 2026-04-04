@@ -97,6 +97,7 @@ Agents use a **think → act → observe** loop autonomously.
 - 💻 **[Code Manager](https://clawcompany.org#code-manager)** — ∞ terminals in one Dashboard
 - 📈 **[Price Feed](https://clawcompany.org#price)** — Real-time crypto + stocks, zero AI cost
 - 🛒 **[ClawMall](https://clawcompany.org#clawmall)** — Download company templates, skills, tools
+- 📄 **Export** — Download mission reports as PPT, Word, or PDF
 - 📡 **[Channels](https://clawcompany.org#channels)** — WebChat, Telegram, Discord (Slack coming)
 - 🔌 **[Providers](https://clawcompany.org#providers)** — 5 built-in, add your own
 
