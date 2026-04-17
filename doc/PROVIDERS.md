@@ -57,7 +57,7 @@ Any endpoint that speaks OpenAI-compatible format works out of the box.
 
 ```bash
 # Use Anthropic direct for CEO instead of ClawAPI
-clawcompany role set ceo --model claude-opus-4-6 --provider anthropic
+clawcompany role set ceo --model claude-opus-4-7 --provider anthropic
 
 # Use local Ollama for Worker (free)
 clawcompany role set worker --model qwen3-coder:32b --provider ollama

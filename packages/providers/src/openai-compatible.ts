@@ -47,7 +47,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
   private static readonly MODEL_FALLBACK: Record<string, string> = {
     'gpt-5-mini': 'gemini-3.1-flash-lite',  // reasoning model timeout → fast model
     'gpt-5.4': 'claude-sonnet-4-6',          // GPT timeout → Sonnet
-    'claude-opus-4-6': 'claude-sonnet-4-6',  // Opus timeout → Sonnet
+    'claude-opus-4-7': 'claude-sonnet-4-6',  // Opus timeout → Sonnet
   };
 
   async chat(params: ChatParams): Promise<ChatResponse> {

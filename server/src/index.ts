@@ -97,6 +97,44 @@ clawConfig.providers[0].apiKey = process.env.CLAWAPI_KEY ?? '';
   }
 }
 
+// ── Auto-migrate retired model strings ──
+// When a model is retired, add an entry here. On next startup, every
+// role.model in ~/.clawcompany/config.json matching a key gets rewritten
+// to the mapped value and saved. Keeps existing users on live models
+// without any manual action.
+const MODEL_MIGRATIONS: Record<string, string> = {
+  'claude-opus-4-6': 'claude-opus-4-7',
+};
+
+{
+  const _cfgPath = `${process.env.HOME ?? '~'}/.clawcompany/config.json`;
+  if (existsSync(_cfgPath)) {
+    try {
+      const _cfg = JSON.parse(readFileSync(_cfgPath, 'utf-8'));
+      const _migrated: Array<{ id: string; from: string; to: string }> = [];
+      if (_cfg.roles && typeof _cfg.roles === 'object') {
+        for (const [id, role] of Object.entries<any>(_cfg.roles)) {
+          const from = role?.model;
+          if (typeof from === 'string' && MODEL_MIGRATIONS[from]) {
+            const to = MODEL_MIGRATIONS[from];
+            role.model = to;
+            if ((clawConfig.roles as any)?.[id]) {
+              (clawConfig.roles as any)[id].model = to;
+            }
+            _migrated.push({ id, from, to });
+          }
+        }
+      }
+      if (_migrated.length > 0) {
+        writeFileSync(_cfgPath, JSON.stringify(_cfg, null, 2));
+        for (const m of _migrated) {
+          console.log(`  ℹ Auto-migrated ${m.id.toUpperCase()} model: ${m.from} → ${m.to}`);
+        }
+      }
+    } catch {}
+  }
+}
+
 const registry = new ProviderRegistry();
 let router: ModelRouter;
 let orchestrator: TaskOrchestrator;
@@ -461,7 +499,7 @@ function saveChats() {
 
 // Model mapping for auto-remap when ClawAPI is not available
 const PROVIDER_MODEL_MAP: Record<string, { earn: string; save: string }> = {
-  anthropic: { earn: 'claude-opus-4-6', save: 'claude-sonnet-4-6' },
+  anthropic: { earn: 'claude-opus-4-7', save: 'claude-sonnet-4-6' },
   openai:    { earn: 'gpt-5.4', save: 'gpt-5-mini' },
   google:    { earn: 'gemini-3.1-pro', save: 'gemini-3.1-flash' },
   ollama:    { earn: 'llama3', save: 'llama3' },
@@ -690,7 +728,7 @@ app.get('/api/roles', (_req, res) => {
 app.get('/api/models', (_req, res) => {
   const providerModels: Record<string, Array<{ id: string; label: string; input: number; output: number }>> = {
     clawapi: [
-      { id: 'claude-opus-4-6', label: 'Claude Opus 4.6', input: 5.00, output: 25.00 },
+      { id: 'claude-opus-4-7', label: 'Claude Opus 4.7', input: 5.00, output: 25.00 },
       { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', input: 3.00, output: 15.00 },
       { id: 'gpt-5.4', label: 'GPT-5.4', input: 2.50, output: 15.00 },
       { id: 'gpt-5-mini', label: 'GPT-5 Mini', input: 0.25, output: 2.00 },
@@ -700,7 +738,7 @@ app.get('/api/models', (_req, res) => {
       { id: 'gpt-oss-20b', label: 'GPT-OSS 20B', input: 0.04, output: 0.18 },
     ],
     anthropic: [
-      { id: 'claude-opus-4-6', label: 'Claude Opus 4.6', input: 5.00, output: 25.00 },
+      { id: 'claude-opus-4-7', label: 'Claude Opus 4.7', input: 5.00, output: 25.00 },
       { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', input: 3.00, output: 15.00 },
     ],
     openai: [

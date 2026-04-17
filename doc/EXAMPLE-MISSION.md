@@ -25,7 +25,7 @@ That's it. You go get coffee. The company handles the rest.
 
 ## Step 2: CEO decomposes the mission
 
-The CEO (claude-opus-4-6) receives your mission and thinks strategically:
+The CEO (claude-opus-4-7) receives your mission and thinks strategically:
 
 - What work is needed? Data collection, research, marketing analysis, formatting.
 - Who should do what? Match each work stream to the cheapest role that can handle it well.
@@ -146,7 +146,7 @@ What if we ran the exact same mission using only Opus for everything?
 
 | Step | Role | ClawCompany model | Actual cost | If all Opus |
 |---|---|---|---|---|
-| Decompose mission | CEO | opus-4-6 | $0.0266 | $0.0266 (same) |
+| Decompose mission | CEO | opus-4-7 | $0.0266 | $0.0266 (same) |
 | Data collection | Worker | flash-lite | $0.0008 | ~$0.40 |
 | Deep analysis | Researcher | sonnet-4-6 | $0.0263 | ~$0.45 |
 | Market positioning | CMO | sonnet-4-6 | $0.0090 | ~$0.45 |

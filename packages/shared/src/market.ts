@@ -261,7 +261,7 @@ export const TEMPLATE_ROLES: Record<string, Record<string, any>> = {
     custom_editor: {
       name: 'Editor',
       description: 'Review and improve content, fact-check, style guide',
-      model: 'claude-opus-4-6',
+      model: 'claude-opus-4-7',
       reportsTo: 'cmo',
       tools: ['filesystem'],
     },

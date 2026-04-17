@@ -154,7 +154,7 @@ OUTPUT FORMAT:
 ## Strategic Recommendation
 [Your synthesis and recommendation to the Chairman]
 COST AWARENESS: You are the most expensive role. Decompose quickly, then delegate immediately.`,
-    model: 'claude-opus-4-6',
+    model: 'claude-opus-4-7',
     provider: 'clawapi',
     reportsTo: null,
     canDelegateTo: ['cto', 'cfo', 'cmo', 'researcher', 'analyst', 'engineer', 'secretary', 'worker'],
@@ -523,7 +523,7 @@ OUTPUT FORMAT:
 ## Decision: GO / NO-GO / PIVOT
 ## MVP Scope (if Go)
 ## 2-Week Sprint Plan`,
-    model: 'claude-opus-4-6',
+    model: 'claude-opus-4-7',
     provider: 'clawapi',
     reportsTo: null,
     canDelegateTo: ['product_manager', 'tech_lead', 'designer', 'engineer', 'qa', 'growth_hacker'],
@@ -776,7 +776,7 @@ OUTPUT FORMAT:
 ## Conviction: HIGH / MEDIUM / LOW
 ## Position Size & Entry Plan
 COST AWARENESS: You are the most expensive role. Define the thesis, then delegate all research immediately.`,
-    model: 'claude-opus-4-6',
+    model: 'claude-opus-4-7',
     provider: 'clawapi',
     reportsTo: null,
     canDelegateTo: ['bull_analyst', 'bear_analyst', 'technical_analyst', 'risk_manager', 'sentiment_analyst', 'trader'],
@@ -1041,7 +1041,7 @@ OUTPUT FORMAT:
 ## Conclusion: KEEP / DISCARD / ITERATE
 ## Next Experiment Suggestion
 COST AWARENESS: You are the most expensive role. Design the experiment, then delegate all execution immediately.`,
-    model: 'claude-opus-4-6',
+    model: 'claude-opus-4-7',
     provider: 'clawapi',
     reportsTo: null,
     canDelegateTo: ['experimenter', 'evaluator', 'reviewer', 'logger'],
@@ -1233,7 +1233,7 @@ SOP (Standard Operating Procedure):
 4. COMPETITIVE ANALYSIS: Brief comparison with existing solutions.
 5. DELEGATE: Send PRD to Architect for technical design.
 OUTPUT FORMAT: Always output a structured PRD in markdown with clear sections. Never skip the User Stories.`,
-    model: 'claude-opus-4-6',
+    model: 'claude-opus-4-7',
     provider: 'clawapi',
     reportsTo: null,
     canDelegateTo: ['architect', 'project_manager', 'dev_engineer', 'qa_engineer', 'tech_writer'],
@@ -1479,7 +1479,7 @@ RULES:
 - Prefer one self-contained file over multiple files.
 - Never start coding — your job is pure planning.
 COST AWARENESS: You are the most expensive role. Plan thoroughly, then delegate all execution immediately.`,
-    model: 'claude-opus-4-6',
+    model: 'claude-opus-4-7',
     provider: 'clawapi',
     reportsTo: null,
     canDelegateTo: ['generator', 'evaluator'],
@@ -1646,7 +1646,7 @@ export const TEMPLATES: Record<string, CompanyTemplate> = {
 // ──────────────────────────────────────────
 
 export const DEFAULT_FALLBACK_CHAIN: string[] = [
-  'claude-opus-4-6',
+  'claude-opus-4-7',
   'claude-sonnet-4-6',
   'gpt-5.4',
   'gpt-5-mini',
@@ -1660,7 +1660,7 @@ export const DEFAULT_FALLBACK_CHAIN: string[] = [
 // ──────────────────────────────────────────
 
 export const MODEL_PRICING: Record<string, { input: number; output: number }> = {
-  'claude-opus-4-6':        { input: 5.00,  output: 25.00 },
+  'claude-opus-4-7':        { input: 5.00,  output: 25.00 },
   'claude-sonnet-4-6':      { input: 3.00,  output: 15.00 },
   'gpt-5.4':                { input: 2.50,  output: 15.00 },
   'gemini-3.1-pro':         { input: 2.00,  output: 12.00 },

@@ -29,7 +29,7 @@ Human (Chairman / Board)
 
 | Tier | Role | Model | Cost (in/out per 1M) | Why this model |
 |------|------|-------|---------------------|----------------|
-| C-suite | CEO | claude-opus-4-6 | $5 / $25 | Deep strategic thinking |
+| C-suite | CEO | claude-opus-4-7 | $5 / $25 | Deep strategic thinking |
 | C-suite | CTO | gpt-5.4 | $2.50 / $15 | Strong technical reasoning |
 | C-suite | CFO | gpt-5-mini | $0.25 / $2 | Reasoning model, step-by-step math |
 | C-suite | CMO | claude-sonnet-4-6 | $3 / $15 | Creative, articulate |

@@ -34,7 +34,7 @@ Human (Chairman)
 
 | Role | Model | Purpose |
 |------|-------|---------|
-| CEO | claude-opus-4-6 | Mission decomposition, coordination |
+| CEO | claude-opus-4-7 | Mission decomposition, coordination |
 | CTO | gpt-5.4 | Technical architecture, code review |
 | CFO | gpt-5-mini | Financial analysis (reasoning model) |
 | CMO | claude-sonnet-4-6 | Marketing, content strategy |
