@@ -8,6 +8,25 @@ Your AI company remembers everything — locally.
 
 ---
 
+## 🏹 Sagit — The Desktop Experience
+
+If you want the same AI company architecture packaged as a signed, 
+notarized macOS app — with a polished UI, 4-layer memory, Knowledge 
+Wiki, and document delivery out of the box — check out 
+**[Sagit](https://sagit.ai)**.
+
+Sagit is a closed-source sibling project built on the same 
+*thin harness + fat skill* philosophy. Both are fully BYOK 
+(bring your own API key). Pick whichever fits your workflow.
+
+**ClawCompany** continues as a free open-source option. Maintenance 
+cadence is slower as we focus on Sagit, but contributions and forks 
+are always welcome.
+
+[→ Download Sagit for macOS](https://sagit.ai)
+
+---
+
 ## Quick Start
 ```bash
 npx clawcompany
