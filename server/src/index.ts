@@ -729,6 +729,7 @@ app.get('/api/models', (_req, res) => {
   const providerModels: Record<string, Array<{ id: string; label: string; input: number; output: number }>> = {
     clawapi: [
       { id: 'claude-opus-4-7', label: 'Claude Opus 4.7', input: 5.00, output: 25.00 },
+      { id: 'gpt-5.5', label: 'GPT-5.5', input: 5.00, output: 30.00 },
       { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', input: 3.00, output: 15.00 },
       { id: 'gpt-5.4', label: 'GPT-5.4', input: 2.50, output: 15.00 },
       { id: 'gpt-5-mini', label: 'GPT-5 Mini', input: 0.25, output: 2.00 },
@@ -742,6 +743,7 @@ app.get('/api/models', (_req, res) => {
       { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', input: 3.00, output: 15.00 },
     ],
     openai: [
+      { id: 'gpt-5.5', label: 'GPT-5.5', input: 5.00, output: 30.00 },
       { id: 'gpt-5.4', label: 'GPT-5.4', input: 2.50, output: 15.00 },
       { id: 'gpt-5-mini', label: 'GPT-5 Mini', input: 0.25, output: 2.00 },
     ],

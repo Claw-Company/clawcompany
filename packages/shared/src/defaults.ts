@@ -1661,6 +1661,7 @@ export const DEFAULT_FALLBACK_CHAIN: string[] = [
 
 export const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   'claude-opus-4-7':        { input: 5.00,  output: 25.00 },
+  'gpt-5.5':                { input: 5.00,  output: 30.00 },
   'claude-sonnet-4-6':      { input: 3.00,  output: 15.00 },
   'gpt-5.4':                { input: 2.50,  output: 15.00 },
   'gemini-3.1-pro':         { input: 2.00,  output: 12.00 },

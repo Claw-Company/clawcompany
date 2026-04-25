@@ -47,7 +47,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
   private static readonly MODEL_FALLBACK: Record<string, string> = {
     'gpt-5-mini': 'gemini-3.1-flash-lite',  // reasoning model timeout → fast model
     'gpt-5.4': 'claude-sonnet-4-6',          // GPT timeout → Sonnet
-    'claude-opus-4-7': 'claude-sonnet-4-6',  // Opus timeout → Sonnet
+    'claude-opus-4-7': 'gpt-5.5',            // Opus timeout → GPT-5.5 (added 2026-04-23)
   };
 
   async chat(params: ChatParams): Promise<ChatResponse> {
@@ -248,7 +248,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
   }
 
   private isReasoningModel(model: string): boolean {
-    return /^(o1|o3|gpt-5-mini)/.test(model);
+    return /^(o1|o3|gpt-5-mini|gpt-5\.5)/.test(model);
   }
 
   async listModels(): Promise<ModelInfo[]> {
