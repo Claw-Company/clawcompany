@@ -139,3 +139,21 @@ API runs at `http://localhost:3200`.
 MIT © 2026 ClawCompany
 
 **Build for OPC. Every human being is a chairman.**
+
+
+## Installation
+
+```bash
+pip install -r requirements.txt
+```
+
+## Usage
+
+```python
+# Example usage
+```
+
+
+## Contributing
+
+Contributions are welcome! Please open an issue first.
